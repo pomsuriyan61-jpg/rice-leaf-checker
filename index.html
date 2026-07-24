@@ -331,6 +331,14 @@
     margin-bottom: 18px;
   }
 
+  .result-source-note {
+    font-size: 0.78rem;
+    color: #8A8F80;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #F0EDE2;
+  }
+
   .result-row {
     display: grid;
     grid-template-columns: minmax(90px, auto) 1fr 48px;
@@ -686,19 +694,20 @@
 
     try {
       // Stage 1: cheap rule-based pre-check (color + texture). Images that
-      // don't look plant-like at all skip the model entirely — the model
-      // always forces a Rice / not-Rice answer even on totally unrelated
-      // photos, so running it on an obvious non-match would just produce a
-      // confident, meaningless number.
+      // don't look plant-like at all are decided right here as the negative
+      // class ("not Rice") without ever calling the model — the model is
+      // trained to always force a Rice / not-Rice answer, so it can't be
+      // trusted to say "neither" on its own.
       const preCheck = analyzeImagePlausibility(currentImage);
 
       if (preCheck.skipModel) {
-        renderSkippedResult(preCheck);
+        const forcedResult = buildForcedNegativeResult();
+        renderResults(forcedResult, preCheck, { forcedByPreCheck: true });
       } else {
         const dims = getInputDims();
         const features = extractFeatures(currentImage, dims.width, dims.height);
         const result = classifier.classify(features);
-        renderResults(result, preCheck);
+        renderResults(result, preCheck, { forcedByPreCheck: false });
       }
     } catch (err) {
       showError('วิเคราะห์ภาพไม่สำเร็จ: ' + (err && err.message ? err.message : err));
@@ -706,6 +715,25 @@
       setScanning(false);
     }
   });
+
+  // When the pre-check decides an image isn't plant-like at all, build a
+  // synthetic result shaped exactly like classifier.classify()'s output so
+  // it can flow through the same rendering path. The negative label is
+  // guessed from the model's own label list (anything containing "not",
+  // "non", "other" etc.) so this keeps working if the model is retrained
+  // with different label names later.
+  function buildForcedNegativeResult() {
+    const labels = (modelProps && modelProps.labels) || ['Rice', 'not Rice'];
+    const negativeLabel = labels.find(function (l) {
+      return /not|non|other|ไม่ใช่/i.test(l);
+    }) || labels[labels.length - 1];
+
+    const results = labels.map(function (l) {
+      return { label: l, value: l === negativeLabel ? 1 : 0 };
+    });
+
+    return { results: results, anomaly: 0 };
+  }
 
   function extractFeatures(img, width, height) {
     const canvas = document.createElement('canvas');
@@ -721,10 +749,19 @@
     return features;
   }
 
-  function renderResults(result, tone) {
+  function renderResults(result, tone, options) {
+    const forcedByPreCheck = !!(options && options.forcedByPreCheck);
     els.resultsSection.hidden = false;
-    const sorted = result.results.slice().sort(function (a, b) { return b.value - a.value; });
     els.resultsList.innerHTML = '';
+
+    const sourceNote = document.createElement('div');
+    sourceNote.className = 'result-source-note';
+    sourceNote.textContent = forcedByPreCheck
+      ? 'ผลนี้ตัดสินจากด่านเช็คสี/ลายเบื้องต้น — ไม่ได้ส่งภาพนี้ให้ AI ตรวจ เพราะไม่มีลักษณะของพืชเลย'
+      : 'ผลจากโมเดล AI ที่คุณเทรนไว้';
+    els.resultsList.appendChild(sourceNote);
+
+    const sorted = result.results.slice().sort(function (a, b) { return b.value - a.value; });
 
     sorted.forEach(function (r, idx) {
       const pct = Math.round(r.value * 100);
@@ -897,21 +934,6 @@
     }
     if (h < 0) h += 360;
     return { h: h, s: s, l: l };
-  }
-
-  function renderSkippedResult(preCheck) {
-    els.resultsSection.hidden = false;
-    els.resultsList.innerHTML = '';
-
-    const notice = document.createElement('div');
-    notice.className = 'result-anomaly';
-    notice.style.fontSize = '0.95rem';
-    notice.style.color = 'var(--paddy-deep)';
-    notice.textContent = 'ไม่ได้ส่งภาพนี้ให้โมเดล AI ตรวจ — ดูเหตุผลด้านล่าง';
-    els.resultsList.appendChild(notice);
-
-    renderTone(preCheck);
-    els.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function renderTone(tone) {
