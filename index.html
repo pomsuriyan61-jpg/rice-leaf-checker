@@ -540,7 +540,7 @@
     <div id="results-list"></div>
 
     <div class="tone-card" id="tone-card" hidden>
-      <div class="tone-title">เช็คโทนสีภาพ (ระบบเสริม)</div>
+      <div class="tone-title">เช็คลักษณะภาพเบื้องต้น: สี + ลาย/พื้นผิว (ระบบเสริม)</div>
       <div class="tone-badge" id="tone-badge"></div>
       <p class="tone-text" id="tone-text"></p>
     </div>
@@ -685,11 +685,21 @@
     await new Promise(function (resolve) { setTimeout(resolve, 60); });
 
     try {
-      const dims = getInputDims();
-      const features = extractFeatures(currentImage, dims.width, dims.height);
-      const result = classifier.classify(features);
-      const tone = analyzeColorTone(currentImage);
-      renderResults(result, tone);
+      // Stage 1: cheap rule-based pre-check (color + texture). Images that
+      // don't look plant-like at all skip the model entirely — the model
+      // always forces a Rice / not-Rice answer even on totally unrelated
+      // photos, so running it on an obvious non-match would just produce a
+      // confident, meaningless number.
+      const preCheck = analyzeImagePlausibility(currentImage);
+
+      if (preCheck.skipModel) {
+        renderSkippedResult(preCheck);
+      } else {
+        const dims = getInputDims();
+        const features = extractFeatures(currentImage, dims.width, dims.height);
+        const result = classifier.classify(features);
+        renderResults(result, preCheck);
+      }
     } catch (err) {
       showError('วิเคราะห์ภาพไม่สำเร็จ: ' + (err && err.message ? err.message : err));
     } finally {
@@ -753,52 +763,122 @@
     els.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
-  // ---------- Color tone heuristic ----------
-  // Buckets sampled pixels by hue/saturation/lightness into ranges typical of
-  // rice-leaf close-ups (green blade, yellow/brown disease or dry tissue).
-  // This is a simple rule-based check, run alongside the trained model, meant
-  // to flag images whose overall coloring looks unlike anything the model
-  // likely saw during training — it does not override the model's result.
-  function analyzeColorTone(img) {
-    const SAMPLE = 48;
+  // ---------- Pre-check heuristic: color + texture ----------
+  // Runs BEFORE the trained model, on every image. Combines two independent
+  // rule-based signals sampled on a 64x64 downscale, weighted so the center
+  // of the frame (where a close-up subject usually sits) counts more than
+  // the edges/background:
+  //
+  //   1. colorScore  — share of pixels in the green / yellow-brown hue range
+  //                    typical of rice-leaf photos (healthy blade or disease
+  //                    lesions).
+  //   2. edgeScore    — average Sobel edge magnitude, i.e. how much fine
+  //                    texture (veins, spots, blade lines) is present. This
+  //                    catches flat-toned surfaces — sky, painted walls, UI
+  //                    screenshots, solid backdrops — that can share a leaf's
+  //                    hue but have none of its texture.
+  //
+  // The two are combined into plantScore. Below the "mismatch" threshold the
+  // caller skips the trained model entirely: an image classifier trained on
+  // only two classes (Rice / not Rice) will always force one of those two
+  // answers, even for a photo of a bicycle or a stock chart — displaying
+  // that confident-but-meaningless number does more harm than good.
+  //
+  // Important honest caveat: this still cannot reliably tell a rice leaf
+  // apart from other green, blade-textured plants (lawn grass, other cereal
+  // crops) — those genuinely look alike in color and texture alike. Closing
+  // that gap needs either more "not Rice" training variety or an anomaly-
+  // detection block in Edge Impulse, not a client-side color/texture rule.
+  // The thresholds below (0.4 / 0.18) are reasonable starting points, not
+  // calibrated against a labeled test set — tune them if real-world use
+  // shows too many false skips or false passes.
+  function analyzeImagePlausibility(img) {
+    const SIZE = 64;
     const canvas = document.createElement('canvas');
-    canvas.width = SAMPLE;
-    canvas.height = SAMPLE;
+    canvas.width = SIZE;
+    canvas.height = SIZE;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(img, 0, 0, SAMPLE, SAMPLE);
-    const data = ctx.getImageData(0, 0, SAMPLE, SAMPLE).data;
+    ctx.drawImage(img, 0, 0, SIZE, SIZE);
+    const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
 
-    let leafLike = 0;
-    let total = 0;
+    const gray = new Float32Array(SIZE * SIZE);
+    for (let p = 0; p < SIZE * SIZE; p++) {
+      const i = p * 4;
+      gray[p] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    }
 
-    for (let i = 0; i < data.length; i += 4) {
-      const hsl = rgbToHsl(data[i], data[i + 1], data[i + 2]);
-      total++;
-      const isGreenish = hsl.h >= 60 && hsl.h <= 170;
-      const isYellowBrown = hsl.h >= 20 && hsl.h < 60;
-      if ((isGreenish || isYellowBrown) && hsl.s > 0.12 && hsl.l > 0.08 && hsl.l < 0.9) {
-        leafLike++;
+    const center = (SIZE - 1) / 2;
+    const maxDist = Math.sqrt(2) * center;
+    const EDGE_NORMALIZER = 900; // approximate Sobel magnitude scale, see comment above
+
+    let colorWeighted = 0;
+    let edgeWeighted = 0;
+    let weightSum = 0;
+
+    for (let y = 1; y < SIZE - 1; y++) {
+      for (let x = 1; x < SIZE - 1; x++) {
+        const i = (y * SIZE + x) * 4;
+        const hsl = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+        const isGreenish = hsl.h >= 60 && hsl.h <= 170;
+        const isYellowBrown = hsl.h >= 20 && hsl.h < 60;
+        const colorMatch = (isGreenish || isYellowBrown) && hsl.s > 0.12 && hsl.l > 0.08 && hsl.l < 0.9 ? 1 : 0;
+
+        const gx =
+          -gray[(y - 1) * SIZE + (x - 1)] + gray[(y - 1) * SIZE + (x + 1)] +
+          -2 * gray[y * SIZE + (x - 1)] + 2 * gray[y * SIZE + (x + 1)] +
+          -gray[(y + 1) * SIZE + (x - 1)] + gray[(y + 1) * SIZE + (x + 1)];
+        const gy =
+          -gray[(y - 1) * SIZE + (x - 1)] - 2 * gray[(y - 1) * SIZE + x] - gray[(y - 1) * SIZE + (x + 1)] +
+          gray[(y + 1) * SIZE + (x - 1)] + 2 * gray[(y + 1) * SIZE + x] + gray[(y + 1) * SIZE + (x + 1)];
+        const edgeMag = Math.min(Math.sqrt(gx * gx + gy * gy) / EDGE_NORMALIZER, 1);
+
+        const dist = Math.sqrt((x - center) * (x - center) + (y - center) * (y - center)) / maxDist;
+        const weight = 1 - 0.6 * dist; // center of frame counts up to 2.5x an extreme corner
+
+        colorWeighted += colorMatch * weight;
+        edgeWeighted += edgeMag * weight;
+        weightSum += weight;
       }
     }
 
-    const leafRatio = leafLike / total;
-    let level, label, message;
-
-    if (leafRatio >= 0.45) {
-      level = 'match';
-      label = 'โทนสีใกล้เคียงใบข้าว';
-      message = 'สัดส่วนสีเขียวและเหลือง-น้ำตาลในภาพนี้ใกล้เคียงกับภาพใบข้าวทั่วไปที่มักใช้เทรนโมเดล ผลการจำแนกด้านบนน่าจะเชื่อถือได้ในระดับหนึ่ง';
-    } else if (leafRatio >= 0.2) {
-      level = 'partial';
-      label = 'โทนสีใกล้เคียงบางส่วน';
-      message = 'ภาพนี้มีโทนสีคล้ายใบข้าวอยู่บางส่วนเท่านั้น อาจเป็นภาพมุมไกล มีพื้นหลังเยอะ หรือแสงต่างจากชุดข้อมูลที่ใช้เทรน ควรตรวจสอบผลด้วยตาอีกครั้งก่อนสรุป';
-    } else {
-      level = 'mismatch';
-      label = 'โทนสีต่างจากใบข้าวมาก';
-      message = 'ภาพนี้แทบไม่มีโทนเขียวหรือเหลือง-น้ำตาลแบบใบข้าวเลย มีแนวโน้มว่าเป็นภาพที่แตกต่างจากชุดข้อมูลที่ใช้เทรนโมเดล โปรดตีความผลจำแนกด้านบนอย่างระมัดระวัง';
+    const colorScore = colorWeighted / weightSum;
+    const edgeScore = edgeWeighted / weightSum;
+    // Texture only "counts" once it clears a low bar (~0.08); below that we
+    // scale its contribution down instead of zeroing plantScore outright, so
+    // slightly soft-focus photos aren't unfairly punished.
+    const textureFactor = 0.5 + 0.5 * Math.min(edgeScore / 0.08, 1);
+    let plantScore = colorScore * textureFactor;
+    // A near-perfectly flat surface (edgeScore ~0) has no vein/lesion texture
+    // at all — a real leaf close-up always has some. Cap the score so flat
+    // color alone (a painted wall, a solid backdrop) can't reach "match".
+    const isNearlyFlat = edgeScore < 0.015;
+    if (isNearlyFlat) {
+      plantScore = Math.min(plantScore, 0.3);
     }
 
-    return { level: level, label: label, message: message, leafRatio: leafRatio };
+    let level, label, message, skipModel;
+
+    if (plantScore >= 0.4) {
+      level = 'match';
+      skipModel = false;
+      label = 'ลักษณะภาพใกล้เคียงใบพืช';
+      message = 'ภาพนี้มีทั้งโทนสีและพื้นผิวที่ใกล้เคียงกับใบข้าวในชุดข้อมูลที่ใช้เทรน ผลจำแนกด้านล่างน่าจะเชื่อถือได้ในระดับหนึ่ง';
+    } else if (plantScore >= 0.18) {
+      level = 'partial';
+      skipModel = false;
+      label = 'ลักษณะภาพใกล้เคียงบางส่วน';
+      message = 'ภาพนี้มีโทนสีหรือพื้นผิวคล้ายพืชอยู่บ้าง แต่ไม่ชัดเจนเท่าภาพใบข้าวทั่วไป อาจเป็นพืชชนิดอื่น พื้นหลังธรรมชาติ หรือมุมถ่ายที่ไม่คุ้นเคย โปรดตรวจสอบผลจำแนกด้านล่างด้วยตาอีกครั้งก่อนเชื่อ 100%';
+    } else {
+      level = 'mismatch';
+      skipModel = true;
+      label = 'ไม่มีลักษณะของใบพืช';
+      message = 'ภาพนี้ไม่มีทั้งโทนสีและพื้นผิวแบบใบข้าวเลย ระบบจึงข้ามการส่งภาพนี้ให้โมเดลจำแนก เพราะโมเดลถูกฝึกให้ต้องเลือกคำตอบใดคำตอบหนึ่งเสมอ ผลลัพธ์ที่ได้จะไม่มีความหมาย กรุณาถ่ายภาพใบข้าวแบบใกล้และชัดเจนแล้วลองใหม่';
+    }
+
+    return {
+      level: level, label: label, message: message, skipModel: skipModel,
+      plantScore: plantScore, colorScore: colorScore, edgeScore: edgeScore
+    };
   }
 
   function rgbToHsl(r, g, b) {
@@ -817,6 +897,21 @@
     }
     if (h < 0) h += 360;
     return { h: h, s: s, l: l };
+  }
+
+  function renderSkippedResult(preCheck) {
+    els.resultsSection.hidden = false;
+    els.resultsList.innerHTML = '';
+
+    const notice = document.createElement('div');
+    notice.className = 'result-anomaly';
+    notice.style.fontSize = '0.95rem';
+    notice.style.color = 'var(--paddy-deep)';
+    notice.textContent = 'ไม่ได้ส่งภาพนี้ให้โมเดล AI ตรวจ — ดูเหตุผลด้านล่าง';
+    els.resultsList.appendChild(notice);
+
+    renderTone(preCheck);
+    els.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function renderTone(tone) {
