@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ข้าวสแกน — ตรวจใบข้าวจากภาพถ่าย</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Thai:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1F2E17;
+    --paddy-deep: #2E4A24;
+    --leaf: #4F7942;
+    --shoot: #8FAE64;
+    --gold: #D9A441;
+    --gold-soft: #E9C171;
+    --rice-paper: #FBF7EC;
+    --husk: #C9BFA0;
+    --white: #FFFFFF;
+    --danger: #A3432E;
+    --font-display: 'Noto Serif Thai', serif;
+    --font-body: 'IBM Plex Sans Thai', sans-serif;
+    --radius-lg: 20px;
+    --radius-md: 14px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    font-family: var(--font-body);
+    color: var(--ink);
+    background: var(--rice-paper);
+    line-height: 1.6;
+  }
+
+  h1, h2, h3 { font-family: var(--font-display); margin: 0; }
+
+  a { color: inherit; }
+
+  button {
+    font-family: var(--font-body);
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Header ---------- */
+  .site-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px clamp(20px, 5vw, 56px);
+    background: var(--rice-paper);
+    border-bottom: 1px solid var(--husk);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--paddy-deep);
+  }
+
+  .brand svg { flex-shrink: 0; }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: var(--paddy-deep);
+    background: #F1ECDD;
+    border: 1px solid var(--husk);
+    padding: 6px 14px;
+    border-radius: 999px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--husk);
+    flex-shrink: 0;
+  }
+  .status-dot.ready { background: var(--leaf); }
+  .status-dot.error { background: var(--danger); }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative;
+    background: linear-gradient(180deg, var(--paddy-deep) 0%, #3A5A30 100%);
+    color: var(--rice-paper);
+    padding: clamp(48px, 8vw, 84px) clamp(20px, 5vw, 56px) 0;
+    overflow: hidden;
+  }
+
+  .hero-inner {
+    max-width: 760px;
+    margin: 0 auto;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+  }
+
+  .eyebrow {
+    display: inline-block;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    color: var(--gold-soft);
+    border: 1px solid rgba(217, 164, 65, 0.5);
+    padding: 5px 14px;
+    border-radius: 999px;
+    margin-bottom: 22px;
+  }
+
+  .hero h1 {
+    font-size: clamp(2rem, 4.5vw, 3rem);
+    font-weight: 600;
+    line-height: 1.3;
+    margin-bottom: 18px;
+  }
+
+  .hero p {
+    font-size: clamp(1rem, 2vw, 1.15rem);
+    color: #E7E9DE;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  .hero-stalks {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: clamp(28px, 6vw, 48px);
+    position: relative;
+    z-index: 1;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .stalk-group {
+      transform-origin: bottom center;
+      animation: sway 6s ease-in-out infinite;
+    }
+    .stalk-group:nth-child(2) { animation-duration: 7.5s; animation-delay: -1.2s; }
+    .stalk-group:nth-child(3) { animation-duration: 5.5s; animation-delay: -2.4s; }
+    .stalk-group:nth-child(4) { animation-duration: 8s; animation-delay: -0.6s; }
+    .stalk-group:nth-child(5) { animation-duration: 6.8s; animation-delay: -3s; }
+    @keyframes sway {
+      0%, 100% { transform: rotate(-1.4deg); }
+      50% { transform: rotate(1.4deg); }
+    }
+  }
+
+  /* ---------- Main ---------- */
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: clamp(28px, 6vw, 52px) clamp(20px, 5vw, 24px) 80px;
+  }
+
+  .panel {
+    background: var(--white);
+    border: 1px solid var(--husk);
+    border-radius: var(--radius-lg);
+    padding: clamp(20px, 4vw, 32px);
+    box-shadow: 0 12px 32px -20px rgba(31, 46, 23, 0.35);
+  }
+
+  .panel + .panel { margin-top: 20px; }
+
+  .dropzone {
+    border: 2px dashed var(--husk);
+    border-radius: var(--radius-md);
+    padding: clamp(28px, 6vw, 44px) 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    background: #FDFCF7;
+  }
+  .dropzone:hover,
+  .dropzone:focus-visible {
+    border-color: var(--leaf);
+    background: #F7F5EA;
+  }
+  .dropzone.dragging {
+    border-color: var(--gold);
+    background: #FBF1DC;
+  }
+
+  .dropzone-icon {
+    margin-bottom: 14px;
+  }
+
+  .dropzone-title {
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--paddy-deep);
+    margin-bottom: 6px;
+  }
+
+  .dropzone-sub {
+    font-size: 0.88rem;
+    color: #6B7566;
+  }
+
+  .browser-note {
+    font-size: 0.78rem;
+    color: #8A8F80;
+    text-align: center;
+    margin-top: 14px;
+  }
+
+  #file-input { display: none; }
+
+  /* ---------- Preview + scan ---------- */
+  .preview-wrap {
+    margin-top: 20px;
+    position: relative;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--husk);
+    background: #F1EFE6;
+  }
+
+  .preview-wrap img {
+    display: block;
+    width: 100%;
+    max-height: 380px;
+    object-fit: contain;
+    background: repeating-conic-gradient(#F3F1E8 0% 25%, #EAE7DA 0% 50%) 50% / 16px 16px;
+  }
+
+  .scan-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: rgba(46, 74, 36, 0.08);
+  }
+
+  .scan-beam {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 26%;
+    top: -26%;
+    background: linear-gradient(180deg, rgba(217,164,65,0) 0%, rgba(217,164,65,0.55) 50%, rgba(217,164,65,0) 100%);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .scan-beam { animation: scan 1.6s ease-in-out infinite; }
+    @keyframes scan {
+      0% { top: -26%; }
+      100% { top: 100%; }
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scan-beam { top: 40%; }
+  }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    border: none;
+    border-radius: 999px;
+    padding: 12px 26px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+
+  .btn-primary {
+    background: var(--gold);
+    color: var(--ink);
+    box-shadow: 0 8px 20px -10px rgba(217, 164, 65, 0.7);
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--gold-soft); }
+  .btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--paddy-deep);
+    border: 1px solid var(--husk);
+  }
+  .btn-ghost:hover { background: #F1ECDD; }
+
+  /* ---------- Error ---------- */
+  .error-box {
+    margin-top: 16px;
+    background: #FBEAE4;
+    border: 1px solid #E2B6A8;
+    color: var(--danger);
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+  }
+
+  /* ---------- Results ---------- */
+  .results-section h2 {
+    font-size: 1.3rem;
+    color: var(--paddy-deep);
+    margin-bottom: 4px;
+  }
+  .results-hint {
+    font-size: 0.85rem;
+    color: #6B7566;
+    margin-bottom: 18px;
+  }
+
+  .result-source-note {
+    font-size: 0.78rem;
+    color: #8A8F80;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #F0EDE2;
+  }
+
+  .result-row {
+    display: grid;
+    grid-template-columns: minmax(90px, auto) 1fr 48px;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #F0EDE2;
+  }
+  .result-row:last-of-type { border-bottom: none; }
+
+  .result-label {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .result-row.top .result-label { color: var(--paddy-deep); }
+
+  .result-bar-track {
+    background: #F0EDE2;
+    border-radius: 999px;
+    height: 10px;
+    overflow: hidden;
+  }
+  .result-bar-fill {
+    height: 100%;
+    background: var(--husk);
+    border-radius: 999px;
+  }
+  .result-row.top .result-bar-fill { background: var(--leaf); }
+
+  .result-pct {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9rem;
+    color: #6B7566;
+  }
+  .result-row.top .result-pct { color: var(--paddy-deep); font-weight: 600; }
+
+  .result-anomaly {
+    margin-top: 12px;
+    font-size: 0.82rem;
+    color: #8A8F80;
+  }
+
+  /* ---------- Tone check card ---------- */
+  .tone-card {
+    margin-top: 20px;
+    border-radius: var(--radius-md);
+    padding: 18px 20px;
+    border: 1px solid var(--husk);
+    background: #F7F5EA;
+  }
+  .tone-card[data-level="match"] { border-color: #BBD1A0; background: #F0F5E6; }
+  .tone-card[data-level="partial"] { border-color: #E6CE9C; background: #FBF3DF; }
+  .tone-card[data-level="mismatch"] { border-color: #E2B6A8; background: #FBEEE9; }
+
+  .tone-title {
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #8A8F80;
+    margin-bottom: 8px;
+  }
+
+  .tone-badge {
+    display: inline-block;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+    color: var(--paddy-deep);
+  }
+  .tone-card[data-level="mismatch"] .tone-badge { color: var(--danger); }
+
+  .tone-text {
+    font-size: 0.88rem;
+    color: #4B5245;
+    margin: 0;
+  }
+
+  /* ---------- Footer ---------- */
+  footer {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 clamp(20px, 5vw, 24px) 48px;
+    font-size: 0.82rem;
+    color: #8A8F80;
+    text-align: center;
+  }
+  footer .project-info { margin-bottom: 6px; color: #6B7566; }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+      <path d="M15 27C15 27 7 21.5 7 13.5C7 8.5 10.5 4 15 3C19.5 4 23 8.5 23 13.5C23 21.5 15 27 15 27Z" fill="#4F7942"/>
+      <path d="M15 27C15 27 15 17 15 13.5C15 9.5 13 5.5 10.5 3.5" stroke="#2E4A24" stroke-width="1.4" stroke-linecap="round" fill="none"/>
+      <path d="M15 27C15 27 15 17 15 13.5C15 9.5 17 5.5 19.5 3.5" stroke="#2E4A24" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.5"/>
+    </svg>
+    ข้าวสแกน
+  </div>
+  <div class="status-pill" role="status">
+    <span class="status-dot" id="status-dot"></span>
+    <span id="status-text">กำลังโหลดโมเดล...</span>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">ทำงานทั้งหมดในเบราว์เซอร์ของคุณ</span>
+    <h1>ถ่ายรูปใบข้าว แล้วให้ระบบช่วยดูให้ว่าใช่ใบข้าวหรือไม่</h1>
+    <p>อัปโหลดภาพหนึ่งใบ โมเดลที่คุณเทรนไว้จะประมวลผลทันทีบนเครื่องนี้ ไม่มีการส่งภาพขึ้นเซิร์ฟเวอร์ที่ไหนทั้งสิ้น พร้อมระบบตรวจโทนสีเสริม สำหรับภาพที่แปลกไปจากชุดข้อมูลที่ใช้เทรน</p>
+  </div>
+
+  <svg class="hero-stalks" viewBox="0 0 1200 160" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <g class="stalk-group">
+      <path d="M120 160 C110 110 140 70 100 30" stroke="#3A5A30" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <g fill="#D9A441" opacity="0.9">
+        <ellipse cx="100" cy="30" rx="6" ry="10" transform="rotate(-20 100 30)"/>
+        <ellipse cx="93" cy="42" rx="6" ry="10" transform="rotate(-15 93 42)"/>
+        <ellipse cx="88" cy="55" rx="6" ry="10" transform="rotate(-8 88 55)"/>
+        <ellipse cx="86" cy="68" rx="6" ry="10" transform="rotate(0 86 68)"/>
+      </g>
+    </g>
+    <g class="stalk-group">
+      <path d="M260 160 C250 100 290 60 250 20" stroke="#4F7942" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <g fill="#E9C171" opacity="0.95">
+        <ellipse cx="250" cy="20" rx="6" ry="10" transform="rotate(-20 250 20)"/>
+        <ellipse cx="243" cy="32" rx="6" ry="10" transform="rotate(-14 243 32)"/>
+        <ellipse cx="238" cy="45" rx="6" ry="10" transform="rotate(-6 238 45)"/>
+        <ellipse cx="236" cy="58" rx="6" ry="10" transform="rotate(2 236 58)"/>
+        <ellipse cx="238" cy="71" rx="6" ry="10" transform="rotate(8 238 71)"/>
+      </g>
+    </g>
+    <g class="stalk-group">
+      <path d="M560 160 C548 95 592 55 550 18" stroke="#3A5A30" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+      <g fill="#D9A441">
+        <ellipse cx="550" cy="18" rx="7" ry="11" transform="rotate(-22 550 18)"/>
+        <ellipse cx="542" cy="31" rx="7" ry="11" transform="rotate(-14 542 31)"/>
+        <ellipse cx="537" cy="45" rx="7" ry="11" transform="rotate(-4 537 45)"/>
+        <ellipse cx="536" cy="59" rx="7" ry="11" transform="rotate(4 536 59)"/>
+        <ellipse cx="539" cy="73" rx="7" ry="11" transform="rotate(11 539 73)"/>
+      </g>
+    </g>
+    <g class="stalk-group">
+      <path d="M850 160 C840 105 878 65 840 25" stroke="#4F7942" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <g fill="#E9C171" opacity="0.9">
+        <ellipse cx="840" cy="25" rx="6" ry="10" transform="rotate(-18 840 25)"/>
+        <ellipse cx="833" cy="37" rx="6" ry="10" transform="rotate(-11 833 37)"/>
+        <ellipse cx="829" cy="50" rx="6" ry="10" transform="rotate(-3 829 50)"/>
+        <ellipse cx="828" cy="63" rx="6" ry="10" transform="rotate(5 828 63)"/>
+      </g>
+    </g>
+    <g class="stalk-group">
+      <path d="M1060 160 C1050 100 1090 62 1050 20" stroke="#3A5A30" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <g fill="#D9A441" opacity="0.95">
+        <ellipse cx="1050" cy="20" rx="6" ry="10" transform="rotate(-20 1050 20)"/>
+        <ellipse cx="1043" cy="32" rx="6" ry="10" transform="rotate(-13 1043 32)"/>
+        <ellipse cx="1038" cy="45" rx="6" ry="10" transform="rotate(-4 1038 45)"/>
+        <ellipse cx="1037" cy="58" rx="6" ry="10" transform="rotate(4 1037 58)"/>
+        <ellipse cx="1040" cy="71" rx="6" ry="10" transform="rotate(11 1040 71)"/>
+      </g>
+    </g>
+    <rect x="0" y="150" width="1200" height="10" fill="#253C1E"/>
+  </svg>
+</section>
+
+<main>
+
+  <section class="panel" aria-labelledby="upload-title">
+    <h2 id="upload-title" style="font-size:1.25rem; color:var(--paddy-deep); margin-bottom:16px;">อัปโหลดภาพใบข้าว</h2>
+
+    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="เลือกหรือวางไฟล์ภาพใบข้าว">
+      <div class="dropzone-icon">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+          <path d="M20 26V10M20 10L14 16M20 10L26 16" stroke="#4F7942" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8 26V30C8 31.1 8.9 32 10 32H30C31.1 32 32 31.1 32 30V26" stroke="#8FAE64" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="dropzone-title">ลากรูปมาวางตรงนี้ หรือคลิกเพื่อเลือกไฟล์</div>
+      <div class="dropzone-sub">รองรับไฟล์ JPG และ PNG</div>
+    </div>
+    <input type="file" id="file-input" accept="image/*">
+
+    <div class="preview-wrap" id="preview-wrap" hidden>
+      <img id="preview-img" alt="ภาพตัวอย่างที่เลือก">
+      <div class="scan-overlay" id="scan-overlay" hidden>
+        <div class="scan-beam"></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="analyze-btn" disabled>วิเคราะห์ภาพ</button>
+      <button class="btn btn-ghost" id="reset-btn">เลือกภาพใหม่</button>
+    </div>
+
+    <p class="browser-note">ใช้งานได้ดีที่สุดบน Chrome, Edge, Firefox หรือ Safari เวอร์ชันล่าสุด</p>
+
+    <div class="error-box" id="error-box" role="alert" hidden></div>
+  </section>
+
+  <section class="panel results-section" id="results" hidden aria-labelledby="results-title">
+    <h2 id="results-title">ผลการวิเคราะห์</h2>
+    <p class="results-hint">เรียงจากความมั่นใจของโมเดลมากไปน้อย</p>
+    <div id="results-list"></div>
+
+    <div class="tone-card" id="tone-card" hidden>
+      <div class="tone-title">เช็คลักษณะภาพเบื้องต้น: สี + ลาย/พื้นผิว (ระบบเสริม)</div>
+      <div class="tone-badge" id="tone-badge"></div>
+      <p class="tone-text" id="tone-text"></p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="project-info" id="project-info"></div>
+  <div>โมเดลทำงานบนเครื่องคุณทั้งหมดผ่าน WebAssembly หลังโหลดหน้าเว็บครั้งแรก ภาพของคุณจะไม่ถูกส่งไปที่ใดเลย</div>
+</footer>
+
+<script src="edge-impulse-standalone.js"></script>
+<script src="run-impulse.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  const els = {
+    fileInput: document.getElementById('file-input'),
+    dropzone: document.getElementById('dropzone'),
+    previewImg: document.getElementById('preview-img'),
+    previewWrap: document.getElementById('preview-wrap'),
+    analyzeBtn: document.getElementById('analyze-btn'),
+    resetBtn: document.getElementById('reset-btn'),
+    statusText: document.getElementById('status-text'),
+    statusDot: document.getElementById('status-dot'),
+    resultsSection: document.getElementById('results'),
+    resultsList: document.getElementById('results-list'),
+    toneCard: document.getElementById('tone-card'),
+    toneBadge: document.getElementById('tone-badge'),
+    toneText: document.getElementById('tone-text'),
+    scanOverlay: document.getElementById('scan-overlay'),
+    projectInfo: document.getElementById('project-info'),
+    errorBox: document.getElementById('error-box'),
+  };
+
+  let classifier = null;
+  let modelProps = null;
+  let currentImage = null;
+
+  function updateAnalyzeAvailability() {
+    els.analyzeBtn.disabled = !(classifier && modelProps && currentImage);
+  }
+
+  async function initModel() {
+    try {
+      classifier = new EdgeImpulseClassifier();
+      await classifier.init();
+      const project = classifier.getProjectInfo();
+      modelProps = classifier.getProperties();
+
+      els.statusDot.classList.add('ready');
+      els.statusText.textContent = 'พร้อมใช้งาน';
+
+      const dims = getInputDims();
+      els.projectInfo.textContent =
+        'โมเดล: ' + project.owner + ' / ' + project.name + ' (v' + project.deploy_version + ') · ' +
+        'ขนาดภาพที่ใช้วิเคราะห์: ' + dims.width + '×' + dims.height + ' px';
+
+      updateAnalyzeAvailability();
+    } catch (err) {
+      els.statusDot.classList.add('error');
+      els.statusText.textContent = 'โหลดโมเดลไม่สำเร็จ';
+      showError('โหลดโมเดลไม่สำเร็จ: ' + (err && err.message ? err.message : err) +
+        ' — เบราว์เซอร์นี้อาจไม่รองรับ WebAssembly รุ่นที่โมเดลต้องการ ลองเปิดด้วย Chrome, Edge หรือ Firefox เวอร์ชันล่าสุด');
+    }
+  }
+
+  function getInputDims() {
+    const width = (modelProps && modelProps.image_input_width) || 96;
+    const height = (modelProps && modelProps.image_input_height) || 96;
+    return { width: width, height: height };
+  }
+
+  // ---------- File handling ----------
+
+  function loadImageFile(file) {
+    if (!file || !file.type || file.type.indexOf('image/') !== 0) {
+      showError('ไฟล์นี้ไม่ใช่รูปภาพ กรุณาเลือกไฟล์ JPG หรือ PNG');
+      return;
+    }
+    clearError();
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = function () {
+      currentImage = img;
+      els.previewImg.src = url;
+      els.previewWrap.hidden = false;
+      hideResults();
+      updateAnalyzeAvailability();
+    };
+    img.onerror = function () {
+      showError('เปิดไฟล์รูปนี้ไม่ได้ ลองใช้ไฟล์ภาพอื่น');
+    };
+    img.src = url;
+  }
+
+  els.dropzone.addEventListener('click', function () { els.fileInput.click(); });
+  els.dropzone.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      els.fileInput.click();
+    }
+  });
+  els.dropzone.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    els.dropzone.classList.add('dragging');
+  });
+  els.dropzone.addEventListener('dragleave', function () {
+    els.dropzone.classList.remove('dragging');
+  });
+  els.dropzone.addEventListener('drop', function (e) {
+    e.preventDefault();
+    els.dropzone.classList.remove('dragging');
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) loadImageFile(file);
+  });
+  els.fileInput.addEventListener('change', function (e) {
+    const file = e.target.files && e.target.files[0];
+    if (file) loadImageFile(file);
+  });
+
+  els.resetBtn.addEventListener('click', function () {
+    currentImage = null;
+    els.previewWrap.hidden = true;
+    els.fileInput.value = '';
+    hideResults();
+    clearError();
+    updateAnalyzeAvailability();
+  });
+
+  // ---------- Analysis ----------
+
+  els.analyzeBtn.addEventListener('click', async function () {
+    if (!currentImage || !classifier) return;
+    clearError();
+    hideResults();
+    setScanning(true);
+    // let the scanning animation paint one frame before the synchronous
+    // classify() call blocks the main thread
+    await new Promise(function (resolve) { setTimeout(resolve, 60); });
+
+    try {
+      // Stage 1: cheap rule-based pre-check (color + texture). Images that
+      // don't look plant-like at all are decided right here as the negative
+      // class ("not Rice") without ever calling the model — the model is
+      // trained to always force a Rice / not-Rice answer, so it can't be
+      // trusted to say "neither" on its own.
+      const preCheck = analyzeImagePlausibility(currentImage);
+
+      if (preCheck.skipModel) {
+        const forcedResult = buildForcedNegativeResult();
+        renderResults(forcedResult, preCheck, { forcedByPreCheck: true });
+      } else {
+        const dims = getInputDims();
+        const features = extractFeatures(currentImage, dims.width, dims.height);
+        const result = classifier.classify(features);
+        renderResults(result, preCheck, { forcedByPreCheck: false });
+      }
+    } catch (err) {
+      showError('วิเคราะห์ภาพไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+    } finally {
+      setScanning(false);
+    }
+  });
+
+  // When the pre-check decides an image isn't plant-like at all, build a
+  // synthetic result shaped exactly like classifier.classify()'s output so
+  // it can flow through the same rendering path. The negative label is
+  // guessed from the model's own label list (anything containing "not",
+  // "non", "other" etc.) so this keeps working if the model is retrained
+  // with different label names later.
+  function buildForcedNegativeResult() {
+    const labels = (modelProps && modelProps.labels) || ['Rice', 'not Rice'];
+    const negativeLabel = labels.find(function (l) {
+      return /not|non|other|ไม่ใช่/i.test(l);
+    }) || labels[labels.length - 1];
+
+    const results = labels.map(function (l) {
+      return { label: l, value: l === negativeLabel ? 1 : 0 };
+    });
+
+    return { results: results, anomaly: 0 };
+  }
+
+  function extractFeatures(img, width, height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, width, height);
+    const data = ctx.getImageData(0, 0, width, height).data;
+    const features = new Array(width * height);
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      features[p] = (data[i] << 16) + (data[i + 1] << 8) + data[i + 2];
+    }
+    return features;
+  }
+
+  function renderResults(result, tone, options) {
+    const forcedByPreCheck = !!(options && options.forcedByPreCheck);
+    els.resultsSection.hidden = false;
+    els.resultsList.innerHTML = '';
+
+    const sourceNote = document.createElement('div');
+    sourceNote.className = 'result-source-note';
+    sourceNote.textContent = forcedByPreCheck
+      ? 'ผลนี้ตัดสินจากด่านเช็คสี/ลายเบื้องต้น — ไม่ได้ส่งภาพนี้ให้ AI ตรวจ เพราะไม่มีลักษณะของพืชเลย'
+      : 'ผลจากโมเดล AI ที่คุณเทรนไว้';
+    els.resultsList.appendChild(sourceNote);
+
+    const sorted = result.results.slice().sort(function (a, b) { return b.value - a.value; });
+
+    sorted.forEach(function (r, idx) {
+      const pct = Math.round(r.value * 100);
+      const row = document.createElement('div');
+      row.className = 'result-row' + (idx === 0 ? ' top' : '');
+
+      const labelEl = document.createElement('div');
+      labelEl.className = 'result-label';
+      labelEl.textContent = r.label;
+
+      const track = document.createElement('div');
+      track.className = 'result-bar-track';
+      const fill = document.createElement('div');
+      fill.className = 'result-bar-fill';
+      fill.style.width = pct + '%';
+      track.appendChild(fill);
+
+      const pctEl = document.createElement('div');
+      pctEl.className = 'result-pct';
+      pctEl.textContent = pct + '%';
+
+      row.appendChild(labelEl);
+      row.appendChild(track);
+      row.appendChild(pctEl);
+      els.resultsList.appendChild(row);
+    });
+
+    if (typeof result.anomaly === 'number' && result.anomaly > 0) {
+      const anomalyRow = document.createElement('div');
+      anomalyRow.className = 'result-anomaly';
+      anomalyRow.textContent = 'คะแนนความผิดปกติ (anomaly score): ' + result.anomaly.toFixed(3);
+      els.resultsList.appendChild(anomalyRow);
+    }
+
+    renderTone(tone);
+    els.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ---------- Pre-check heuristic: color + texture ----------
+  // Runs BEFORE the trained model, on every image. Combines two independent
+  // rule-based signals sampled on a 64x64 downscale, weighted so the center
+  // of the frame (where a close-up subject usually sits) counts more than
+  // the edges/background:
+  //
+  //   1. colorScore  — share of pixels in the green / yellow-brown hue range
+  //                    typical of rice-leaf photos (healthy blade or disease
+  //                    lesions).
+  //   2. edgeScore    — average Sobel edge magnitude, i.e. how much fine
+  //                    texture (veins, spots, blade lines) is present. This
+  //                    catches flat-toned surfaces — sky, painted walls, UI
+  //                    screenshots, solid backdrops — that can share a leaf's
+  //                    hue but have none of its texture.
+  //
+  // The two are combined into plantScore. Below the "mismatch" threshold the
+  // caller skips the trained model entirely: an image classifier trained on
+  // only two classes (Rice / not Rice) will always force one of those two
+  // answers, even for a photo of a bicycle or a stock chart — displaying
+  // that confident-but-meaningless number does more harm than good.
+  //
+  // Important honest caveat: this still cannot reliably tell a rice leaf
+  // apart from other green, blade-textured plants (lawn grass, other cereal
+  // crops) — those genuinely look alike in color and texture alike. Closing
+  // that gap needs either more "not Rice" training variety or an anomaly-
+  // detection block in Edge Impulse, not a client-side color/texture rule.
+  // The thresholds below (0.4 / 0.18) are reasonable starting points, not
+  // calibrated against a labeled test set — tune them if real-world use
+  // shows too many false skips or false passes.
+  function analyzeImagePlausibility(img) {
+    const SIZE = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, SIZE, SIZE);
+    const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
+
+    const gray = new Float32Array(SIZE * SIZE);
+    for (let p = 0; p < SIZE * SIZE; p++) {
+      const i = p * 4;
+      gray[p] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    }
+
+    const center = (SIZE - 1) / 2;
+    const maxDist = Math.sqrt(2) * center;
+    const EDGE_NORMALIZER = 900; // approximate Sobel magnitude scale, see comment above
+
+    let colorWeighted = 0;
+    let edgeWeighted = 0;
+    let weightSum = 0;
+
+    for (let y = 1; y < SIZE - 1; y++) {
+      for (let x = 1; x < SIZE - 1; x++) {
+        const i = (y * SIZE + x) * 4;
+        const hsl = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+        const isGreenish = hsl.h >= 60 && hsl.h <= 170;
+        const isYellowBrown = hsl.h >= 20 && hsl.h < 60;
+        const colorMatch = (isGreenish || isYellowBrown) && hsl.s > 0.12 && hsl.l > 0.08 && hsl.l < 0.9 ? 1 : 0;
+
+        const gx =
+          -gray[(y - 1) * SIZE + (x - 1)] + gray[(y - 1) * SIZE + (x + 1)] +
+          -2 * gray[y * SIZE + (x - 1)] + 2 * gray[y * SIZE + (x + 1)] +
+          -gray[(y + 1) * SIZE + (x - 1)] + gray[(y + 1) * SIZE + (x + 1)];
+        const gy =
+          -gray[(y - 1) * SIZE + (x - 1)] - 2 * gray[(y - 1) * SIZE + x] - gray[(y - 1) * SIZE + (x + 1)] +
+          gray[(y + 1) * SIZE + (x - 1)] + 2 * gray[(y + 1) * SIZE + x] + gray[(y + 1) * SIZE + (x + 1)];
+        const edgeMag = Math.min(Math.sqrt(gx * gx + gy * gy) / EDGE_NORMALIZER, 1);
+
+        const dist = Math.sqrt((x - center) * (x - center) + (y - center) * (y - center)) / maxDist;
+        const weight = 1 - 0.6 * dist; // center of frame counts up to 2.5x an extreme corner
+
+        colorWeighted += colorMatch * weight;
+        edgeWeighted += edgeMag * weight;
+        weightSum += weight;
+      }
+    }
+
+    const colorScore = colorWeighted / weightSum;
+    const edgeScore = edgeWeighted / weightSum;
+    // Texture only "counts" once it clears a low bar (~0.08); below that we
+    // scale its contribution down instead of zeroing plantScore outright, so
+    // slightly soft-focus photos aren't unfairly punished.
+    const textureFactor = 0.5 + 0.5 * Math.min(edgeScore / 0.08, 1);
+    let plantScore = colorScore * textureFactor;
+    // A near-perfectly flat surface (edgeScore ~0) has no vein/lesion texture
+    // at all — a real leaf close-up always has some. Cap the score so flat
+    // color alone (a painted wall, a solid backdrop) can't reach "match".
+    const isNearlyFlat = edgeScore < 0.015;
+    if (isNearlyFlat) {
+      plantScore = Math.min(plantScore, 0.3);
+    }
+
+    let level, label, message, skipModel;
+
+    if (plantScore >= 0.4) {
+      level = 'match';
+      skipModel = false;
+      label = 'ลักษณะภาพใกล้เคียงใบพืช';
+      message = 'ภาพนี้มีทั้งโทนสีและพื้นผิวที่ใกล้เคียงกับใบข้าวในชุดข้อมูลที่ใช้เทรน ผลจำแนกด้านล่างน่าจะเชื่อถือได้ในระดับหนึ่ง';
+    } else if (plantScore >= 0.18) {
+      level = 'partial';
+      skipModel = false;
+      label = 'ลักษณะภาพใกล้เคียงบางส่วน';
+      message = 'ภาพนี้มีโทนสีหรือพื้นผิวคล้ายพืชอยู่บ้าง แต่ไม่ชัดเจนเท่าภาพใบข้าวทั่วไป อาจเป็นพืชชนิดอื่น พื้นหลังธรรมชาติ หรือมุมถ่ายที่ไม่คุ้นเคย โปรดตรวจสอบผลจำแนกด้านล่างด้วยตาอีกครั้งก่อนเชื่อ 100%';
+    } else {
+      level = 'mismatch';
+      skipModel = true;
+      label = 'ไม่มีลักษณะของใบพืช';
+      message = 'ภาพนี้ไม่มีทั้งโทนสีและพื้นผิวแบบใบข้าวเลย ระบบจึงข้ามการส่งภาพนี้ให้โมเดลจำแนก เพราะโมเดลถูกฝึกให้ต้องเลือกคำตอบใดคำตอบหนึ่งเสมอ ผลลัพธ์ที่ได้จะไม่มีความหมาย กรุณาถ่ายภาพใบข้าวแบบใกล้และชัดเจนแล้วลองใหม่';
+    }
+
+    return {
+      level: level, label: label, message: message, skipModel: skipModel,
+      plantScore: plantScore, colorScore: colorScore, edgeScore: edgeScore
+    };
+  }
+
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    let h = 0;
+    let s = 0;
+    const d = max - min;
+    if (d !== 0) {
+      s = d / (1 - Math.abs(2 * l - 1));
+      if (max === r) h = 60 * (((g - b) / d) % 6);
+      else if (max === g) h = 60 * ((b - r) / d + 2);
+      else h = 60 * ((r - g) / d + 4);
+    }
+    if (h < 0) h += 360;
+    return { h: h, s: s, l: l };
+  }
+
+  function renderTone(tone) {
+    els.toneCard.hidden = false;
+    els.toneCard.dataset.level = tone.level;
+    els.toneBadge.textContent = tone.label;
+    els.toneText.textContent = tone.message;
+  }
+
+  // ---------- UI helpers ----------
+
+  function setScanning(isScanning) {
+    els.scanOverlay.hidden = !isScanning;
+    els.analyzeBtn.disabled = isScanning || !currentImage;
+    els.analyzeBtn.textContent = isScanning ? 'กำลังวิเคราะห์...' : 'วิเคราะห์ภาพ';
+  }
+
+  function hideResults() {
+    els.resultsSection.hidden = true;
+    els.toneCard.hidden = true;
+  }
+
+  function showError(msg) {
+    els.errorBox.hidden = false;
+    els.errorBox.textContent = msg;
+  }
+
+  function clearError() {
+    els.errorBox.hidden = true;
+    els.errorBox.textContent = '';
+  }
+
+  initModel();
+})();
+</script>
+
+</body>
+</html>
