@@ -323,35 +323,6 @@
 
   .result-anomaly { margin-top: 10px; font-size: 0.8rem; color: var(--text-muted); }
 
-  /* ---------- Pre-check card ---------- */
-  .tone-card {
-    margin-top: 18px;
-    border-radius: var(--radius-md);
-    padding: 16px 18px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--text-muted);
-  }
-  .tone-card[data-level="match"] { border-left-color: var(--primary); background: var(--primary-light); }
-  .tone-card[data-level="partial"] { border-left-color: #D9A441; background: var(--warn-bg); }
-  .tone-card[data-level="mismatch"] { border-left-color: var(--danger); background: var(--danger-bg); }
-
-  .tone-title {
-    font-size: 0.74rem;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-  }
-
-  .tone-badge { display: block; font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; color: var(--ink); }
-  .tone-card[data-level="match"] .tone-badge { color: var(--primary-dark); }
-  .tone-card[data-level="partial"] .tone-badge { color: var(--warn-text); }
-  .tone-card[data-level="mismatch"] .tone-badge { color: var(--danger); }
-
-  .tone-text { font-size: 0.86rem; color: var(--text); margin: 0; }
-
   /* ---------- Footer ---------- */
   footer {
     max-width: 1080px;
@@ -446,12 +417,6 @@
 
     <div id="results-content" hidden>
       <div id="results-list"></div>
-
-      <div class="tone-card" id="tone-card" hidden>
-        <div class="tone-title">เช็คลักษณะภาพเบื้องต้น: สี + ลาย/พื้นผิว (ระบบเสริม)</div>
-        <div class="tone-badge" id="tone-badge"></div>
-        <p class="tone-text" id="tone-text"></p>
-      </div>
     </div>
   </section>
 
@@ -481,9 +446,6 @@
     resultsPlaceholder: document.getElementById('results-placeholder'),
     resultsContent: document.getElementById('results-content'),
     resultsList: document.getElementById('results-list'),
-    toneCard: document.getElementById('tone-card'),
-    toneBadge: document.getElementById('tone-badge'),
-    toneText: document.getElementById('tone-text'),
     scanOverlay: document.getElementById('scan-overlay'),
     projectInfo: document.getElementById('project-info'),
     errorBox: document.getElementById('error-box'),
@@ -700,7 +662,9 @@
       els.resultsList.appendChild(anomalyRow);
     }
 
-    renderTone(tone);
+    // Note: the pre-check result (`tone`) still decides whether the model
+    // gets called at all (see the click handler above) — it's just no
+    // longer rendered as a visible card in the results panel.
   }
 
   // ---------- Pre-check heuristic: color + texture ----------
@@ -839,13 +803,6 @@
     return { h: h, s: s, l: l };
   }
 
-  function renderTone(tone) {
-    els.toneCard.hidden = false;
-    els.toneCard.dataset.level = tone.level;
-    els.toneBadge.textContent = tone.label;
-    els.toneText.textContent = tone.message;
-  }
-
   // ---------- UI helpers ----------
 
   function setScanning(isScanning) {
@@ -857,7 +814,6 @@
   function hideResults() {
     els.resultsContent.hidden = true;
     els.resultsPlaceholder.hidden = false;
-    els.toneCard.hidden = true;
   }
 
   function showError(msg) {
