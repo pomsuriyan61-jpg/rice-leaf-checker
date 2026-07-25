@@ -846,33 +846,19 @@
 
     const center = (SIZE - 1) / 2;
     const maxDist = Math.sqrt(2) * center;
-    const EDGE_NORMALIZER = 900;
+    const EDGE_NORMALIZER = 900; // approximate Sobel magnitude scale, see comment above
 
     let colorWeighted = 0;
     let edgeWeighted = 0;
-    let skinWeighted = 0;
-    let unnaturalWeighted = 0;
     let weightSum = 0;
 
     for (let y = 1; y < SIZE - 1; y++) {
       for (let x = 1; x < SIZE - 1; x++) {
         const i = (y * SIZE + x) * 4;
         const hsl = rgbToHsl(data[i], data[i + 1], data[i + 2]);
-
-        // 1. Plant-like colors: green or yellow-brown (earth/plant tones)
         const isGreenish = hsl.h >= 60 && hsl.h <= 170;
         const isYellowBrown = hsl.h >= 20 && hsl.h < 60;
         const colorMatch = (isGreenish || isYellowBrown) && hsl.s > 0.12 && hsl.l > 0.08 && hsl.l < 0.9 ? 1 : 0;
-
-        // 2. Skin-tone detection — strong signal this is a person/character, not a leaf
-        const isSkinTone = (hsl.h >= 10 && hsl.h <= 45) &&
-                           (hsl.s >= 0.12 && hsl.s <= 0.85) &&
-                           (hsl.l >= 0.25 && hsl.l <= 0.92) ? 1 : 0;
-
-        // 3. Unnatural colors for plants: blue, cyan, purple, magenta, bright red/pink
-        const isBluePurple = (hsl.h >= 180 && hsl.h <= 340) && hsl.s > 0.25;
-        const isBrightRedPink = ((hsl.h >= 340 || hsl.h <= 15) && hsl.s > 0.55 && hsl.l > 0.45);
-        const unnaturalMatch = (isBluePurple || isBrightRedPink) ? 1 : 0;
 
         const gx =
           -gray[(y - 1) * SIZE + (x - 1)] + gray[(y - 1) * SIZE + (x + 1)] +
@@ -884,36 +870,24 @@
         const edgeMag = Math.min(Math.sqrt(gx * gx + gy * gy) / EDGE_NORMALIZER, 1);
 
         const dist = Math.sqrt((x - center) * (x - center) + (y - center) * (y - center)) / maxDist;
-        const weight = 1 - 0.6 * dist;
+        const weight = 1 - 0.6 * dist; // center of frame counts up to 2.5x an extreme corner
 
         colorWeighted += colorMatch * weight;
         edgeWeighted += edgeMag * weight;
-        skinWeighted += isSkinTone * weight;
-        unnaturalWeighted += unnaturalMatch * weight;
         weightSum += weight;
       }
     }
 
     const colorScore = colorWeighted / weightSum;
     const edgeScore = edgeWeighted / weightSum;
-    const skinScore = skinWeighted / weightSum;
-    const unnaturalScore = unnaturalWeighted / weightSum;
-
-    // Texture factor (same as before)
+    // Texture only "counts" once it clears a low bar (~0.08); below that we
+    // scale its contribution down instead of zeroing plantScore outright, so
+    // slightly soft-focus photos aren't unfairly punished.
     const textureFactor = 0.5 + 0.5 * Math.min(edgeScore / 0.08, 1);
     let plantScore = colorScore * textureFactor;
-
-    // Penalize heavily for skin tones (humans, anime characters, hands, faces)
-    if (skinScore > 0.06) {
-      plantScore *= (1 - Math.min(skinScore * 2.5, 0.95));
-    }
-
-    // Penalize for colors plants don't have (blue hair, purple clothes, pink backgrounds, etc.)
-    if (unnaturalScore > 0.04) {
-      plantScore *= (1 - Math.min(unnaturalScore * 2.0, 0.85));
-    }
-
-    // Flat surface cap (same as before)
+    // A near-perfectly flat surface (edgeScore ~0) has no vein/lesion texture
+    // at all — a real leaf close-up always has some. Cap the score so flat
+    // color alone (a painted wall, a solid backdrop) can't reach "match".
     const isNearlyFlat = edgeScore < 0.015;
     if (isNearlyFlat) {
       plantScore = Math.min(plantScore, 0.3);
@@ -921,18 +895,12 @@
 
     let level, label, message, skipModel;
 
-    // Hard reject if we detect significant skin-tone pixels
-    if (skinScore > 0.12) {
-      level = 'mismatch';
-      skipModel = true;
-      label = 'ตรวจพบลักษณะที่ไม่ใช่พืช (อาจเป็นคนหรือตัวละคร)';
-      message = 'ภาพนี้มีสีผิวหรือลักษณะของคน/ตัวละคร ซึ่งไม่ใช่ใบข้าว ระบบจึงข้ามการส่งให้ AI ตรวจสอบ กรุณาอัปโหลดภาพใบข้าวจริงๆ';
-    } else if (plantScore >= 0.45) {
+    if (plantScore >= 0.4) {
       level = 'match';
       skipModel = false;
       label = 'ลักษณะภาพใกล้เคียงใบพืช';
       message = 'ภาพนี้มีทั้งโทนสีและพื้นผิวที่ใกล้เคียงกับใบข้าวในชุดข้อมูลที่ใช้เทรน ผลจำแนกด้านล่างน่าจะเชื่อถือได้ในระดับหนึ่ง';
-    } else if (plantScore >= 0.2) {
+    } else if (plantScore >= 0.18) {
       level = 'partial';
       skipModel = false;
       label = 'ลักษณะภาพใกล้เคียงบางส่วน';
@@ -946,12 +914,9 @@
 
     return {
       level: level, label: label, message: message, skipModel: skipModel,
-      plantScore: plantScore, colorScore: colorScore, edgeScore: edgeScore,
-      skinScore: skinScore, unnaturalScore: unnaturalScore
+      plantScore: plantScore, colorScore: colorScore, edgeScore: edgeScore
     };
   }
-
-  
 
   function rgbToHsl(r, g, b) {
     r /= 255; g /= 255; b /= 255;
