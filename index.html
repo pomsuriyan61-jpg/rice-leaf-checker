@@ -838,9 +838,30 @@
       plantScore = Math.min(plantScore, 0.3);
     }
 
+    const greenPct = (greenCount / sampleTotal) * 100;
+    const yellowPct = (yellowBrownCount / sampleTotal) * 100;
+    const otherPct = (otherCount / sampleTotal) * 100;
+
+    // Hard rule requested on top of the plantScore check above: a real
+    // rice-leaf close-up always shows a meaningful amount of actual green,
+    // even a diseased one. Golden-brown fried food, wood, skin tones etc.
+    // can score well on plantScore because their color falls in the same
+    // "yellow/brown disease lesion" hue bucket used for dry/diseased leaf
+    // tissue — this rule catches those by checking green specifically.
+    // Caveat: a rice leaf so heavily diseased that almost the whole blade
+    // has turned brown/yellow would also fail this check and get forced to
+    // "not Rice" — tune GREEN_MIN_PCT down (or remove this block) if that
+    // turns out to be a real class in your dataset.
+    const GREEN_MIN_PCT = 15;
+
     let level, label, message, skipModel;
 
-    if (plantScore >= 0.4) {
+    if (greenPct < GREEN_MIN_PCT) {
+      level = 'mismatch';
+      skipModel = true;
+      label = 'สีเขียวในภาพต่ำกว่ามาตรฐานใบข้าว';
+      message = 'ภาพนี้มีสัดส่วนสีเขียวเพียง ' + Math.round(greenPct) + '% ซึ่งต่ำกว่ามาตรฐานภาพใบข้าวทั่วไป ระบบจึงข้ามการส่งภาพนี้ให้โมเดลจำแนก';
+    } else if (plantScore >= 0.4) {
       level = 'match';
       skipModel = false;
       label = 'ลักษณะภาพใกล้เคียงใบพืช';
@@ -861,9 +882,9 @@
       level: level, label: label, message: message, skipModel: skipModel,
       plantScore: plantScore, colorScore: colorScore, edgeScore: edgeScore,
       colorBreakdown: {
-        greenPct: Math.round((greenCount / sampleTotal) * 100),
-        yellowPct: Math.round((yellowBrownCount / sampleTotal) * 100),
-        otherPct: Math.round((otherCount / sampleTotal) * 100)
+        greenPct: Math.round(greenPct),
+        yellowPct: Math.round(yellowPct),
+        otherPct: Math.round(otherPct)
       }
     };
   }
