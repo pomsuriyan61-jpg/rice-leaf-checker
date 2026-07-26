@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="utf-8"><title>model frame</title></head>
+<body>
+<script src="edge-impulse-standalone.js"></script>
+<script src="run-impulse.js"></script>
+<script>
+(function () {
+  "use strict";
+  var classifier = null;
+
+  async function init() {
+    try {
+      classifier = new EdgeImpulseClassifier();
+      await classifier.init();
+      var project = classifier.getProjectInfo();
+      var properties = classifier.getProperties();
+      parent.postMessage({ type: 'ready', project: project, properties: properties }, '*');
+    } catch (err) {
+      parent.postMessage({ type: 'init-error', message: (err && err.message) ? err.message : String(err) }, '*');
+    }
+  }
+
+  // Each frame only ever talks to its own parent page, and only runs
+  // classify() on whatever feature array it's handed — it has no notion of
+  // the other model running in the sibling frame. This keeps the two
+  // Edge Impulse WASM runtimes (which both define globals like `Module`
+  // and `EdgeImpulseClassifier`) fully isolated from each other.
+  window.addEventListener('message', function (e) {
+    var msg = e.data;
+    if (!msg || msg.type !== 'classify') return;
+    try {
+      if (!classifier) throw new Error('โมเดลยังไม่พร้อม');
+      var result = classifier.classify(msg.features);
+      parent.postMessage({ type: 'result', requestId: msg.requestId, result: result }, '*');
+    } catch (err) {
+      parent.postMessage({ type: 'error', requestId: msg.requestId, message: (err && err.message) ? err.message : String(err) }, '*');
+    }
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>
