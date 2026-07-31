@@ -3,1188 +3,1300 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ข้าวสแกน — ตรวจใบข้าวจากภาพถ่าย</title>
+<title>SmartRice AI — ระบบตรวจโรคข้าวและจัดการแปลงนา</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root {
-    --ink: #16241C;
-    --text: #3F4B44;
-    --text-muted: #7C8A80;
-    --primary: #1F9254;
-    --primary-dark: #147A44;
-    --primary-light: #EAF7EF;
-    --primary-border: #CDEBD8;
+    --ink: #14261A;
+    --text: #3C4A41;
+    --muted: #7A8B80;
+    --green: #1B7A45;
+    --green-dark: #155C34;
+    --green-deep: #0F4A2B;
+    --green-light: #E9F6EE;
+    --green-border: #C9E7D5;
     --surface: #FFFFFF;
-    --bg: #F5FAF6;
-    --border: #E3EEE6;
-    --warn-bg: #FFF7E8;
-    --warn-text: #8A6D1D;
-    --warn-border: #F0DFB0;
-    --danger: #B3261E;
-    --danger-bg: #FDEDEA;
-    --danger-border: #F3C6BD;
+    --bg: #F4FAF6;
+    --border: #E1EDE5;
+    --danger: #C0392B;
+    --danger-bg: #FDEEEC;
+    --warn: #B8860B;
+    --warn-bg: #FDF6E3;
+    --sidebar: #0F4A2B;
+    --sidebar-hover: #166A3D;
     --font: 'IBM Plex Sans Thai', sans-serif;
-    --radius-lg: 18px;
-    --radius-md: 12px;
-    --radius-sm: 8px;
   }
-
   * { box-sizing: border-box; }
-
   body {
-    margin: 0;
-    font-family: var(--font);
-    color: var(--text);
-    background: var(--bg);
-    line-height: 1.6;
+    margin: 0; font-family: var(--font); color: var(--text);
+    background: var(--bg); line-height: 1.6;
   }
-
-  h1, h2, h3 { font-family: var(--font); margin: 0; color: var(--ink); }
-
+  h1,h2,h3 { margin: 0; color: var(--ink); }
   button { font-family: var(--font); cursor: pointer; }
+  input, select, textarea { font-family: var(--font); }
+  :focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+  [hidden] { display: none !important; }
 
-  :focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+  /* ---------- Layout ---------- */
+  .app { display: flex; min-height: 100vh; }
 
-  /* ---------- Header ---------- */
-  .site-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 16px clamp(20px, 4vw, 48px);
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 20;
+  .sidebar {
+    width: 230px; flex-shrink: 0; background: var(--sidebar);
+    display: flex; flex-direction: column; position: sticky; top: 0;
+    height: 100vh; overflow-y: auto;
   }
-
   .brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 700;
-    font-size: 1.15rem;
-    color: var(--ink);
+    display: flex; align-items: center; gap: 10px;
+    padding: 20px 18px; color: #fff; font-weight: 700; font-size: 1.1rem;
+  }
+  .nav { flex: 1; padding: 0 10px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 11px; width: 100%;
+    padding: 11px 14px; margin-bottom: 3px; border: none; background: transparent;
+    color: #C9E3D4; font-size: .92rem; text-align: left; border-radius: 9px;
+    transition: background .15s, color .15s;
+  }
+  .nav-item:hover { background: rgba(255,255,255,.09); color: #fff; }
+  .nav-item.active { background: #1B7A45; color: #fff; font-weight: 600; }
+  .nav-item svg { flex-shrink: 0; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 14px clamp(16px,3vw,32px); background: var(--surface);
+    border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 30;
+  }
+  .page-title { font-size: 1.4rem; font-weight: 700; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .search-box {
+    display: flex; align-items: center; gap: 8px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 999px; padding: 7px 15px;
+  }
+  .search-box input { border: none; background: transparent; outline: none; font-size: .88rem; width: 150px; }
+  .avatar {
+    display: flex; align-items: center; gap: 8px; background: var(--green-light);
+    border: 1px solid var(--green-border); border-radius: 999px; padding: 5px 14px 5px 5px;
+    font-size: .86rem; font-weight: 600; color: var(--green-deep);
+  }
+  .avatar-circle {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--green);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: .8rem; font-weight: 700;
   }
 
-  .status-pill {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.82rem;
-    font-weight: 500;
-    color: var(--text-muted);
-    background: var(--bg);
-    border: 1px solid var(--border);
-    padding: 6px 14px;
-    border-radius: 999px;
+  .breadcrumb { padding: 12px clamp(16px,3vw,32px); font-size: .84rem; color: var(--muted); background: var(--surface); border-bottom: 1px solid var(--border); }
+  .breadcrumb b { color: var(--ink); font-weight: 600; }
+
+  .content { padding: clamp(16px,3vw,26px) clamp(16px,3vw,32px) 60px; }
+
+  /* ---------- Cards ---------- */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px;
   }
-  .status-pill.ready { color: var(--primary-dark); background: var(--primary-light); border-color: var(--primary-border); }
-  .status-pill.error { color: var(--danger); background: var(--danger-bg); border-color: var(--danger-border); }
+  .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
 
-  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px,1fr)); gap: 14px; margin-bottom: 18px; }
+  .stat-label { font-size: .82rem; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+  .stat-value { font-size: 1.75rem; font-weight: 700; color: var(--green); line-height: 1.2; }
+  .stat-value.danger { color: var(--danger); font-size: 1.3rem; }
+  .stat-value.plain { color: var(--ink); font-size: 1.5rem; }
 
-  /* ---------- Intro banner ---------- */
-  .intro {
-    background: var(--primary-light);
-    border-bottom: 1px solid var(--primary-border);
-    padding: clamp(28px, 5vw, 44px) clamp(20px, 4vw, 48px);
-    text-align: center;
-  }
+  .grid-2 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 980px) { .grid-2 { grid-template-columns: 1fr; } }
 
-  .intro-inner { max-width: 620px; margin: 0 auto; }
-
-  .eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--primary-dark);
-    background: var(--surface);
-    border: 1px solid var(--primary-border);
-    padding: 5px 14px;
-    border-radius: 999px;
-    margin-bottom: 16px;
+  .tag {
+    display: inline-block; font-size: .72rem; font-weight: 600; padding: 3px 10px;
+    border-radius: 999px; background: var(--green-light); color: var(--green-deep);
+    border: 1px solid var(--green-border); margin-bottom: 10px;
   }
 
-  .intro h1 {
-    font-size: clamp(1.5rem, 3vw, 2rem);
-    font-weight: 700;
-    line-height: 1.35;
-    margin-bottom: 10px;
+  /* ---------- Table ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th {
+    text-align: left; padding: 10px 8px; border-bottom: 2px solid var(--border);
+    font-weight: 600; color: var(--ink); white-space: nowrap;
   }
+  td { padding: 11px 8px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  .disease-cell { color: var(--danger); font-weight: 500; }
+  .disease-cell.ok { color: var(--green); }
 
-  .intro p {
-    font-size: 0.95rem;
-    color: var(--text-muted);
-    margin: 0;
+  /* ---------- Forms ---------- */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .form-grid { grid-template-columns: 1fr; } }
+  .field label { display: block; font-size: .82rem; font-weight: 600; color: var(--ink); margin-bottom: 5px; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+    border-radius: 9px; font-size: .9rem; background: var(--surface); color: var(--text);
   }
-
-  /* ---------- Dashboard layout ---------- */
-  .dashboard {
-    display: grid;
-    grid-template-columns: minmax(300px, 440px) 1fr;
-    gap: 20px;
-    align-items: start;
-    max-width: 1080px;
-    margin: 0 auto;
-    padding: clamp(20px, 4vw, 32px) clamp(16px, 4vw, 24px) 80px;
-  }
-
-  @media (max-width: 880px) {
-    .dashboard { grid-template-columns: 1fr; }
-  }
-
-  .panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: clamp(18px, 3vw, 26px);
-    box-shadow: 0 1px 2px rgba(22, 36, 28, 0.04);
-  }
-
-  .panel-header { margin-bottom: 18px; }
-  .panel-header h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; }
-  .panel-header p { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
-
-  .results-panel { position: sticky; top: 84px; }
-  @media (max-width: 880px) { .results-panel { position: static; } }
-
-  /* ---------- Dropzone ---------- */
-  .dropzone {
-    border: 1.5px dashed var(--border);
-    border-radius: var(--radius-md);
-    padding: clamp(24px, 5vw, 36px) 18px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.15s ease, background 0.15s ease;
-    background: var(--bg);
-  }
-  .dropzone:hover, .dropzone:focus-visible {
-    border-color: var(--primary);
-    background: var(--primary-light);
-  }
-  .dropzone.dragging { border-color: var(--primary); background: var(--primary-light); }
-
-  .dropzone-icon {
-    width: 44px;
-    height: 44px;
-    margin: 0 auto 12px;
-    border-radius: 999px;
-    background: var(--primary-light);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .dropzone-title { font-weight: 600; font-size: 0.98rem; color: var(--ink); margin-bottom: 4px; }
-  .dropzone-sub { font-size: 0.85rem; color: var(--text-muted); }
-
-  #file-input { display: none; }
-
-  .browser-note {
-    font-size: 0.76rem;
-    color: var(--text-muted);
-    text-align: center;
-    margin-top: 12px;
-  }
-
-  /* ---------- Preview + scan ---------- */
-  .preview-wrap {
-    margin-top: 16px;
-    position: relative;
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    border: 1px solid var(--border);
-    background: var(--bg);
-  }
-
-  .preview-wrap img {
-    display: block;
-    width: 100%;
-    max-height: 320px;
-    object-fit: contain;
-    background:
-      linear-gradient(45deg, #F0F5F1 25%, transparent 25%) -8px 0/16px 16px,
-      linear-gradient(-45deg, #F0F5F1 25%, transparent 25%) -8px 0/16px 16px,
-      #FAFCFA;
-  }
-
-  .scan-overlay { position: absolute; inset: 0; pointer-events: none; background: rgba(31, 146, 84, 0.05); }
-
-  .scan-beam {
-    position: absolute;
-    left: 0; right: 0;
-    height: 24%;
-    top: -24%;
-    background: linear-gradient(180deg, rgba(31,146,84,0) 0%, rgba(31,146,84,0.35) 50%, rgba(31,146,84,0) 100%);
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .scan-beam { animation: scan 1.5s ease-in-out infinite; }
-    @keyframes scan { 0% { top: -24%; } 100% { top: 100%; } }
-  }
-  @media (prefers-reduced-motion: reduce) { .scan-beam { top: 40%; } }
-
-  .actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .field input:focus { border-color: var(--green); outline: none; }
+  .field input[readonly] { background: var(--bg); color: var(--muted); }
 
   .btn {
-    border: none;
-    border-radius: 999px;
-    padding: 11px 24px;
-    font-size: 0.92rem;
-    font-weight: 600;
-    transition: background 0.15s ease, opacity 0.15s ease;
+    border: none; border-radius: 999px; padding: 11px 24px;
+    font-size: .92rem; font-weight: 600; transition: background .15s, opacity .15s;
   }
-
-  .btn-primary { background: var(--primary); color: #fff; }
-  .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
-  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--green-deep); }
+  .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
   .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--border); }
   .btn-ghost:hover { background: var(--bg); }
+  .btn-blue { background: #2563EB; color: #fff; }
+  .btn-blue:hover { background: #1D4ED8; }
+  .btn-full { width: 100%; display: block; text-align: center; }
 
-  /* ---------- Error ---------- */
-  .error-box {
-    margin-top: 14px;
-    background: var(--danger-bg);
-    border: 1px solid var(--danger-border);
-    color: var(--danger);
-    padding: 11px 15px;
-    border-radius: var(--radius-sm);
-    font-size: 0.86rem;
+  .dropzone {
+    border: 1.5px dashed var(--border); border-radius: 11px; padding: 26px 16px;
+    text-align: center; cursor: pointer; background: var(--bg); transition: border-color .15s, background .15s;
   }
+  .dropzone:hover, .dropzone.drag { border-color: var(--green); background: var(--green-light); }
+  .dropzone-text { font-weight: 600; font-size: .93rem; color: var(--ink); }
+  .file-input { display: none; }
 
-  /* ---------- Results placeholder ---------- */
-  .results-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 48px 20px;
-    color: var(--text-muted);
-    min-height: 220px;
-  }
-  .results-placeholder-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 999px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 14px;
-  }
-  .results-placeholder p { font-size: 0.9rem; margin: 0; max-width: 260px; }
-
-  /* ---------- Results content ---------- */
-  .result-source-note {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    margin-bottom: 14px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
+  .preview-wrap { margin-top: 14px; position: relative; border-radius: 11px; overflow: hidden; border: 1px solid var(--border); }
+  .preview-wrap img { display: block; width: 100%; max-height: 280px; object-fit: contain; background: var(--bg); }
+  .scan { position: absolute; inset: 0; background: rgba(27,122,69,.06); pointer-events: none; }
+  .scan-beam { position: absolute; left: 0; right: 0; height: 24%; top: -24%; background: linear-gradient(180deg, rgba(27,122,69,0), rgba(27,122,69,.4), rgba(27,122,69,0)); }
+  @media (prefers-reduced-motion: no-preference) {
+    .scan-beam { animation: scan 1.5s ease-in-out infinite; }
+    @keyframes scan { 0% { top:-24%; } 100% { top:100%; } }
   }
 
-  .results-block + .results-block {
-    margin-top: 20px;
-    padding-top: 18px;
-    border-top: 1px solid var(--border);
-  }
-  .results-block-title {
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    color: var(--primary-dark);
-    text-transform: uppercase;
-    margin-bottom: 10px;
-  }
+  /* ---------- Results ---------- */
+  .res-section-title { font-size: .88rem; font-weight: 700; color: var(--green); margin: 16px 0 4px; }
+  .res-note { font-size: .78rem; color: var(--muted); margin-bottom: 10px; }
+  .res-row { display: grid; grid-template-columns: minmax(96px,auto) 1fr 46px; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; margin-bottom: 3px; }
+  .res-row.top { background: var(--green-light); border: 1px solid var(--green-border); }
+  .res-label { font-weight: 600; font-size: .88rem; }
+  .res-row.top .res-label { color: var(--green-deep); }
+  .res-track { background: var(--border); border-radius: 999px; height: 8px; overflow: hidden; }
+  .res-fill { height: 100%; background: var(--muted); border-radius: 999px; }
+  .res-row.top .res-fill { background: var(--green); }
+  .res-pct { text-align: right; font-size: .85rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .res-row.top .res-pct { color: var(--green-deep); font-weight: 700; }
 
-  .result-row {
-    display: grid;
-    grid-template-columns: minmax(84px, auto) 1fr 46px;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
-    margin-bottom: 4px;
-  }
-  .result-row.top {
-    background: var(--primary-light);
-    border: 1px solid var(--primary-border);
-  }
-
-  .result-label { font-weight: 600; font-size: 0.92rem; color: var(--text); }
-  .result-row.top .result-label { color: var(--primary-dark); }
-
-  .result-bar-track { background: var(--border); border-radius: 999px; height: 8px; overflow: hidden; }
-  .result-bar-fill { height: 100%; background: var(--text-muted); border-radius: 999px; }
-  .result-row.top .result-bar-fill { background: var(--primary); }
-
-  .result-pct {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    font-size: 0.88rem;
-    color: var(--text-muted);
-  }
-  .result-row.top .result-pct { color: var(--primary-dark); font-weight: 700; }
-
-  .result-anomaly { margin-top: 10px; font-size: 0.8rem; color: var(--text-muted); }
-
-  /* ---------- Color breakdown ---------- */
-  .color-breakdown { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
-  .color-breakdown-title {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    margin-bottom: 10px;
-  }
-  .color-bar {
-    display: flex;
-    width: 100%;
-    height: 10px;
-    border-radius: 999px;
-    overflow: hidden;
-    background: var(--border);
-  }
-  .color-bar-seg { height: 100%; transition: width 0.2s ease; }
-  .color-seg-green { background: #1F9254; }
-  .color-seg-yellow { background: #D9A441; }
-  .color-seg-other { background: #B7C2BB; }
-
-  .color-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    margin-top: 10px;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-  }
-  .color-legend b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .color-bar { display: flex; height: 9px; border-radius: 999px; overflow: hidden; background: var(--border); margin-top: 4px; }
+  .color-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: .78rem; color: var(--muted); }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
-  .dot-green { background: #1F9254; }
-  .dot-yellow { background: #D9A441; }
-  .dot-other { background: #B7C2BB; }
 
-  /* ---------- Footer ---------- */
-  footer {
-    max-width: 1080px;
-    margin: 0 auto;
-    padding: 0 clamp(16px, 4vw, 24px) 40px;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    text-align: center;
-  }
-  footer .project-info { margin-bottom: 6px; color: var(--text); font-weight: 500; }
+  /* ---------- Chat ---------- */
+  .chat-log { min-height: 260px; max-height: 420px; overflow-y: auto; padding: 4px; }
+  .msg { padding: 12px 15px; border-radius: 11px; margin-bottom: 10px; font-size: .9rem; max-width: 88%; }
+  .msg.ai { background: var(--green-light); border-left: 3px solid var(--green); color: var(--text); }
+  .msg.me { background: var(--bg); border: 1px solid var(--border); margin-left: auto; }
+  .chat-input-row { display: flex; gap: 9px; margin-top: 12px; }
+  .chat-input-row input { flex: 1; padding: 11px 15px; border: 1px solid var(--border); border-radius: 999px; font-size: .9rem; outline: none; }
+  .chat-input-row input:focus { border-color: var(--green); }
 
-  /* ---------- Treatment card ---------- */
-  .treatment-card {
-    margin-top: 18px;
-    padding-top: 18px;
-    border-top: 1px solid var(--border);
-  }
-  .treatment-card-inner {
-    background: var(--primary-light);
-    border: 1px solid var(--primary-border);
-    border-radius: var(--radius-md);
-    padding: 16px 18px;
-  }
-  .treatment-card-inner.warn { background: var(--warn-bg); border-color: var(--warn-border); }
-  .treatment-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.86rem;
-    font-weight: 700;
-    color: var(--primary-dark);
-    margin-bottom: 8px;
-  }
-  .treatment-card-inner.warn .treatment-title { color: var(--warn-text); }
-  .treatment-body { font-size: 0.88rem; color: var(--text); margin: 0; }
-  .treatment-note {
-    margin-top: 10px;
-    font-size: 0.76rem;
-    color: var(--text-muted);
-    border-top: 1px dashed var(--primary-border);
-    padding-top: 8px;
-  }
+  /* ---------- Misc ---------- */
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: .9rem; }
+  .status-line { font-size: .78rem; color: var(--muted); margin-top: 10px; }
+  .alert { padding: 11px 15px; border-radius: 9px; font-size: .86rem; margin-top: 12px; }
+  .alert.err { background: var(--danger-bg); color: var(--danger); border: 1px solid #F0C8C2; }
+  .alert.ok { background: var(--green-light); color: var(--green-deep); border: 1px solid var(--green-border); }
+  .list-item { display: flex; gap: 12px; align-items: center; padding: 13px 4px; border-bottom: 1px solid var(--border); }
+  .list-item:last-child { border-bottom: none; }
+  .list-main { flex: 1; min-width: 0; }
+  .list-title { font-weight: 600; font-size: .92rem; color: var(--ink); }
+  .list-sub { font-size: .82rem; color: var(--muted); }
+  #map { height: 380px; border-radius: 11px; border: 1px solid var(--border); }
+  canvas { max-width: 100%; }
 
-  [hidden] { display: none !important; }
+  .mobile-nav-toggle { display: none; background: none; border: none; padding: 6px; }
+  @media (max-width: 820px) {
+    .sidebar { position: fixed; left: 0; top: 0; z-index: 60; transform: translateX(-100%); transition: transform .2s; }
+    .sidebar.open { transform: translateX(0); }
+    .mobile-nav-toggle { display: block; }
+    .search-box { display: none; }
+  }
 </style>
 </head>
 <body>
 
-<header class="site-header">
-  <div class="brand">
-    <svg width="26" height="26" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-      <path d="M15 27C15 27 7 21.5 7 13.5C7 8.5 10.5 4 15 3C19.5 4 23 8.5 23 13.5C23 21.5 15 27 15 27Z" fill="#1F9254"/>
-      <path d="M15 27C15 27 15 17 15 13.5C15 9.5 13 5.5 10.5 3.5" stroke="#147A44" stroke-width="1.4" stroke-linecap="round" fill="none"/>
-      <path d="M15 27C15 27 15 17 15 13.5C15 9.5 17 5.5 19.5 3.5" stroke="#147A44" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.5"/>
-    </svg>
-    ข้าวสแกน
-  </div>
-  <div class="status-pill" id="status-pill" role="status">
-    <span class="status-dot" id="status-dot"></span>
-    <span id="status-text">กำลังโหลดโมเดล...</span>
-  </div>
-</header>
-
-<section class="intro">
-  <div class="intro-inner">
-    <span class="eyebrow">ทำงานทั้งหมดในเบราว์เซอร์ของคุณ</span>
-    <h1>ตรวจใบข้าวจากภาพถ่าย ด้วยโมเดล AI ที่คุณเทรนเอง</h1>
-    <p>อัปโหลดภาพหนึ่งใบ ระบบประมวลผลทันทีบนเครื่องนี้ ไม่มีการส่งภาพขึ้นเซิร์ฟเวอร์ พร้อมด่านตรวจสี/พื้นผิวเบื้องต้นก่อนส่งเข้าโมเดล</p>
-  </div>
-</section>
-
-<main class="dashboard">
-
-  <section class="panel upload-panel" aria-labelledby="upload-title">
-    <div class="panel-header">
-      <h2 id="upload-title">อัปโหลดภาพใบข้าว</h2>
-      <p>รองรับไฟล์ JPG และ PNG</p>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+        <path d="M15 27C15 27 7 21.5 7 13.5C7 8.5 10.5 4 15 3C19.5 4 23 8.5 23 13.5C23 21.5 15 27 15 27Z" fill="#4ADE80"/>
+        <path d="M15 27V13.5C15 9.5 13 5.5 10.5 3.5" stroke="#0F4A2B" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+      SmartRice AI
     </div>
+    <nav class="nav" id="nav"></nav>
+  </aside>
 
-    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="เลือกหรือวางไฟล์ภาพใบข้าว">
-      <div class="dropzone-icon">
-        <svg width="20" height="20" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-          <path d="M20 26V10M20 10L14 16M20 10L26 16" stroke="#1F9254" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M8 26V30C8 31.1 8.9 32 10 32H30C31.1 32 32 31.1 32 30V26" stroke="#147A44" stroke-width="2.6" stroke-linecap="round"/>
-        </svg>
+  <div class="main">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="mobile-nav-toggle" id="navToggle" aria-label="เปิดเมนู">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="#14261A" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <h1 class="page-title" id="pageTitle">Dashboard</h1>
       </div>
-      <div class="dropzone-title">ลากรูปมาวาง หรือคลิกเพื่อเลือกไฟล์</div>
-      <div class="dropzone-sub">ถ่ายใบข้าวให้ใกล้และชัดเจน จะได้ผลแม่นยำที่สุด</div>
-    </div>
-    <input type="file" id="file-input" accept="image/*">
-
-    <div class="preview-wrap" id="preview-wrap" hidden>
-      <img id="preview-img" alt="ภาพตัวอย่างที่เลือก">
-      <div class="scan-overlay" id="scan-overlay" hidden>
-        <div class="scan-beam"></div>
-      </div>
-    </div>
-
-    <div class="actions">
-      <button class="btn btn-primary" id="analyze-btn" disabled>วิเคราะห์ภาพ</button>
-      <button class="btn btn-ghost" id="reset-btn">เลือกภาพใหม่</button>
-    </div>
-
-    <p class="browser-note">ใช้งานได้ดีที่สุดบน Chrome, Edge, Firefox หรือ Safari เวอร์ชันล่าสุด · การโหลดครั้งแรกอาจใช้เวลาสักครู่ เพราะมีโมเดล AI 2 ตัว (~33MB รวมกัน)</p>
-
-    <div class="error-box" id="error-box" role="alert" hidden></div>
-  </section>
-
-  <section class="panel results-panel" aria-labelledby="results-title">
-    <div class="panel-header">
-      <h2 id="results-title">ผลการวิเคราะห์</h2>
-      <p>เรียงจากความมั่นใจของโมเดลมากไปน้อย</p>
-    </div>
-
-    <div class="results-placeholder" id="results-placeholder">
-      <div class="results-placeholder-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M9 12l2 2 4-4" stroke="#7C8A80" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="12" cy="12" r="9" stroke="#7C8A80" stroke-width="1.5"/>
-        </svg>
-      </div>
-      <p>อัปโหลดและกดวิเคราะห์ภาพ ผลลัพธ์จะแสดงที่นี่</p>
-    </div>
-
-    <div id="results-content" hidden>
-      <div class="results-block">
-        <div class="results-block-title">ขั้นที่ 1 — เป็นข้าวหรือไม่</div>
-        <div id="results-list"></div>
-      </div>
-
-      <div class="results-block" id="disease-block" hidden>
-        <div class="results-block-title">ขั้นที่ 2 — ชนิดของโรค</div>
-        <div id="disease-list"></div>
-        <div class="treatment-card" id="treatment-card" hidden>
-          <div class="treatment-card-inner" id="treatment-card-inner">
-            <div class="treatment-title">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 2C12 2 6 6 6 12C6 15.3 8.7 18 12 18C15.3 18 18 15.3 18 12C18 6 12 2 12 2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                <path d="M12 18V22M9 22H15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-              </svg>
-              <span id="treatment-heading">คำแนะนำการดูแลรักษา</span>
-            </div>
-            <p class="treatment-body" id="treatment-body"></p>
-            <div class="treatment-note">ข้อมูลนี้เป็นคำแนะนำทั่วไปเบื้องต้นเท่านั้น ก่อนตัดสินใจใช้สารเคมีหรือวิธีรักษาใดๆ ควรปรึกษาเกษตรอำเภอหรือผู้เชี่ยวชาญในพื้นที่เพื่อยืนยันชนิดโรคและวิธีจัดการที่เหมาะสม</div>
-          </div>
+      <div class="topbar-right">
+        <div class="search-box">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#7A8B80" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="#7A8B80" stroke-width="2" stroke-linecap="round"/></svg>
+          <input type="text" id="globalSearch" placeholder="ค้นหาใน Field Log...">
         </div>
+        <div class="avatar"><span class="avatar-circle" id="avatarLetter">ก</span><span id="avatarName">เกษตรกร</span></div>
       </div>
+    </header>
 
-      <div class="color-breakdown">
-        <div class="color-breakdown-title">สัดส่วนโทนสีในภาพ</div>
-        <div class="color-bar" id="color-bar">
-          <div class="color-bar-seg color-seg-green" id="seg-green"></div>
-          <div class="color-bar-seg color-seg-yellow" id="seg-yellow"></div>
-          <div class="color-bar-seg color-seg-other" id="seg-other"></div>
-        </div>
-        <div class="color-legend">
-          <span><i class="dot dot-green"></i>เขียว <b id="pct-green">0%</b></span>
-          <span><i class="dot dot-yellow"></i>เหลือง/น้ำตาล <b id="pct-yellow">0%</b></span>
-          <span><i class="dot dot-other"></i>สีอื่น <b id="pct-other">0%</b></span>
-        </div>
-      </div>
-    </div>
-  </section>
+    <div class="breadcrumb">หน้าแรก / <b id="crumb">Dashboard</b></div>
 
-</main>
+    <main class="content" id="content"></main>
+  </div>
+</div>
 
-<footer>
-  <div class="project-info" id="project-info"></div>
-  <div>โมเดลทั้งสองตัวทำงานบนเครื่องคุณทั้งหมดผ่าน WebAssembly หลังโหลดหน้าเว็บครั้งแรก ภาพของคุณจะไม่ถูกส่งไปที่ใดเลย</div>
-</footer>
+<iframe id="riceFrame" src="rice-model/frame.html" style="display:none" title="rice classifier" aria-hidden="true"></iframe>
+<iframe id="diseaseFrame" src="disease-model/frame.html" style="display:none" title="disease classifier" aria-hidden="true"></iframe>
 
-<!-- Each AI model runs inside its own hidden iframe so the two Edge Impulse
-     WASM runtimes (which both define globals like `Module` and
-     `EdgeImpulseClassifier`) never collide. The parent page talks to each
-     one only via postMessage. -->
-<iframe id="rice-frame" src="rice-model/frame.html" style="display:none" title="rice classifier" aria-hidden="true"></iframe>
-<iframe id="disease-frame" src="disease-model/frame.html" style="display:none" title="disease classifier" aria-hidden="true"></iframe>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 (function () {
-  "use strict";
+"use strict";
 
-  const els = {
-    fileInput: document.getElementById('file-input'),
-    dropzone: document.getElementById('dropzone'),
-    previewImg: document.getElementById('preview-img'),
-    previewWrap: document.getElementById('preview-wrap'),
-    analyzeBtn: document.getElementById('analyze-btn'),
-    resetBtn: document.getElementById('reset-btn'),
-    statusPill: document.getElementById('status-pill'),
-    statusText: document.getElementById('status-text'),
-    statusDot: document.getElementById('status-dot'),
-    resultsPlaceholder: document.getElementById('results-placeholder'),
-    resultsContent: document.getElementById('results-content'),
-    resultsList: document.getElementById('results-list'),
-    diseaseBlock: document.getElementById('disease-block'),
-    diseaseList: document.getElementById('disease-list'),
-    riceFrame: document.getElementById('rice-frame'),
-    diseaseFrame: document.getElementById('disease-frame'),
-    segGreen: document.getElementById('seg-green'),
-    segYellow: document.getElementById('seg-yellow'),
-    segOther: document.getElementById('seg-other'),
-    pctGreen: document.getElementById('pct-green'),
-    pctYellow: document.getElementById('pct-yellow'),
-    pctOther: document.getElementById('pct-other'),
-    scanOverlay: document.getElementById('scan-overlay'),
-    projectInfo: document.getElementById('project-info'),
-    errorBox: document.getElementById('error-box'),
-    treatmentCard: document.getElementById('treatment-card'),
-    treatmentCardInner: document.getElementById('treatment-card-inner'),
-    treatmentBody: document.getElementById('treatment-body'),
-    treatmentHeading: document.getElementById('treatment-heading'),
+// ============ ตั้งค่า ============
+// URL ของ Cloudflare Worker ที่สร้างไว้ — ทำหน้าที่เก็บ Field Log และเรียก Gemini
+// แทนหน้าเว็บ (API key ของ Gemini ถูกเก็บไว้ฝั่ง Worker ไม่หลุดออกมาที่หน้าเว็บ)
+var API_BASE = "https://divine-frost-abbb.pomsuriyan61.workers.dev";
+
+// แปลชื่อคลาสจากโมเดลเป็นภาษาไทย ใช้แค่ตอนแสดงผล การเทียบ label ในโค้ด
+// ยังใช้ชื่ออังกฤษเดิมจากโมเดลเสมอ เพื่อให้เปลี่ยนโมเดลแล้วไม่พัง
+var LABEL_TH = {
+  "Rice": "ข้าว", "not Rice": "ไม่ใช่ข้าว", "other": "อื่นๆ",
+  "Blast": "โรคไหม้", "Brown spot": "โรคใบจุดสีน้ำตาล",
+  "Sheath blight": "โรคกาบใบแห้ง", "Rice Tungro": "โรคทุงโร",
+  "Healthy": "ปกติ ไม่พบโรค", "Leaf smut": "โรคใบเขม่าดำ",
+  "narrow_brown_spot": "โรคใบขีดสีน้ำตาล", "Narrow brown spot": "โรคใบขีดสีน้ำตาล"
+};
+function th(label) { return LABEL_TH[label] || label; }
+
+var PAGES = [
+  { id: "dashboard", label: "Dashboard", icon: "M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z" },
+  { id: "fields", label: "My Rice Fields", icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
+  { id: "survey", label: "Field Survey", icon: "M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zm2 5h4m-4 4h4m-4 4h2" },
+  { id: "detect", label: "Disease Detection", icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
+  { id: "log", label: "Field Log", icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
+  { id: "analytics", label: "Analytics", icon: "M5 20V10m7 10V4m7 16v-7" },
+  { id: "reports", label: "AI Reports", icon: "M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v13a2 2 0 01-2 2z" },
+  { id: "map", label: "Field Map", icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
+  { id: "profile", label: "Profile", icon: "M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 5v1h14v-1c0-3-3-5-7-5z" },
+  { id: "settings", label: "Settings", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zm8-3a8 8 0 01-.2 1.7l2 1.6-2 3.4-2.4-1a8 8 0 01-2.9 1.7l-.4 2.6h-4l-.4-2.6a8 8 0 01-2.9-1.7l-2.4 1-2-3.4 2-1.6A8 8 0 014 12" }
+];
+
+// ============ ชั้นข้อมูล ============
+// รวมการอ่าน/เขียนข้อมูลไว้ที่เดียว หน้าอื่นเรียกผ่าน Store เท่านั้น
+// ถ้าเปลี่ยนไปใช้ backend อื่นในอนาคต แก้แค่ในนี้ ไม่ต้องแตะโค้ดหน้าเว็บ
+var Store = {
+  _cache: null,
+  _offline: false,
+
+  async list() {
+    if (this._cache) return this._cache;
+    try {
+      var res = await fetch(API_BASE + "/field-logs");
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      this._cache = await res.json();
+      this._offline = false;
+    } catch (err) {
+      // ถ้า API ล่มหรือเน็ตหลุด ยังใช้งานต่อได้ด้วยข้อมูลในเครื่อง
+      this._offline = true;
+      this._cache = JSON.parse(localStorage.getItem("smartrice-logs") || "[]");
+    }
+    return this._cache;
+  },
+
+  async add(entry) {
+    try {
+      var res = await fetch(API_BASE + "/field-logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(entry)
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      var saved = await res.json();
+      if (this._cache) this._cache.unshift(saved); else this._cache = [saved];
+      this._offline = false;
+      return saved;
+    } catch (err) {
+      this._offline = true;
+      entry.id = Date.now().toString(36);
+      entry.created_at = new Date().toISOString();
+      var local = JSON.parse(localStorage.getItem("smartrice-logs") || "[]");
+      local.unshift(entry);
+      localStorage.setItem("smartrice-logs", JSON.stringify(local.slice(0, 500)));
+      if (this._cache) this._cache.unshift(entry); else this._cache = [entry];
+      return entry;
+    }
+  },
+
+  isOffline() { return this._offline; },
+
+  async askGemini(prompt) {
+    var res = await fetch(API_BASE + "/gemini", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: prompt })
+    });
+    var data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || "เรียก AI ไม่สำเร็จ");
+    return data.text;
+  },
+
+  profile() {
+    return JSON.parse(localStorage.getItem("smartrice-profile") || '{"name":"เกษตรกร","farm":"","phone":""}');
+  },
+  saveProfile(p) { localStorage.setItem("smartrice-profile", JSON.stringify(p)); }
+};
+
+// ============ โมเดล AI (คุยผ่าน iframe) ============
+var models = {
+  rice: { frame: document.getElementById("riceFrame"), ready: false, props: null },
+  disease: { frame: document.getElementById("diseaseFrame"), ready: false, props: null }
+};
+var pending = {};
+var reqId = 0;
+
+window.addEventListener("message", function (e) {
+  var msg = e.data;
+  if (!msg || !msg.type) return;
+  var which = e.source === models.rice.frame.contentWindow ? "rice"
+            : e.source === models.disease.frame.contentWindow ? "disease" : null;
+  if (!which) return;
+
+  if (msg.type === "ready") {
+    models[which].ready = true;
+    models[which].props = msg.properties;
+    models[which].project = msg.project;
+    updateModelStatus();
+  } else if (msg.type === "init-error") {
+    models[which].error = msg.message;
+    updateModelStatus();
+  } else if (msg.type === "result" && pending[msg.requestId]) {
+    pending[msg.requestId].resolve(msg.result);
+    delete pending[msg.requestId];
+  } else if (msg.type === "error" && pending[msg.requestId]) {
+    pending[msg.requestId].reject(new Error(msg.message));
+    delete pending[msg.requestId];
+  }
+});
+
+function classify(which, features) {
+  return new Promise(function (resolve, reject) {
+    var id = ++reqId;
+    pending[id] = { resolve: resolve, reject: reject };
+    models[which].frame.contentWindow.postMessage({ type: "classify", requestId: id, features: features }, "*");
+    setTimeout(function () {
+      if (pending[id]) { delete pending[id]; reject(new Error("โมเดลใช้เวลานานเกินไป")); }
+    }, 30000);
+  });
+}
+
+function updateModelStatus() {
+  var els = document.querySelectorAll("[data-model-status]");
+  var ready = models.rice.ready && models.disease.ready;
+  els.forEach(function (el) {
+    if (models.rice.error || models.disease.error) {
+      el.textContent = "โหลดโมเดลไม่สำเร็จ";
+      el.disabled = true;
+    } else if (ready) {
+      el.textContent = el.dataset.readyText || "วิเคราะห์ภาพ";
+      el.disabled = !el.dataset.hasImage;
+    } else {
+      el.textContent = "กำลังโหลดโมเดล AI...";
+      el.disabled = true;
+    }
+  });
+}
+
+function extractFeatures(img, w, h) {
+  var c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  var ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, w, h);
+  var d = ctx.getImageData(0, 0, w, h).data;
+  var f = new Array(w * h);
+  for (var i = 0, p = 0; i < d.length; i += 4, p++) f[p] = (d[i] << 16) + (d[i+1] << 8) + d[i+2];
+  return f;
+}
+
+function dims(props) {
+  return { w: (props && props.image_input_width) || 96, h: (props && props.image_input_height) || 96 };
+}
+
+// ============ ด่านกรองสี/พื้นผิวก่อนเข้าโมเดล ============
+// รันก่อนโมเดลทุกครั้ง: โมเดลถูกฝึกให้ต้องเลือกคำตอบเสมอ ภาพที่ไม่ใช่พืชเลย
+// จึงได้คำตอบมั่วแต่มั่นใจสูง ด่านนี้ตัดภาพแบบนั้นทิ้งก่อนถึงโมเดล
+function preCheck(img) {
+  var SIZE = 64;
+  var c = document.createElement("canvas");
+  c.width = SIZE; c.height = SIZE;
+  var ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, SIZE, SIZE);
+  var d = ctx.getImageData(0, 0, SIZE, SIZE).data;
+
+  var gray = new Float32Array(SIZE * SIZE);
+  for (var p = 0; p < SIZE * SIZE; p++) {
+    var i = p * 4;
+    gray[p] = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+  }
+
+  var center = (SIZE - 1) / 2, maxDist = Math.sqrt(2) * center, NORM = 900;
+  var colorW = 0, edgeW = 0, wSum = 0, green = 0, yellow = 0, other = 0, total = 0;
+
+  for (var y = 1; y < SIZE - 1; y++) {
+    for (var x = 1; x < SIZE - 1; x++) {
+      var idx = (y * SIZE + x) * 4;
+      var hsl = rgbToHsl(d[idx], d[idx+1], d[idx+2]);
+      var isGreen = hsl.h >= 60 && hsl.h <= 170;
+      var isYB = hsl.h >= 20 && hsl.h < 60;
+      var colorful = hsl.s > 0.12 && hsl.l > 0.08 && hsl.l < 0.9;
+      total++;
+      if (isGreen && colorful) green++;
+      else if (isYB && colorful) yellow++;
+      else other++;
+
+      var gx = -gray[(y-1)*SIZE+(x-1)] + gray[(y-1)*SIZE+(x+1)]
+             - 2*gray[y*SIZE+(x-1)] + 2*gray[y*SIZE+(x+1)]
+             - gray[(y+1)*SIZE+(x-1)] + gray[(y+1)*SIZE+(x+1)];
+      var gy = -gray[(y-1)*SIZE+(x-1)] - 2*gray[(y-1)*SIZE+x] - gray[(y-1)*SIZE+(x+1)]
+             + gray[(y+1)*SIZE+(x-1)] + 2*gray[(y+1)*SIZE+x] + gray[(y+1)*SIZE+(x+1)];
+      var edge = Math.min(Math.sqrt(gx*gx + gy*gy) / NORM, 1);
+
+      var dist = Math.sqrt((x-center)*(x-center) + (y-center)*(y-center)) / maxDist;
+      var w = 1 - 0.6 * dist;
+      colorW += ((isGreen || isYB) && colorful ? 1 : 0) * w;
+      edgeW += edge * w;
+      wSum += w;
+    }
+  }
+
+  var colorScore = colorW / wSum, edgeScore = edgeW / wSum;
+  var texFactor = 0.5 + 0.5 * Math.min(edgeScore / 0.08, 1);
+  var plant = colorScore * texFactor;
+  if (edgeScore < 0.015) plant = Math.min(plant, 0.3);
+
+  var greenPct = green / total * 100;
+  var GREEN_MIN = 15;
+
+  return {
+    skip: greenPct < GREEN_MIN || plant < 0.18,
+    reason: greenPct < GREEN_MIN
+      ? "ภาพนี้มีสีเขียวเพียง " + Math.round(greenPct) + "% ต่ำกว่ามาตรฐานภาพใบข้าว จึงไม่ส่งให้โมเดลตรวจ"
+      : "ภาพนี้ไม่มีลักษณะของใบพืช จึงไม่ส่งให้โมเดลตรวจ",
+    green: Math.round(greenPct),
+    yellow: Math.round(yellow / total * 100),
+    other: Math.round(other / total * 100)
   };
+}
 
-  let riceReady = false;
-  let diseaseReady = false;
-  let riceProps = null;
-  let diseaseProps = null;
-  let currentImage = null;
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  var max = Math.max(r,g,b), min = Math.min(r,g,b), l = (max+min)/2, h = 0, s = 0, dd = max-min;
+  if (dd !== 0) {
+    s = dd / (1 - Math.abs(2*l - 1));
+    if (max === r) h = 60 * (((g-b)/dd) % 6);
+    else if (max === g) h = 60 * ((b-r)/dd + 2);
+    else h = 60 * ((r-g)/dd + 4);
+  }
+  if (h < 0) h += 360;
+  return { h: h, s: s, l: l };
+}
 
-  // requestId -> {resolve, reject}, used to match postMessage replies from
-  // each frame back to the classifyViaFrame() call that sent the request.
-  const pending = new Map();
-  let requestCounter = 0;
+// รันครบทั้ง 2 ขั้น: เช็คว่าเป็นข้าวก่อน ถ้าใช่ค่อยตรวจโรคต่อ
+async function runFullAnalysis(img) {
+  var pre = preCheck(img);
+  var out = { pre: pre, rice: null, disease: null, topDisease: null, isRice: false };
 
-  function updateAnalyzeAvailability() {
-    els.analyzeBtn.disabled = !(riceReady && diseaseReady && currentImage);
+  if (pre.skip) {
+    var labels = (models.rice.props && models.rice.props.labels) || ["Rice", "not Rice"];
+    var neg = labels.find(function (l) { return /not|non|other|ไม่ใช่/i.test(l); }) || labels[labels.length-1];
+    out.rice = { results: labels.map(function (l) { return { label: l, value: l === neg ? 1 : 0 }; }) };
+    out.forcedByPreCheck = true;
+    return out;
   }
 
-  function handleFrameMessage(msg, which) {
-    if (msg.type === 'ready') {
-      if (which === 'rice') { riceReady = true; riceProps = msg.properties; }
-      else { diseaseReady = true; diseaseProps = msg.properties; }
-      checkAllModelsReady(msg.project, which);
-    } else if (msg.type === 'init-error') {
-      els.statusPill.classList.add('error');
-      els.statusText.textContent = 'โหลดโมเดลไม่สำเร็จ';
-      showError((which === 'rice' ? 'โมเดลตรวจข้าว' : 'โมเดลตรวจโรค') + 'โหลดไม่สำเร็จ: ' + msg.message +
-        ' — เบราว์เซอร์นี้อาจไม่รองรับ WebAssembly รุ่นที่โมเดลต้องการ ลองเปิดด้วย Chrome, Edge หรือ Firefox เวอร์ชันล่าสุด');
-    } else if (msg.type === 'result' || msg.type === 'error') {
-      const p = pending.get(msg.requestId);
-      if (!p) return;
-      pending.delete(msg.requestId);
-      if (msg.type === 'result') p.resolve(msg.result);
-      else p.reject(new Error(msg.message));
-    }
+  var rd = dims(models.rice.props);
+  out.rice = await classify("rice", extractFeatures(img, rd.w, rd.h));
+
+  var sorted = out.rice.results.slice().sort(function (a,b) { return b.value - a.value; });
+  out.isRice = sorted[0] && !/not|non|other|ไม่ใช่/i.test(sorted[0].label);
+
+  if (out.isRice && models.disease.ready) {
+    var dd2 = dims(models.disease.props);
+    out.disease = await classify("disease", extractFeatures(img, dd2.w, dd2.h));
+    var ds = out.disease.results.slice().sort(function (a,b) { return b.value - a.value; });
+    out.topDisease = ds[0];
+  }
+  return out;
+}
+
+// คะแนนสุขภาพ: ใบปกติได้เต็ม ใบที่พบโรคหักตามความมั่นใจของโมเดล
+function healthScore(result) {
+  if (!result.isRice) return 99;
+  if (!result.topDisease) return 90;
+  if (/healthy/i.test(result.topDisease.label)) return 95;
+  return Math.max(40, Math.round(100 - result.topDisease.value * 45));
+}
+
+function diseaseName(result) {
+  if (!result.isRice) return "ภาพไม่ชัดเจน";
+  if (!result.topDisease) return "ไม่ระบุ";
+  return th(result.topDisease.label);
+}
+
+// ============ ตัวช่วย UI ============
+function el(tag, cls, text) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function renderBars(container, results, forced) {
+  container.innerHTML = "";
+  if (forced) {
+    var note = el("div", "res-note", "ผลนี้มาจากด่านตรวจสี/พื้นผิว ไม่ได้ส่งภาพให้โมเดล AI");
+    container.appendChild(note);
+  }
+  results.slice().sort(function (a,b) { return b.value - a.value; }).forEach(function (r, i) {
+    var pct = Math.round(r.value * 100);
+    var row = el("div", "res-row" + (i === 0 ? " top" : ""));
+    row.appendChild(el("div", "res-label", th(r.label)));
+    var track = el("div", "res-track");
+    var fill = el("div", "res-fill");
+    fill.style.width = pct + "%";
+    track.appendChild(fill);
+    row.appendChild(track);
+    row.appendChild(el("div", "res-pct", pct + "%"));
+    container.appendChild(row);
+  });
+}
+
+function todayStr() {
+  var d = new Date();
+  return String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + "/" + String(d.getFullYear()+543).slice(-2);
+}
+
+function makeUploader(opts) {
+  var wrap = el("div");
+  var dz = el("div", "dropzone");
+  dz.tabIndex = 0;
+  dz.setAttribute("role", "button");
+  dz.innerHTML = '<div class="dropzone-text">📷 ' + (opts.label || "Upload Rice Leaf") + '</div>';
+  var input = el("input", "file-input");
+  input.type = "file";
+  input.accept = "image/*";
+  var pv = el("div", "preview-wrap");
+  pv.hidden = true;
+  var img = el("img");
+  var scan = el("div", "scan");
+  scan.hidden = true;
+  scan.innerHTML = '<div class="scan-beam"></div>';
+  pv.appendChild(img); pv.appendChild(scan);
+
+  wrap.appendChild(dz); wrap.appendChild(input); wrap.appendChild(pv);
+
+  var loaded = null;
+  function load(file) {
+    if (!file || file.type.indexOf("image/") !== 0) return;
+    var url = URL.createObjectURL(file);
+    var im = new Image();
+    im.onload = function () {
+      loaded = im;
+      img.src = url;
+      pv.hidden = false;
+      opts.onLoad && opts.onLoad(im);
+    };
+    im.src = url;
   }
 
-  const riceProjectInfo = { text: '' };
-  const diseaseProjectInfo = { text: '' };
+  dz.onclick = function () { input.click(); };
+  dz.onkeydown = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } };
+  dz.ondragover = function (e) { e.preventDefault(); dz.classList.add("drag"); };
+  dz.ondragleave = function () { dz.classList.remove("drag"); };
+  dz.ondrop = function (e) { e.preventDefault(); dz.classList.remove("drag"); load(e.dataTransfer.files[0]); };
+  input.onchange = function (e) { load(e.target.files[0]); };
 
-  function checkAllModelsReady(project, which) {
-    const dims = getInputDims(which === 'rice' ? riceProps : diseaseProps);
-    const label = which === 'rice' ? 'ตรวจข้าว' : 'ตรวจโรค';
-    const text = 'โมเดล' + label + ': ' + project.owner + '/' + project.name + ' (v' + project.deploy_version + ', ' + dims.width + '×' + dims.height + 'px)';
-    if (which === 'rice') riceProjectInfo.text = text; else diseaseProjectInfo.text = text;
-    els.projectInfo.textContent = [riceProjectInfo.text, diseaseProjectInfo.text].filter(Boolean).join(' · ');
+  return {
+    element: wrap,
+    getImage: function () { return loaded; },
+    setScanning: function (on) { scan.hidden = !on; },
+    reset: function () { loaded = null; pv.hidden = true; input.value = ""; }
+  };
+}
 
-    if (riceReady && diseaseReady) {
-      els.statusPill.classList.add('ready');
-      els.statusText.textContent = 'พร้อมใช้งาน';
-      updateAnalyzeAvailability();
-    }
-  }
+// ============ หน้าต่างๆ ============
+var pageBuilders = {};
 
-  window.addEventListener('message', function (e) {
-    const msg = e.data;
-    if (!msg || typeof msg !== 'object') return;
-    if (e.source === els.riceFrame.contentWindow) handleFrameMessage(msg, 'rice');
-    else if (e.source === els.diseaseFrame.contentWindow) handleFrameMessage(msg, 'disease');
+pageBuilders.dashboard = async function (root) {
+  var logs = await Store.list();
+  var latest = logs[0];
+  var avgPh = (function () {
+    var vals = logs.map(function (l) { return l.ph; }).filter(function (v) { return typeof v === "number"; });
+    return vals.length ? (vals.reduce(function (a,b) { return a+b; }, 0) / vals.length).toFixed(2) : "-";
+  })();
+
+  var stats = el("div", "stat-grid");
+  [
+    { label: "Health Score", value: latest ? latest.score : "-", cls: "" },
+    { label: "Disease", value: latest ? latest.disease : "-", cls: latest && latest.disease !== "ปกติ ไม่พบโรค" && latest.disease !== "ภาพไม่ชัดเจน" ? "danger" : "plain" },
+    { label: "Avg pH", value: avgPh, cls: "plain" },
+    { label: "Weather", value: "กำลังโหลด...", cls: "plain", id: "weatherStat" },
+    { label: "GPS", value: latest && latest.gps ? latest.gps : "-", cls: "plain" }
+  ].forEach(function (s) {
+    var c = el("div", "card");
+    c.appendChild(el("div", "stat-label", s.label));
+    var v = el("div", "stat-value " + s.cls, s.value);
+    if (s.id) v.id = s.id;
+    c.appendChild(v);
+    stats.appendChild(c);
+  });
+  root.appendChild(stats);
+
+  var grid = el("div", "grid-2");
+
+  var chartCard = el("div", "card");
+  chartCard.appendChild(el("div", "card-title", "📈 Soil pH Trend"));
+  var cv = el("canvas");
+  cv.height = 220;
+  chartCard.appendChild(cv);
+  grid.appendChild(chartCard);
+
+  var aiCard = el("div", "card");
+  aiCard.appendChild(el("div", "card-title", "🤖 AI Insight"));
+  var tag = el("span", "tag", "Generative AI · Gemini");
+  aiCard.appendChild(tag);
+  var aiText = el("p");
+  aiText.style.fontSize = ".88rem";
+  aiText.textContent = logs.length
+    ? "กำลังให้ Gemini วิเคราะห์ข้อมูลแปลงนาของคุณ..."
+    : "ยังไม่มีข้อมูล กรอกแบบสำรวจในหน้า Field Survey เพื่อให้ Gemini วิเคราะห์แปลงนาของคุณ";
+  aiCard.appendChild(aiText);
+  grid.appendChild(aiCard);
+
+  root.appendChild(grid);
+
+  // กราฟ pH ย้อนหลัง
+  var phLogs = logs.filter(function (l) { return typeof l.ph === "number"; }).slice(0, 8).reverse();
+  new Chart(cv, {
+    type: "line",
+    data: {
+      labels: phLogs.length ? phLogs.map(function (l) { return l.date; }) : ["ยังไม่มีข้อมูล"],
+      datasets: [{
+        label: "pH",
+        data: phLogs.length ? phLogs.map(function (l) { return l.ph; }) : [],
+        borderColor: "#1B7A45",
+        backgroundColor: "rgba(27,122,69,.1)",
+        fill: true, tension: .35, pointRadius: 4
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: true, position: "top", align: "start" } }, scales: { y: { beginAtZero: false } } }
   });
 
-  function classifyViaFrame(frameEl, features) {
-    return new Promise(function (resolve, reject) {
-      const requestId = 'r' + (++requestCounter);
-      pending.set(requestId, { resolve: resolve, reject: reject });
-      frameEl.contentWindow.postMessage({ type: 'classify', requestId: requestId, features: features }, '*');
-      setTimeout(function () {
-        if (pending.has(requestId)) {
-          pending.delete(requestId);
-          reject(new Error('หมดเวลารอผลจากโมเดล (เกิน 15 วินาที)'));
-        }
-      }, 15000);
+  // สภาพอากาศจาก open-meteo (ฟรี ไม่ต้องใช้ key)
+  navigator.geolocation && navigator.geolocation.getCurrentPosition(function (pos) {
+    fetch("https://api.open-meteo.com/v1/forecast?latitude=" + pos.coords.latitude + "&longitude=" + pos.coords.longitude + "&current=temperature_2m")
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var w = document.getElementById("weatherStat");
+        if (w && d.current) w.textContent = d.current.temperature_2m + "°C 🌦️";
+      }).catch(function () {});
+  }, function () {
+    var w = document.getElementById("weatherStat");
+    if (w) w.textContent = "-";
+  });
+
+  // ให้ Gemini สรุปภาพรวมจากข้อมูลจริงที่บันทึกไว้
+  if (logs.length) {
+    var summary = logs.slice(0, 5).map(function (l) {
+      return "วันที่ " + l.date + " โรคที่พบ: " + l.disease + " คะแนนสุขภาพ: " + l.score + (l.ph ? " pH ดิน: " + l.ph : "");
+    }).join("\n");
+    Store.askGemini(
+      "คุณเป็นผู้เชี่ยวชาญด้านข้าวไทย นี่คือข้อมูลสำรวจแปลงนาล่าสุด:\n" + summary +
+      "\n\nสรุปสถานการณ์แปลงนาสั้นๆ 2-3 ประโยค พร้อมคำแนะนำที่ทำได้จริง 1 ข้อ ตอบเป็นภาษาไทย ไม่ต้องใส่หัวข้อ"
+    ).then(function (t) { aiText.textContent = t; })
+     .catch(function (e) { aiText.textContent = "เชื่อมต่อ AI ไม่ได้: " + e.message; });
+  }
+};
+
+pageBuilders.fields = async function (root) {
+  var logs = await Store.list();
+  var card = el("div", "card");
+  card.appendChild(el("div", "card-title", "🌾 แปลงนาของฉัน"));
+  if (!logs.length) {
+    card.appendChild(el("div", "empty", "ยังไม่มีบันทึกแปลงนา เริ่มจากหน้า Field Survey หรือ Disease Detection"));
+  } else {
+    logs.forEach(function (l) {
+      var item = el("div", "list-item");
+      item.innerHTML = '<span style="font-size:1.3rem">🌾</span>';
+      var main = el("div", "list-main");
+      main.appendChild(el("div", "list-title", l.date + " · Score " + l.score));
+      main.appendChild(el("div", "list-sub", l.disease + " · pH " + (l.ph || "-") + " · GPS " + (l.gps || "-")));
+      item.appendChild(main);
+      card.appendChild(item);
     });
   }
+  root.appendChild(card);
+};
 
+pageBuilders.survey = async function (root) {
+  var logs = await Store.list();
+  var grid = el("div", "grid-2");
 
+  // ตารางบันทึกล่าสุด
+  var logCard = el("div", "card");
+  logCard.appendChild(el("div", "card-title", "📊 Field Log"));
+  var table = el("table");
+  table.innerHTML = "<thead><tr><th>วันที่</th><th>โรค</th><th>pH</th><th>Score</th></tr></thead>";
+  var tb = el("tbody");
+  if (!logs.length) {
+    tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#7A8B80;padding:24px">ยังไม่มีรายการ</td></tr>';
+  } else {
+    logs.slice(0, 8).forEach(function (l) {
+      var tr = el("tr");
+      tr.innerHTML = "<td>" + l.date + "</td><td class='disease-cell" + (l.disease === "ปกติ ไม่พบโรค" ? " ok" : "") + "'>" + l.disease + "</td><td>" + (l.ph || "-") + "</td><td>" + l.score + "</td>";
+      tb.appendChild(tr);
+    });
+  }
+  table.appendChild(tb);
+  logCard.appendChild(table);
+  grid.appendChild(logCard);
 
-  // ---------- File handling ----------
+  // ฟอร์มบันทึกใหม่
+  var formCard = el("div", "card");
+  formCard.appendChild(el("div", "card-title", "📝 New Survey"));
+  var fg = el("div", "form-grid");
+  var prof = Store.profile();
 
-  function loadImageFile(file) {
-    if (!file || !file.type || file.type.indexOf('image/') !== 0) {
-      showError('ไฟล์นี้ไม่ใช่รูปภาพ กรุณาเลือกไฟล์ JPG หรือ PNG');
-      return;
-    }
-    clearError();
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = function () {
-      currentImage = img;
-      els.previewImg.src = url;
-      els.previewWrap.hidden = false;
-      hideResults();
-      updateAnalyzeAvailability();
-    };
-    img.onerror = function () {
-      showError('เปิดไฟล์รูปนี้ไม่ได้ ลองใช้ไฟล์ภาพอื่น');
-    };
-    img.src = url;
+  function field(label, id, ph, val, ro) {
+    var f = el("div", "field");
+    f.appendChild(el("label", "", label));
+    var i = el("input");
+    i.id = id; i.placeholder = ph || label;
+    if (val) i.value = val;
+    if (ro) i.readOnly = true;
+    f.appendChild(i);
+    return f;
   }
 
-  els.dropzone.addEventListener('click', function () { els.fileInput.click(); });
-  els.dropzone.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      els.fileInput.click();
+  fg.appendChild(field("Owner", "sOwner", "ชื่อเจ้าของแปลง", prof.name));
+  var gpsField = field("GPS", "sGps", "กด GPS Auto");
+  var gpsBtn = el("button", "btn btn-ghost", "📍 GPS Auto");
+  gpsBtn.style.marginTop = "6px";
+  gpsBtn.style.padding = "6px 14px";
+  gpsBtn.style.fontSize = ".8rem";
+  gpsBtn.onclick = function () {
+    gpsBtn.textContent = "กำลังหาพิกัด...";
+    navigator.geolocation.getCurrentPosition(function (p) {
+      document.getElementById("sGps").value = p.coords.latitude.toFixed(5) + "," + p.coords.longitude.toFixed(5);
+      gpsBtn.textContent = "📍 GPS Auto";
+    }, function () {
+      gpsBtn.textContent = "หาพิกัดไม่ได้ ลองใหม่";
+    });
+  };
+  gpsField.appendChild(gpsBtn);
+  fg.appendChild(gpsField);
+
+  for (var n = 1; n <= 5; n++) fg.appendChild(field("pH" + n, "sPh" + n, "pH" + n));
+  fg.appendChild(field("Average", "sAvg", "คำนวณอัตโนมัติ", "", true));
+  formCard.appendChild(fg);
+
+  // คำนวณค่าเฉลี่ย pH ให้อัตโนมัติเมื่อกรอก
+  function recalc() {
+    var vals = [];
+    for (var i = 1; i <= 5; i++) {
+      var v = parseFloat(document.getElementById("sPh" + i).value);
+      if (!isNaN(v)) vals.push(v);
     }
+    document.getElementById("sAvg").value = vals.length ? (vals.reduce(function (a,b) { return a+b; },0)/vals.length).toFixed(2) : "";
+  }
+  for (var k = 1; k <= 5; k++) fg.querySelector("#sPh" + k).oninput = recalc;
+
+  var up = makeUploader({ label: "Upload Rice Leaf" });
+  up.element.style.marginTop = "14px";
+  formCard.appendChild(up.element);
+
+  var saveBtn = el("button", "btn btn-primary btn-full", "บันทึกแบบสำรวจ");
+  saveBtn.style.marginTop = "14px";
+  formCard.appendChild(saveBtn);
+  var alertBox = el("div");
+  formCard.appendChild(alertBox);
+
+  saveBtn.onclick = async function () {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "กำลังบันทึก...";
+    alertBox.innerHTML = "";
+    try {
+      var entry = {
+        date: todayStr(),
+        owner: document.getElementById("sOwner").value || "ไม่ระบุ",
+        gps: document.getElementById("sGps").value || "",
+        ph: parseFloat(document.getElementById("sAvg").value) || null,
+        disease: "ไม่ระบุ",
+        score: 90
+      };
+      var img = up.getImage();
+      if (img) {
+        up.setScanning(true);
+        var res = await runFullAnalysis(img);
+        up.setScanning(false);
+        entry.disease = diseaseName(res);
+        entry.score = healthScore(res);
+      }
+      await Store.add(entry);
+      var a = el("div", "alert ok", "บันทึกแล้ว" + (Store.isOffline() ? " (เก็บในเครื่องชั่วคราว เชื่อมต่อ API ไม่ได้)" : ""));
+      alertBox.appendChild(a);
+      setTimeout(function () { go("survey"); }, 900);
+    } catch (err) {
+      alertBox.appendChild(el("div", "alert err", "บันทึกไม่สำเร็จ: " + err.message));
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = "บันทึกแบบสำรวจ";
+    }
+  };
+
+  grid.appendChild(formCard);
+  root.appendChild(grid);
+};
+
+pageBuilders.detect = function (root) {
+  var card = el("div", "card");
+  card.style.maxWidth = "620px";
+  var head = el("div");
+  head.style.display = "flex";
+  head.style.justifyContent = "space-between";
+  head.appendChild(el("div", "card-title", "📷 Disease Detection"));
+  var badge = el("span");
+  badge.style.fontSize = ".76rem";
+  badge.style.color = "#7A8B80";
+  badge.textContent = "AI 2 ขั้นตอน · Computer Vision";
+  head.appendChild(badge);
+  card.appendChild(head);
+
+  var desc = el("p");
+  desc.style.fontSize = ".86rem";
+  desc.style.color = "#7A8B80";
+  desc.textContent = "ตรวจโรคจากภาพใบข้าวแบบเร็ว ผลลัพธ์จะถูกบันทึกลง Field Log อัตโนมัติ (ไม่มีค่า pH/GPS — ถ้าต้องการบันทึกพร้อมค่าเหล่านั้น ให้ใช้หน้า Field Survey แทน)";
+  card.appendChild(desc);
+
+  var up = makeUploader({ label: "Upload Rice Leaf", onLoad: function () {
+    btn.dataset.hasImage = "1";
+    updateModelStatus();
+  }});
+  card.appendChild(up.element);
+
+  var btn = el("button", "btn btn-primary btn-full");
+  btn.style.marginTop = "14px";
+  btn.setAttribute("data-model-status", "");
+  btn.dataset.readyText = "วิเคราะห์ภาพ";
+  btn.disabled = true;
+  card.appendChild(btn);
+
+  var out = el("div");
+  card.appendChild(out);
+
+  btn.onclick = async function () {
+    out.innerHTML = "";
+    btn.disabled = true;
+    btn.textContent = "กำลังวิเคราะห์...";
+    up.setScanning(true);
+    await new Promise(function (r) { setTimeout(r, 60); });
+    try {
+      var res = await runFullAnalysis(up.getImage());
+
+      out.appendChild(el("div", "res-section-title", "ขั้นที่ 1 — เป็นข้าวหรือไม่"));
+      var b1 = el("div");
+      out.appendChild(b1);
+      renderBars(b1, res.rice.results, res.forcedByPreCheck);
+
+      if (res.disease) {
+        out.appendChild(el("div", "res-section-title", "ขั้นที่ 2 — ชนิดของโรค"));
+        var b2 = el("div");
+        out.appendChild(b2);
+        renderBars(b2, res.disease.results);
+      } else if (!res.isRice) {
+        out.appendChild(el("div", "res-note", res.pre.skip ? res.pre.reason : "ภาพนี้ไม่ใช่ใบข้าว จึงไม่ตรวจโรคต่อ"));
+      }
+
+      // สัดส่วนสีในภาพ ช่วยให้เห็นว่าทำไมระบบตัดสินแบบนั้น
+      var cb = el("div");
+      cb.style.marginTop = "16px";
+      cb.style.paddingTop = "14px";
+      cb.style.borderTop = "1px solid var(--border)";
+      cb.appendChild(el("div", "res-note", "สัดส่วนโทนสีในภาพ"));
+      var bar = el("div", "color-bar");
+      [["#1B7A45", res.pre.green], ["#D9A441", res.pre.yellow], ["#B7C2BB", res.pre.other]].forEach(function (x) {
+        var seg = el("div");
+        seg.style.background = x[0];
+        seg.style.width = x[1] + "%";
+        bar.appendChild(seg);
+      });
+      cb.appendChild(bar);
+      var leg = el("div", "color-legend");
+      leg.innerHTML = '<span><i class="dot" style="background:#1B7A45"></i>เขียว <b>' + res.pre.green +
+        '%</b></span><span><i class="dot" style="background:#D9A441"></i>เหลือง/น้ำตาล <b>' + res.pre.yellow +
+        '%</b></span><span><i class="dot" style="background:#B7C2BB"></i>สีอื่น <b>' + res.pre.other + '%</b></span>';
+      cb.appendChild(leg);
+      out.appendChild(cb);
+
+      // บันทึกลง Field Log ให้อัตโนมัติ
+      await Store.add({
+        date: todayStr(),
+        owner: Store.profile().name,
+        gps: "",
+        ph: null,
+        disease: diseaseName(res),
+        score: healthScore(res)
+      });
+      out.appendChild(el("div", "alert ok", "บันทึกผลลง Field Log แล้ว" + (Store.isOffline() ? " (เก็บในเครื่องชั่วคราว)" : "")));
+    } catch (err) {
+      out.appendChild(el("div", "alert err", "วิเคราะห์ไม่สำเร็จ: " + err.message));
+    } finally {
+      up.setScanning(false);
+      btn.disabled = false;
+      btn.textContent = "วิเคราะห์ภาพ";
+    }
+  };
+
+  root.appendChild(card);
+  updateModelStatus();
+};
+
+pageBuilders.log = async function (root) {
+  var logs = await Store.list();
+  var card = el("div", "card");
+  card.appendChild(el("div", "card-title", "📗 Field Log ทั้งหมด"));
+
+  var searchRow = el("div");
+  searchRow.style.textAlign = "right";
+  searchRow.style.marginBottom = "10px";
+  var si = el("input");
+  si.placeholder = "ค้นหา...";
+  si.style.padding = "7px 13px";
+  si.style.border = "1px solid var(--border)";
+  si.style.borderRadius = "8px";
+  searchRow.appendChild(si);
+  card.appendChild(searchRow);
+
+  var table = el("table");
+  table.innerHTML = "<thead><tr><th>วันที่</th><th>Owner</th><th>โรค</th><th>pH</th><th>Score</th><th>GPS</th></tr></thead>";
+  var tb = el("tbody");
+  table.appendChild(tb);
+  card.appendChild(table);
+
+  function draw(filter) {
+    tb.innerHTML = "";
+    var rows = logs.filter(function (l) {
+      if (!filter) return true;
+      return (l.date + l.owner + l.disease).toLowerCase().indexOf(filter.toLowerCase()) !== -1;
+    });
+    if (!rows.length) {
+      tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#7A8B80;padding:28px">ยังไม่มีรายการ</td></tr>';
+      return;
+    }
+    rows.forEach(function (l) {
+      var tr = el("tr");
+      tr.innerHTML = "<td>" + l.date + "</td><td>" + (l.owner || "-") + "</td>" +
+        "<td class='disease-cell" + (l.disease === "ปกติ ไม่พบโรค" ? " ok" : "") + "'>" + l.disease + "</td>" +
+        "<td>" + (l.ph || "-") + "</td><td>" + l.score + "</td><td>" + (l.gps || "-") + "</td>";
+      tb.appendChild(tr);
+    });
+  }
+  si.oninput = function () { draw(si.value); };
+  draw(document.getElementById("globalSearch").value);
+  root.appendChild(card);
+};
+
+pageBuilders.analytics = async function (root) {
+  var logs = await Store.list();
+  var scores = logs.map(function (l) { return l.score; }).filter(function (v) { return typeof v === "number"; });
+  var phs = logs.map(function (l) { return l.ph; }).filter(function (v) { return typeof v === "number"; });
+
+  var stats = el("div", "stat-grid");
+  [
+    ["จำนวนแบบสำรวจ", logs.length],
+    ["Health Score เฉลี่ย", scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : "-"],
+    ["pH เฉลี่ย", phs.length ? (phs.reduce(function(a,b){return a+b;},0)/phs.length).toFixed(2) : "-"]
+  ].forEach(function (s) {
+    var c = el("div", "card");
+    c.appendChild(el("div", "stat-label", s[0]));
+    c.appendChild(el("div", "stat-value", s[1]));
+    stats.appendChild(c);
   });
-  els.dropzone.addEventListener('dragover', function (e) {
-    e.preventDefault();
-    els.dropzone.classList.add('dragging');
-  });
-  els.dropzone.addEventListener('dragleave', function () {
-    els.dropzone.classList.remove('dragging');
-  });
-  els.dropzone.addEventListener('drop', function (e) {
-    e.preventDefault();
-    els.dropzone.classList.remove('dragging');
-    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-    if (file) loadImageFile(file);
-  });
-  els.fileInput.addEventListener('change', function (e) {
-    const file = e.target.files && e.target.files[0];
-    if (file) loadImageFile(file);
+  root.appendChild(stats);
+
+  var c1 = el("div", "card");
+  c1.appendChild(el("div", "card-title", "📈 Health Score ตามช่วงเวลา"));
+  var cv1 = el("canvas");
+  cv1.height = 200;
+  c1.appendChild(cv1);
+  root.appendChild(c1);
+
+  var series = logs.slice(0, 12).reverse();
+  new Chart(cv1, {
+    type: "line",
+    data: {
+      labels: series.length ? series.map(function (l) { return l.date; }) : ["ยังไม่มีข้อมูล"],
+      datasets: [{ label: "Health Score", data: series.map(function (l) { return l.score; }),
+        borderColor: "#D9A441", backgroundColor: "rgba(217,164,65,.12)", fill: true, tension: .35 }]
+    },
+    options: { responsive: true, scales: { y: { min: 0, max: 100 } } }
   });
 
-  els.resetBtn.addEventListener('click', function () {
-    currentImage = null;
-    els.previewWrap.hidden = true;
-    els.fileInput.value = '';
-    hideResults();
-    clearError();
-    updateAnalyzeAvailability();
-  });
+  // สรุปว่าพบโรคไหนบ่อยสุด
+  var counts = {};
+  logs.forEach(function (l) { counts[l.disease] = (counts[l.disease] || 0) + 1; });
+  var keys = Object.keys(counts);
+  if (keys.length) {
+    var c2 = el("div", "card");
+    c2.style.marginTop = "16px";
+    c2.appendChild(el("div", "card-title", "🦠 โรคที่พบบ่อย"));
+    var cv2 = el("canvas");
+    cv2.height = 180;
+    c2.appendChild(cv2);
+    root.appendChild(c2);
+    new Chart(cv2, {
+      type: "bar",
+      data: { labels: keys, datasets: [{ label: "จำนวนครั้ง", data: keys.map(function (k) { return counts[k]; }), backgroundColor: "#1B7A45" }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+  }
+};
 
-  // ---------- Analysis ----------
+pageBuilders.reports = async function (root) {
+  var card = el("div", "card");
+  card.appendChild(el("div", "card-title", "💬 ปรึกษาหมอข้าว AI"));
 
-  els.analyzeBtn.addEventListener('click', async function () {
-    if (!currentImage || !riceReady) return;
-    clearError();
-    hideResults();
-    setScanning(true);
-    // let the scanning animation paint one frame before the classify calls
-    // (each is a postMessage round-trip to its own iframe, but still worth
-    // giving the browser a frame to paint the scanning animation first)
-    await new Promise(function (resolve) { setTimeout(resolve, 60); });
+  var log = el("div", "chat-log");
+  var greet = el("div", "msg ai");
+  greet.textContent = "สวัสดีครับ ผมคือ AI ผู้เชี่ยวชาญด้านข้าวไทย ผมนำผลจากโมเดล Computer Vision ค่า pH ดิน ตำแหน่ง GPS และข้อมูลแปลงนาของคุณมาใช้ประกอบการตอบด้วยครับ สอบถามเรื่องโรคข้าว วิธีแก้ หรือยี่ห้อปุ๋ยที่ควรใช้ได้เลยครับ";
+  log.appendChild(greet);
+  card.appendChild(log);
+
+  var row = el("div", "chat-input-row");
+  var input = el("input");
+  input.placeholder = "พิมพ์ถาม เช่น ใบข้าวมีจุดสีน้ำตาลใช้ปุ๋ยยี่ห้อไหนดี...";
+  var send = el("button", "btn btn-primary", "ส่ง");
+  row.appendChild(input);
+  row.appendChild(send);
+  card.appendChild(row);
+  root.appendChild(card);
+
+  var logs = await Store.list();
+  var context = logs.slice(0, 5).map(function (l) {
+    return "- " + l.date + ": พบ " + l.disease + " คะแนนสุขภาพ " + l.score + (l.ph ? " pH " + l.ph : "");
+  }).join("\n");
+
+  async function ask() {
+    var q = input.value.trim();
+    if (!q) return;
+    var me = el("div", "msg me", q);
+    log.appendChild(me);
+    input.value = "";
+    log.scrollTop = log.scrollHeight;
+
+    var thinking = el("div", "msg ai", "กำลังคิด...");
+    log.appendChild(thinking);
+    log.scrollTop = log.scrollHeight;
 
     try {
-      // Stage 1: cheap rule-based pre-check (color + texture). Images that
-      // don't look plant-like at all are decided right here as the negative
-      // class ("not Rice") without ever calling the model — the model is
-      // trained to always force a Rice / not-Rice answer, so it can't be
-      // trusted to say "neither" on its own.
-      const preCheck = analyzeImagePlausibility(currentImage);
-
-      let riceResult;
-      let forcedByPreCheck;
-      if (preCheck.skipModel) {
-        riceResult = buildForcedNegativeResult();
-        forcedByPreCheck = true;
-        renderResults(riceResult, preCheck, { forcedByPreCheck: true });
-      } else {
-        const dims = getInputDims(riceProps);
-        const features = extractFeatures(currentImage, dims.width, dims.height);
-        riceResult = await classifyViaFrame(els.riceFrame, features);
-        forcedByPreCheck = false;
-        renderResults(riceResult, preCheck, { forcedByPreCheck: false });
-      }
-
-      // Stage 2: only run the disease model if stage 1 actually landed on
-      // the positive ("Rice") class — running a 6-way disease classifier on
-      // a photo of a bicycle would just produce another confident, made-up
-      // answer, the same problem this whole pre-check/gating chain exists
-      // to avoid in the first place.
-      if (isPositiveTopLabel(riceResult) && diseaseReady) {
-        const diseaseDims = getInputDims(diseaseProps);
-        const diseaseFeatures = extractFeatures(currentImage, diseaseDims.width, diseaseDims.height);
-        const diseaseResult = await classifyViaFrame(els.diseaseFrame, diseaseFeatures);
-        renderDiseaseResults(diseaseResult);
-      } else {
-        els.diseaseBlock.hidden = true;
-        els.diseaseList.innerHTML = '';
-      }
+      var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าวและการเกษตรไทย ตอบเป็นภาษาไทยแบบเข้าใจง่าย กระชับ\n\n" +
+        (context ? "ข้อมูลแปลงนาล่าสุดของผู้ถาม:\n" + context + "\n\n" : "") +
+        "คำถาม: " + q;
+      var ans = await Store.askGemini(prompt);
+      thinking.textContent = ans;
     } catch (err) {
-      showError('วิเคราะห์ภาพไม่สำเร็จ: ' + (err && err.message ? err.message : err));
-    } finally {
-      setScanning(false);
+      thinking.textContent = "เชื่อมต่อ AI ไม่ได้: " + err.message;
     }
+    log.scrollTop = log.scrollHeight;
+  }
+  send.onclick = ask;
+  input.onkeydown = function (e) { if (e.key === "Enter") ask(); };
+};
+
+pageBuilders.map = async function (root) {
+  var logs = await Store.list();
+  var card = el("div", "card");
+  card.appendChild(el("div", "card-title", "🗺️ Field Map"));
+
+  var pts = logs.filter(function (l) { return l.gps && l.gps.indexOf(",") !== -1; });
+  var note = el("p");
+  note.style.fontSize = ".85rem";
+  note.style.color = "#7A8B80";
+  note.textContent = pts.length
+    ? "แสดงพิกัดแปลงนาที่บันทึกไว้ " + pts.length + " จุด"
+    : "ยังไม่มีข้อมูล GPS จริงในบัญชีของคุณ — แสดงพิกัดตัวอย่างไว้ก่อน (กด GPS Auto ในหน้า Field Survey เพื่อบันทึกพิกัดจริง)";
+  card.appendChild(note);
+
+  var btn = el("button", "btn btn-primary btn-full", "📍 ตำแหน่งปัจจุบันของฉัน");
+  btn.style.marginBottom = "10px";
+  card.appendChild(btn);
+
+  var mapDiv = el("div");
+  mapDiv.id = "map";
+  card.appendChild(mapDiv);
+  root.appendChild(card);
+
+  var center = pts.length ? pts[0].gps.split(",").map(Number) : [16.4419, 102.8360];
+  var map = L.map("map").setView(center, pts.length ? 12 : 6);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" }).addTo(map);
+
+  if (pts.length) {
+    pts.forEach(function (p) {
+      var c = p.gps.split(",").map(Number);
+      L.marker(c).addTo(map).bindPopup(p.date + "<br>" + p.disease + "<br>Score " + p.score);
+    });
+  } else {
+    L.marker(center).addTo(map).bindPopup("พิกัดตัวอย่าง (ยังไม่มีข้อมูลจริง)").openPopup();
+  }
+
+  btn.onclick = function () {
+    btn.textContent = "กำลังหาตำแหน่ง...";
+    navigator.geolocation.getCurrentPosition(function (p) {
+      var c = [p.coords.latitude, p.coords.longitude];
+      map.setView(c, 14);
+      L.marker(c).addTo(map).bindPopup("ตำแหน่งปัจจุบันของคุณ").openPopup();
+      btn.textContent = "📍 ตำแหน่งปัจจุบันของฉัน";
+    }, function () {
+      btn.textContent = "หาตำแหน่งไม่ได้ — เปิดสิทธิ์ตำแหน่งในเบราว์เซอร์ก่อน";
+    });
+  };
+};
+
+pageBuilders.profile = function (root) {
+  var p = Store.profile();
+  var card = el("div", "card");
+  card.style.maxWidth = "520px";
+  card.appendChild(el("div", "card-title", "👤 Profile"));
+
+  var fg = el("div");
+  [["ชื่อ", "pName", p.name], ["ชื่อแปลงนา / ฟาร์ม", "pFarm", p.farm], ["เบอร์ติดต่อ", "pPhone", p.phone]].forEach(function (f) {
+    var d = el("div", "field");
+    d.style.marginBottom = "12px";
+    d.appendChild(el("label", "", f[0]));
+    var i = el("input");
+    i.id = f[1];
+    i.value = f[2] || "";
+    d.appendChild(i);
+    fg.appendChild(d);
   });
+  card.appendChild(fg);
 
-  // True when the top-scoring label from the rice/not-rice model is the
-  // positive ("Rice") class rather than a negative-ish one — used to decide
-  // whether the disease model should run at all.
-  function isPositiveTopLabel(result) {
-    const sorted = result.results.slice().sort(function (a, b) { return b.value - a.value; });
-    const top = sorted[0];
-    return !!top && !/not|non|other|ไม่ใช่/i.test(top.label);
-  }
+  var save = el("button", "btn btn-primary", "บันทึกโปรไฟล์");
+  card.appendChild(save);
+  var msg = el("div");
+  card.appendChild(msg);
 
-  function getInputDims(props) {
-    const width = (props && props.image_input_width) || 96;
-    const height = (props && props.image_input_height) || 96;
-    return { width: width, height: height };
-  }
-
-  // When the pre-check decides an image isn't plant-like at all, build a
-  // synthetic result shaped exactly like classifier.classify()'s output so
-  // it can flow through the same rendering path. The negative label is
-  // guessed from the model's own label list (anything containing "not",
-  // "non", "other" etc.) so this keeps working if the model is retrained
-  // with different label names later.
-  function buildForcedNegativeResult() {
-    const labels = (riceProps && riceProps.labels) || ['Rice', 'not Rice'];
-    const negativeLabel = labels.find(function (l) {
-      return /not|non|other|ไม่ใช่/i.test(l);
-    }) || labels[labels.length - 1];
-
-    const results = labels.map(function (l) {
-      return { label: l, value: l === negativeLabel ? 1 : 0 };
+  save.onclick = function () {
+    Store.saveProfile({
+      name: document.getElementById("pName").value || "เกษตรกร",
+      farm: document.getElementById("pFarm").value,
+      phone: document.getElementById("pPhone").value
     });
-
-    return { results: results, anomaly: 0 };
-  }
-
-  function extractFeatures(img, width, height) {
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(img, 0, 0, width, height);
-    const data = ctx.getImageData(0, 0, width, height).data;
-    const features = new Array(width * height);
-    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
-      features[p] = (data[i] << 16) + (data[i + 1] << 8) + data[i + 2];
-    }
-    return features;
-  }
-
-  // English label -> Thai display name. Purely cosmetic: matching logic
-  // elsewhere (isPositiveTopLabel, buildForcedNegativeResult) still works on
-  // the original English label from the model, this only changes what text
-  // gets shown in the results panel. Falls back to the raw label untouched
-  // if it isn't in the table, so an unexpected/new label never disappears.
-  var LABEL_TRANSLATIONS = {
-    'Rice': 'ข้าว',
-    'not Rice': 'ไม่ใช่ข้าว',
-    'other': 'อื่นๆ',
-    'Blast': 'โรคไหม้',
-    'Brown spot': 'โรคใบจุดสีน้ำตาล',
-    'Sheath blight': 'โรคกาบใบแห้ง',
-    'Rice Tungro': 'โรคทุงโร',
-    'Healthy': 'ปกติ ไม่พบโรค',
-    'Leaf smut': 'โรคใบเขม่าดำ',
-    'narrow_brown_spot': 'โรคใบขีดสีน้ำตาล',
-    'Narrow brown spot': 'โรคใบขีดสีน้ำตาล'
+    applyProfile();
+    msg.innerHTML = "";
+    msg.appendChild(el("div", "alert ok", "บันทึกโปรไฟล์แล้ว"));
   };
-  function translateLabel(label) {
-    return LABEL_TRANSLATIONS[label] || label;
-  }
+  root.appendChild(card);
+};
 
-  // Thai-language, general-purpose care notes keyed by the model's raw
-  // English label. Intentionally short and non-prescriptive — see the
-  // disclaimer rendered under every treatment card. Falls back to a
-  // generic message for labels not in this table (new classes added to a
-  // retrained model, etc.) so the card never ends up blank.
-  var TREATMENT_ADVICE = {
-    'Healthy': 'ใบข้าวอยู่ในสภาพปกติ ไม่พบร่องรอยของโรคจากภาพนี้ ควรตรวจแปลงต่อเนื่องเป็นระยะ โดยเฉพาะช่วงฝนตกชุกหรืออากาศชื้นซึ่งเป็นช่วงที่โรคพืชระบาดง่าย',
-    'Blast': 'สงสัยโรคไหม้ (Blast) ควรลดการให้ปุ๋ยไนโตรเจนชั่วคราว ระบายน้ำในแปลงไม่ให้ขังนาน และพิจารณาใช้สารป้องกันกำจัดเชื้อราตามคำแนะนำของกรมวิชาการเกษตรหากพบการระบาดลุกลาม',
-    'Brown spot': 'สงสัยโรคใบจุดสีน้ำตาล มักสัมพันธ์กับดินขาดธาตุอาหารหรือเมล็ดพันธุ์ไม่สมบูรณ์ ควรปรับปรุงความอุดมสมบูรณ์ของดินและคัดเมล็ดพันธุ์ก่อนปลูกรอบถัดไป',
-    'Sheath blight': 'สงสัยโรคกาบใบแห้ง มักระบาดในแปลงที่ปลูกถี่และมีความชื้นสูง ควรลดความหนาแน่นของต้นข้าวและเว้นระยะการให้น้ำให้แปลงแห้งสลับบ้าง',
-    'Rice Tungro': 'สงสัยโรคทุงโร ซึ่งแพร่ผ่านเพลี้ยจักจั่นสีเขียว ควรตรวจสอบและควบคุมแมลงพาหะ และพิจารณาถอนต้นที่เป็นโรครุนแรงออกเพื่อลดแหล่งแพร่เชื้อ',
-    'Leaf smut': 'สงสัยโรคใบเขม่าดำ มักไม่รุนแรงถึงขั้นเสียหายมาก แต่ควรเฝ้าระวังในแปลงที่มีความชื้นสูงต่อเนื่อง',
-    'narrow_brown_spot': 'สงสัยโรคใบขีดสีน้ำตาล ควรดูแลให้ต้นข้าวได้รับธาตุโพแทสเซียมเพียงพอ และเลี่ยงการปลูกถี่เกินไป',
-    'Narrow brown spot': 'สงสัยโรคใบขีดสีน้ำตาล ควรดูแลให้ต้นข้าวได้รับธาตุโพแทสเซียมเพียงพอ และเลี่ยงการปลูกถี่เกินไป'
+pageBuilders.settings = function (root) {
+  var card = el("div", "card");
+  card.style.maxWidth = "620px";
+  card.appendChild(el("div", "card-title", "⚙️ Settings"));
+
+  var info = el("div");
+  info.style.fontSize = ".87rem";
+  info.innerHTML =
+    "<p><b>API:</b> <span style='color:#7A8B80'>" + API_BASE + "</span></p>" +
+    "<p><b>โมเดลตรวจข้าว:</b> <span id='m1' style='color:#7A8B80'>กำลังโหลด...</span></p>" +
+    "<p><b>โมเดลตรวจโรค:</b> <span id='m2' style='color:#7A8B80'>กำลังโหลด...</span></p>";
+  card.appendChild(info);
+
+  setTimeout(function () {
+    var m1 = document.getElementById("m1"), m2 = document.getElementById("m2");
+    if (m1 && models.rice.project) m1.textContent = models.rice.project.owner + "/" + models.rice.project.name + " (v" + models.rice.project.deploy_version + ")";
+    if (m2 && models.disease.project) m2.textContent = models.disease.project.owner + "/" + models.disease.project.name + " (v" + models.disease.project.deploy_version + ")";
+  }, 1500);
+
+  var clear = el("button", "btn btn-ghost", "ล้างข้อมูลที่เก็บในเครื่องนี้");
+  clear.style.marginTop = "10px";
+  clear.onclick = function () {
+    if (confirm("ลบข้อมูลสำรองในเครื่องนี้ทั้งหมด? (ข้อมูลบนเซิร์ฟเวอร์ยังอยู่)")) {
+      localStorage.removeItem("smartrice-logs");
+      Store._cache = null;
+      alert("ล้างข้อมูลในเครื่องแล้ว");
+    }
   };
-  function isHealthyLabel(label) {
-    return /healthy|ปกติ/i.test(label);
+  card.appendChild(clear);
+
+  var note = el("p");
+  note.style.fontSize = ".8rem";
+  note.style.color = "#7A8B80";
+  note.style.marginTop = "14px";
+  note.textContent = "ภาพถ่ายทั้งหมดประมวลผลในเบราว์เซอร์ของคุณเอง ไม่ถูกส่งขึ้นเซิร์ฟเวอร์ ส่วนข้อมูลแบบสำรวจ (วันที่ โรคที่พบ ค่า pH พิกัด) จะถูกเก็บผ่าน API เพื่อให้เปิดดูข้ามเครื่องได้";
+  card.appendChild(note);
+
+  root.appendChild(card);
+};
+
+// ============ Router ============
+var current = "dashboard";
+
+function buildNav() {
+  var nav = document.getElementById("nav");
+  nav.innerHTML = "";
+  PAGES.forEach(function (p) {
+    var b = el("button", "nav-item" + (p.id === current ? " active" : ""));
+    b.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="' + p.icon + '"/></svg>';
+    b.appendChild(document.createTextNode(p.label));
+    b.onclick = function () { go(p.id); document.getElementById("sidebar").classList.remove("open"); };
+    nav.appendChild(b);
+  });
+}
+
+async function go(id) {
+  current = id;
+  var page = PAGES.find(function (p) { return p.id === id; });
+  document.getElementById("pageTitle").textContent = page.label;
+  document.getElementById("crumb").textContent = page.label;
+  buildNav();
+  var root = document.getElementById("content");
+  root.innerHTML = '<div class="empty">กำลังโหลด...</div>';
+  try {
+    root.innerHTML = "";
+    await pageBuilders[id](root);
+  } catch (err) {
+    root.innerHTML = "";
+    root.appendChild(el("div", "alert err", "เปิดหน้านี้ไม่ได้: " + err.message));
   }
-  function renderTreatment(topLabel) {
-    var card = els.treatmentCard;
-    var inner = els.treatmentCardInner;
-    var body = els.treatmentBody;
-    var heading = els.treatmentHeading;
-    var advice = TREATMENT_ADVICE[topLabel];
-    if (!advice) {
-      card.hidden = true;
-      return;
-    }
-    card.hidden = false;
-    if (isHealthyLabel(topLabel)) {
-      inner.classList.remove('warn');
-      heading.textContent = 'สรุปผล';
-    } else {
-      inner.classList.add('warn');
-      heading.textContent = 'คำแนะนำการดูแลรักษาเบื้องต้น';
-    }
-    body.textContent = advice;
-  }
+}
 
-  function renderResults(result, tone, options) {
-    const forcedByPreCheck = !!(options && options.forcedByPreCheck);
-    els.resultsPlaceholder.hidden = true;
-    els.resultsContent.hidden = false;
-    els.resultsList.innerHTML = '';
+function applyProfile() {
+  var p = Store.profile();
+  document.getElementById("avatarName").textContent = p.name;
+  document.getElementById("avatarLetter").textContent = (p.name || "ก").charAt(0);
+}
 
-    const sourceNote = document.createElement('div');
-    sourceNote.className = 'result-source-note';
-    sourceNote.textContent = forcedByPreCheck
-      ? 'ผลนี้ตัดสินจากด่านเช็คสี/ลายเบื้องต้น — ไม่ได้ส่งภาพนี้ให้ AI ตรวจ เพราะไม่มีลักษณะของพืชเลย'
-      : 'ผลจากโมเดล AI ที่คุณเทรนไว้';
-    els.resultsList.appendChild(sourceNote);
+document.getElementById("navToggle").onclick = function () {
+  document.getElementById("sidebar").classList.toggle("open");
+};
+document.getElementById("globalSearch").oninput = function () {
+  if (current === "log") go("log");
+};
 
-    const sorted = result.results.slice().sort(function (a, b) { return b.value - a.value; });
+applyProfile();
+go("dashboard");
 
-    sorted.forEach(function (r, idx) {
-      const pct = Math.round(r.value * 100);
-      const row = document.createElement('div');
-      row.className = 'result-row' + (idx === 0 ? ' top' : '');
-
-      const labelEl = document.createElement('div');
-      labelEl.className = 'result-label';
-      labelEl.textContent = translateLabel(r.label);
-
-      const track = document.createElement('div');
-      track.className = 'result-bar-track';
-      const fill = document.createElement('div');
-      fill.className = 'result-bar-fill';
-      fill.style.width = pct + '%';
-      track.appendChild(fill);
-
-      const pctEl = document.createElement('div');
-      pctEl.className = 'result-pct';
-      pctEl.textContent = pct + '%';
-
-      row.appendChild(labelEl);
-      row.appendChild(track);
-      row.appendChild(pctEl);
-      els.resultsList.appendChild(row);
-    });
-
-    if (typeof result.anomaly === 'number' && result.anomaly > 0) {
-      const anomalyRow = document.createElement('div');
-      anomalyRow.className = 'result-anomaly';
-      anomalyRow.textContent = 'คะแนนความผิดปกติ (anomaly score): ' + result.anomaly.toFixed(3);
-      els.resultsList.appendChild(anomalyRow);
-    }
-
-    // The pre-check score (`tone.plantScore`) still decides whether the
-    // model gets called at all (see the click handler above) — only the
-    // raw color breakdown is shown to the user below, not the score/level.
-    renderColorBreakdown(tone.colorBreakdown);
-  }
-
-  function renderDiseaseResults(result) {
-    els.diseaseBlock.hidden = false;
-    els.diseaseList.innerHTML = '';
-
-    const sorted = result.results.slice().sort(function (a, b) { return b.value - a.value; });
-
-    sorted.forEach(function (r, idx) {
-      const pct = Math.round(r.value * 100);
-      const row = document.createElement('div');
-      row.className = 'result-row' + (idx === 0 ? ' top' : '');
-
-      const labelEl = document.createElement('div');
-      labelEl.className = 'result-label';
-      labelEl.textContent = translateLabel(r.label);
-
-      const track = document.createElement('div');
-      track.className = 'result-bar-track';
-      const fill = document.createElement('div');
-      fill.className = 'result-bar-fill';
-      fill.style.width = pct + '%';
-      track.appendChild(fill);
-
-      const pctEl = document.createElement('div');
-      pctEl.className = 'result-pct';
-      pctEl.textContent = pct + '%';
-
-      row.appendChild(labelEl);
-      row.appendChild(track);
-      row.appendChild(pctEl);
-      els.diseaseList.appendChild(row);
-    });
-
-    var top = sorted[0];
-    if (top) renderTreatment(top.label);
-  }
-
-  function renderColorBreakdown(breakdown) {
-    els.segGreen.style.width = breakdown.greenPct + '%';
-    els.segYellow.style.width = breakdown.yellowPct + '%';
-    els.segOther.style.width = breakdown.otherPct + '%';
-    els.pctGreen.textContent = breakdown.greenPct + '%';
-    els.pctYellow.textContent = breakdown.yellowPct + '%';
-    els.pctOther.textContent = breakdown.otherPct + '%';
-  }
-
-  // ---------- Pre-check heuristic: color + texture ----------
-  // Runs BEFORE the trained model, on every image. Combines two independent
-  // rule-based signals sampled on a 64x64 downscale, weighted so the center
-  // of the frame (where a close-up subject usually sits) counts more than
-  // the edges/background:
-  //
-  //   1. colorScore  — share of pixels in the green / yellow-brown hue range
-  //                    typical of rice-leaf photos (healthy blade or disease
-  //                    lesions).
-  //   2. edgeScore    — average Sobel edge magnitude, i.e. how much fine
-  //                    texture (veins, spots, blade lines) is present. This
-  //                    catches flat-toned surfaces — sky, painted walls, UI
-  //                    screenshots, solid backdrops — that can share a leaf's
-  //                    hue but have none of its texture.
-  //
-  // The two are combined into plantScore. Below the "mismatch" threshold the
-  // caller skips the trained model entirely: an image classifier trained on
-  // only two classes (Rice / not Rice) will always force one of those two
-  // answers, even for a photo of a bicycle or a stock chart — displaying
-  // that confident-but-meaningless number does more harm than good.
-  //
-  // Important honest caveat: this still cannot reliably tell a rice leaf
-  // apart from other green, blade-textured plants (lawn grass, other cereal
-  // crops) — those genuinely look alike in color and texture alike. Closing
-  // that gap needs either more "not Rice" training variety or an anomaly-
-  // detection block in Edge Impulse, not a client-side color/texture rule.
-  // The thresholds below (0.4 / 0.18) are reasonable starting points, not
-  // calibrated against a labeled test set — tune them if real-world use
-  // shows too many false skips or false passes.
-  function analyzeImagePlausibility(img) {
-    const SIZE = 64;
-    const canvas = document.createElement('canvas');
-    canvas.width = SIZE;
-    canvas.height = SIZE;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(img, 0, 0, SIZE, SIZE);
-    const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
-
-    const gray = new Float32Array(SIZE * SIZE);
-    for (let p = 0; p < SIZE * SIZE; p++) {
-      const i = p * 4;
-      gray[p] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    }
-
-    const center = (SIZE - 1) / 2;
-    const maxDist = Math.sqrt(2) * center;
-    const EDGE_NORMALIZER = 900; // approximate Sobel magnitude scale, see comment above
-
-    let colorWeighted = 0;
-    let edgeWeighted = 0;
-    let weightSum = 0;
-    let greenCount = 0;
-    let yellowBrownCount = 0;
-    let otherCount = 0;
-    let sampleTotal = 0;
-
-    for (let y = 1; y < SIZE - 1; y++) {
-      for (let x = 1; x < SIZE - 1; x++) {
-        const i = (y * SIZE + x) * 4;
-        const hsl = rgbToHsl(data[i], data[i + 1], data[i + 2]);
-        const isGreenish = hsl.h >= 60 && hsl.h <= 170;
-        const isYellowBrown = hsl.h >= 20 && hsl.h < 60;
-        const isColorful = hsl.s > 0.12 && hsl.l > 0.08 && hsl.l < 0.9;
-        const colorMatch = (isGreenish || isYellowBrown) && isColorful ? 1 : 0;
-
-        // Plain (unweighted) tally across the whole frame — used only for
-        // the color-breakdown readout shown to the user, separate from the
-        // center-weighted plantScore used to gate the model below.
-        sampleTotal++;
-        if (isGreenish && isColorful) greenCount++;
-        else if (isYellowBrown && isColorful) yellowBrownCount++;
-        else otherCount++;
-
-        const gx =
-          -gray[(y - 1) * SIZE + (x - 1)] + gray[(y - 1) * SIZE + (x + 1)] +
-          -2 * gray[y * SIZE + (x - 1)] + 2 * gray[y * SIZE + (x + 1)] +
-          -gray[(y + 1) * SIZE + (x - 1)] + gray[(y + 1) * SIZE + (x + 1)];
-        const gy =
-          -gray[(y - 1) * SIZE + (x - 1)] - 2 * gray[(y - 1) * SIZE + x] - gray[(y - 1) * SIZE + (x + 1)] +
-          gray[(y + 1) * SIZE + (x - 1)] + 2 * gray[(y + 1) * SIZE + x] + gray[(y + 1) * SIZE + (x + 1)];
-        const edgeMag = Math.min(Math.sqrt(gx * gx + gy * gy) / EDGE_NORMALIZER, 1);
-
-        const dist = Math.sqrt((x - center) * (x - center) + (y - center) * (y - center)) / maxDist;
-        const weight = 1 - 0.6 * dist; // center of frame counts up to 2.5x an extreme corner
-
-        colorWeighted += colorMatch * weight;
-        edgeWeighted += edgeMag * weight;
-        weightSum += weight;
-      }
-    }
-
-    const colorScore = colorWeighted / weightSum;
-    const edgeScore = edgeWeighted / weightSum;
-    // Texture only "counts" once it clears a low bar (~0.08); below that we
-    // scale its contribution down instead of zeroing plantScore outright, so
-    // slightly soft-focus photos aren't unfairly punished.
-    const textureFactor = 0.5 + 0.5 * Math.min(edgeScore / 0.08, 1);
-    let plantScore = colorScore * textureFactor;
-    // A near-perfectly flat surface (edgeScore ~0) has no vein/lesion texture
-    // at all — a real leaf close-up always has some. Cap the score so flat
-    // color alone (a painted wall, a solid backdrop) can't reach "match".
-    const isNearlyFlat = edgeScore < 0.015;
-    if (isNearlyFlat) {
-      plantScore = Math.min(plantScore, 0.3);
-    }
-
-    const greenPct = (greenCount / sampleTotal) * 100;
-    const yellowPct = (yellowBrownCount / sampleTotal) * 100;
-    const otherPct = (otherCount / sampleTotal) * 100;
-
-    // Hard rule requested on top of the plantScore check above: a real
-    // rice-leaf close-up always shows a meaningful amount of actual green,
-    // even a diseased one. Golden-brown fried food, wood, skin tones etc.
-    // can score well on plantScore because their color falls in the same
-    // "yellow/brown disease lesion" hue bucket used for dry/diseased leaf
-    // tissue — this rule catches those by checking green specifically.
-    // Caveat: a rice leaf so heavily diseased that almost the whole blade
-    // has turned brown/yellow would also fail this check and get forced to
-    // "not Rice" — tune GREEN_MIN_PCT down (or remove this block) if that
-    // turns out to be a real class in your dataset.
-    const GREEN_MIN_PCT = 15;
-
-    let level, label, message, skipModel;
-
-    if (greenPct < GREEN_MIN_PCT) {
-      level = 'mismatch';
-      skipModel = true;
-      label = 'สีเขียวในภาพต่ำกว่ามาตรฐานใบข้าว';
-      message = 'ภาพนี้มีสัดส่วนสีเขียวเพียง ' + Math.round(greenPct) + '% ซึ่งต่ำกว่ามาตรฐานภาพใบข้าวทั่วไป ระบบจึงข้ามการส่งภาพนี้ให้โมเดลจำแนก';
-    } else if (plantScore >= 0.4) {
-      level = 'match';
-      skipModel = false;
-      label = 'ลักษณะภาพใกล้เคียงใบพืช';
-      message = 'ภาพนี้มีทั้งโทนสีและพื้นผิวที่ใกล้เคียงกับใบข้าวในชุดข้อมูลที่ใช้เทรน ผลจำแนกด้านล่างน่าจะเชื่อถือได้ในระดับหนึ่ง';
-    } else if (plantScore >= 0.18) {
-      level = 'partial';
-      skipModel = false;
-      label = 'ลักษณะภาพใกล้เคียงบางส่วน';
-      message = 'ภาพนี้มีโทนสีหรือพื้นผิวคล้ายพืชอยู่บ้าง แต่ไม่ชัดเจนเท่าภาพใบข้าวทั่วไป อาจเป็นพืชชนิดอื่น พื้นหลังธรรมชาติ หรือมุมถ่ายที่ไม่คุ้นเคย โปรดตรวจสอบผลจำแนกด้านล่างด้วยตาอีกครั้งก่อนเชื่อ 100%';
-    } else {
-      level = 'mismatch';
-      skipModel = true;
-      label = 'ไม่มีลักษณะของใบพืช';
-      message = 'ภาพนี้ไม่มีทั้งโทนสีและพื้นผิวแบบใบข้าวเลย ระบบจึงข้ามการส่งภาพนี้ให้โมเดลจำแนก เพราะโมเดลถูกฝึกให้ต้องเลือกคำตอบใดคำตอบหนึ่งเสมอ ผลลัพธ์ที่ได้จะไม่มีความหมาย กรุณาถ่ายภาพใบข้าวแบบใกล้และชัดเจนแล้วลองใหม่';
-    }
-
-    return {
-      level: level, label: label, message: message, skipModel: skipModel,
-      plantScore: plantScore, colorScore: colorScore, edgeScore: edgeScore,
-      colorBreakdown: {
-        greenPct: Math.round(greenPct),
-        yellowPct: Math.round(yellowPct),
-        otherPct: Math.round(otherPct)
-      }
-    };
-  }
-
-  function rgbToHsl(r, g, b) {
-    r /= 255; g /= 255; b /= 255;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const l = (max + min) / 2;
-    let h = 0;
-    let s = 0;
-    const d = max - min;
-    if (d !== 0) {
-      s = d / (1 - Math.abs(2 * l - 1));
-      if (max === r) h = 60 * (((g - b) / d) % 6);
-      else if (max === g) h = 60 * ((b - r) / d + 2);
-      else h = 60 * ((r - g) / d + 4);
-    }
-    if (h < 0) h += 360;
-    return { h: h, s: s, l: l };
-  }
-
-  // ---------- UI helpers ----------
-
-  function setScanning(isScanning) {
-    els.scanOverlay.hidden = !isScanning;
-    els.analyzeBtn.disabled = isScanning || !currentImage;
-    els.analyzeBtn.textContent = isScanning ? 'กำลังวิเคราะห์...' : 'วิเคราะห์ภาพ';
-  }
-
-  function hideResults() {
-    els.resultsContent.hidden = true;
-    els.resultsPlaceholder.hidden = false;
-    els.diseaseBlock.hidden = true;
-    els.diseaseList.innerHTML = '';
-    els.treatmentCard.hidden = true;
-  }
-
-  function showError(msg) {
-    els.errorBox.hidden = false;
-    els.errorBox.textContent = msg;
-  }
-
-  function clearError() {
-    els.errorBox.hidden = true;
-    els.errorBox.textContent = '';
-  }
-
-  // Nothing else to kick off here — each iframe (rice-model/frame.html and
-  // disease-model/frame.html) initializes its own classifier as soon as it
-  // loads and reports back via postMessage (see handleFrameMessage above).
 })();
 </script>
-
 </body>
 </html>
