@@ -306,8 +306,26 @@
   td.n { font-family: var(--f-data); }
 
   /* ─── สถานะว่าง/โหลด/ผิดพลาด ──────────────── */
-  .state { text-align: center; padding: 44px 22px; }
-  .state-mark { font-size: 1.6rem; margin-bottom: 8px; opacity: .5; }
+  /* ─── แผงยืนยันผลจากผู้ใช้ ─────────────────── */
+  .verify { margin-top: 18px; padding: 15px 17px; border: 1px solid var(--rule); border-left: 3px solid var(--flood); background: var(--husk); }
+  .verify.done { border-left-color: var(--blade); background: var(--tint-ok); }
+  .verify-ask { font-weight: 500; font-size: .9rem; }
+  .verify-note { font-size: .78rem; color: var(--ink-soft); margin-top: 3px; }
+  .verify-acts { display: flex; gap: 9px; margin-top: 12px; flex-wrap: wrap; }
+  .verify-pick { display: flex; gap: 9px; margin-top: 11px; flex-wrap: wrap; align-items: center; }
+
+  .thumb { width: 46px; height: 46px; object-fit: cover; border-radius: 2px; border: 1px solid var(--rule); display: block; cursor: pointer; background: var(--husk); }
+  .thumb-blank { width: 46px; height: 46px; border: 1px dashed var(--rule); border-radius: 2px; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-size: .68rem; }
+
+  .lens { position: fixed; inset: 0; background: rgba(20,40,31,.86); z-index: 90; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .lens img { max-width: 100%; max-height: 84vh; border-radius: var(--r); }
+  .lens-shut { position: absolute; top: 18px; right: 20px; background: var(--paper); border: none; border-radius: var(--r); padding: 8px 16px; font-weight: 500; }
+
+  .tag-yes { font-size: .72rem; padding: 2px 8px; border-radius: 99px; background: var(--tint-ok); color: #3B5A28; white-space: nowrap; }
+  .tag-no  { font-size: .72rem; padding: 2px 8px; border-radius: 99px; background: var(--tint-bad); color: var(--rust); white-space: nowrap; }
+  .tag-wait{ font-size: .72rem; padding: 2px 8px; border-radius: 99px; background: var(--husk); color: var(--ink-faint); white-space: nowrap; border: 1px solid var(--rule); }
+
+  .state { text-align: center; padding: 44px 22px; }  .state-mark { font-size: 1.6rem; margin-bottom: 8px; opacity: .5; }
   .state-lead { font-weight: 500; font-size: .93rem; margin-bottom: 4px; }
   .state-note { font-size: .83rem; color: var(--ink-soft); max-width: 300px; margin: 0 auto; }
   .flash { padding: 11px 15px; border-radius: var(--r); font-size: .85rem; margin-top: 12px; }
@@ -484,6 +502,40 @@ var Store = {
   },
 
   isOffline() { return this._offline; },
+
+  // บันทึกผลยืนยันจากผู้ใช้ว่า AI ทายถูกหรือผิด
+  // ทำงานได้เฉพาะตอนออนไลน์ เพราะต้องแก้ข้อมูลที่เซิร์ฟเวอร์
+  async verify(id, correct, actual) {
+    var res = await fetch(API_BASE + "/field-logs/" + id, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ correct: correct, actual: actual || null })
+    });
+    if (!res.ok) {
+      var msg = await res.json().catch(function () { return {}; });
+      throw new Error(msg.error || "บันทึกผลยืนยันไม่สำเร็จ");
+    }
+    var updated = await res.json();
+    if (this._cache) {
+      var i = this._cache.findIndex(function (l) { return l.id === id; });
+      if (i !== -1) this._cache[i] = updated;
+    }
+    return updated;
+  },
+
+  async remove(id) {
+    var res = await fetch(API_BASE + "/field-logs/" + id, { method: "DELETE" });
+    if (!res.ok) throw new Error("ลบบันทึกไม่สำเร็จ");
+    if (this._cache) {
+      this._cache = this._cache.filter(function (l) { return l.id !== id; });
+    }
+  },
+
+  async imageOf(id) {
+    var res = await fetch(API_BASE + "/images/" + id);
+    if (!res.ok) throw new Error("ไม่พบภาพของบันทึกนี้");
+    return await res.json();
+  },
 
   async askGemini(prompt, image) {
     var payload = { prompt: prompt };
@@ -826,6 +878,61 @@ function buildFarmContext(logs) {
   return lines.join("\n");
 }
 
+// สรุปความแม่นยำจากผลยืนยันของผู้ใช้จริง
+// ต่างจาก accuracy ในหน้าเทรน ตรงที่วัดจากภาพที่โมเดลไม่เคยเห็นมาก่อน
+// จึงสะท้อนการใช้งานภาคสนามได้ตรงกว่า
+function accuracyReport(logs) {
+  var judged = logs.filter(function (l) { return l.verify; });
+  var right = judged.filter(function (l) { return l.verify.correct; });
+  var wrong = judged.filter(function (l) { return !l.verify.correct; });
+
+  // นับว่าโรคไหนถูกทายผิดบ่อยที่สุด เพื่อชี้เป้าว่าควรเพิ่มภาพคลาสไหนตอนเทรนรอบหน้า
+  var confusion = {};
+  wrong.forEach(function (l) {
+    var key = l.disease + " → " + (l.verify.actual || "ไม่ระบุ");
+    confusion[key] = (confusion[key] || 0) + 1;
+  });
+
+  return {
+    judged: judged.length,
+    right: right.length,
+    wrong: wrong.length,
+    pending: logs.length - judged.length,
+    rate: judged.length ? Math.round(right.length / judged.length * 100) : null,
+    confusion: Object.keys(confusion)
+      .sort(function (a, b) { return confusion[b] - confusion[a]; })
+      .map(function (k) { return { pair: k, count: confusion[k] }; })
+  };
+}
+
+// ส่งออกเป็น CSV ให้เปิดใน Excel ได้
+// ใส่ BOM นำหน้าเพราะ Excel บน Windows อ่านภาษาไทยเป็นตัวต่างดาวถ้าไม่มี
+function exportCsv(logs) {
+  var head = ["วันที่", "ผู้บันทึก", "ผลตรวจจาก AI", "ผู้ใช้ยืนยัน", "โรคที่ถูกต้อง", "pH", "คะแนนสุขภาพ", "พิกัด", "มีภาพ"];
+  var cell = function (v) {
+    var s = (v === null || v === undefined) ? "" : String(v);
+    return '"' + s.replace(/"/g, '""') + '"';
+  };
+  var rows = logs.map(function (l) {
+    var judged = l.verify ? (l.verify.correct ? "ถูกต้อง" : "ไม่ถูกต้อง") : "ยังไม่ยืนยัน";
+    return [l.date, l.owner || "", l.disease, judged,
+            l.verify && l.verify.actual ? l.verify.actual : "",
+            l.ph != null ? l.ph : "", l.score, l.gps || "",
+            l.hasImage ? "มี" : "ไม่มี"].map(cell).join(",");
+  });
+
+  var csv = "\uFEFF" + head.map(cell).join(",") + "\n" + rows.join("\n");
+  var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = "smartrice-บันทึกแปลง-" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // ─── ตัวช่วยสร้าง UI ────────────────────────────
 function el(tag, cls, text) {
   var e = document.createElement(tag);
@@ -998,6 +1105,64 @@ function makeIntake(opts) {
     sweeping: function (on) { sweep.hidden = !on; },
     clear: function () { current = null; shot.hidden = true; file.value = ""; }
   };
+}
+
+// แผงให้ผู้ใช้ยืนยันว่าโมเดลทายถูกหรือไม่
+// ถ้าผิด ให้เลือกโรคที่ถูกต้องจากคลาสที่โมเดลรู้จัก เพื่อให้ข้อมูลนำไปเทรนต่อได้ทันที
+function buildVerifyPanel(saved, res) {
+  var box = el("div", "verify");
+  box.appendChild(el("div", "verify-ask", "ผลนี้ตรงกับที่คุณเห็นในแปลงจริงหรือไม่"));
+  box.appendChild(el("div", "verify-note",
+    "คำตอบของคุณใช้วัดความแม่นยำจริงในภาคสนาม และชี้เป้าว่าควรเก็บภาพเพิ่มในคลาสไหน"));
+
+  var actions = el("div", "verify-acts");
+  var yes = el("button", "act act-go act-sm", "ตรงกัน");
+  var no = el("button", "act act-line act-sm", "ไม่ตรง แจ้งโรคที่ถูกต้อง");
+  actions.appendChild(yes);
+  actions.appendChild(no);
+  box.appendChild(actions);
+
+  var picker = el("div", "verify-pick");
+  picker.hidden = true;
+  var labels = (res.disease && res.disease.results.map(function (r) { return r.label; })) ||
+               (models.disease.props && models.disease.props.labels) || [];
+  var select = el("select");
+  select.style.cssText = "padding:8px 11px;border:1px solid var(--rule);border-radius:var(--r);background:var(--paper);flex:1;min-width:150px";
+  labels.forEach(function (l) {
+    var o = el("option", "", th(l));
+    o.value = l;
+    select.appendChild(o);
+  });
+  var confirm = el("button", "act act-go act-sm", "ส่งคำตอบ");
+  picker.appendChild(select);
+  picker.appendChild(confirm);
+  box.appendChild(picker);
+
+  function settle(msg) {
+    box.innerHTML = "";
+    box.className = "verify done";
+    box.appendChild(el("div", "verify-ask", msg));
+  }
+
+  function send(correct, actual) {
+    [yes, no, confirm].forEach(function (b) { b.disabled = true; });
+    Store.verify(saved.id, correct, actual)
+      .then(function () {
+        settle(correct
+          ? "ขอบคุณครับ บันทึกว่าผลตรวจถูกต้องแล้ว"
+          : "ขอบคุณครับ บันทึกว่าที่ถูกต้องคือ " + th(actual) + " แล้ว");
+      })
+      .catch(function (err) {
+        box.appendChild(el("div", "flash flash-bad", err.message));
+        [yes, no, confirm].forEach(function (b) { b.disabled = false; });
+      });
+  }
+
+  yes.onclick = function () { send(true, null); };
+  no.onclick = function () { picker.hidden = false; no.disabled = true; };
+  confirm.onclick = function () { send(false, select.value); };
+
+  return box;
 }
 
 // ─── หน้าต่างๆ ─────────────────────────────────
@@ -1196,17 +1361,27 @@ views.diagnose = function (root) {
       resultHost.appendChild(mixHost);
       renderMix(mixHost, res.pre);
 
-      await Store.add({
+      // เก็บภาพย่อไว้กับบันทึกด้วย ใช้ 640px พอสำหรับย้อนดูภายหลัง
+      // เล็กกว่าที่ส่งให้ Gemini (800px) เพื่อประหยัดพื้นที่เก็บ
+      var saved = await Store.add({
         date: todayStamp(),
         owner: Store.profile().name,
         gps: "",
         ph: null,
         disease: diagnosisName(res),
-        score: score
+        score: score,
+        image: imageToBase64(intake.image(), 640)
       });
+
       showFlash(Store.isOffline()
         ? "บันทึกลงเครื่องแล้ว จะซิงก์ขึ้นเซิร์ฟเวอร์เมื่อเชื่อมต่อได้"
         : "บันทึกผลลงทะเบียนแล้ว", "ok");
+
+      // ให้ผู้ใช้ยืนยันว่า AI ทายถูกไหม ข้อมูลนี้ใช้วัดความแม่นยำจริง
+      // และชี้เป้าว่าควรเพิ่มภาพคลาสไหนตอนเทรนรอบหน้า
+      if (!Store.isOffline() && saved.id) {
+        resultHost.appendChild(buildVerifyPanel(saved, res));
+      }
     } catch (err) {
       resultHost.innerHTML = "";
       resultHost.appendChild(stateBlock("!", "ตรวจภาพไม่สำเร็จ", err.message));
@@ -1312,6 +1487,7 @@ views.survey = async function (root) {
         intake.sweeping(false);
         entry.disease = diagnosisName(res);
         entry.score = healthScore(res);
+        entry.image = imageToBase64(img, 640);
       }
       await Store.add(entry);
       msgHost.appendChild(el("div", "flash flash-ok", Store.isOffline()
@@ -1379,7 +1555,11 @@ views.ledger = async function (root) {
   var card = plot(null);
 
   var tools = el("div");
-  tools.style.cssText = "display:flex;justify-content:flex-end;margin-bottom:12px";
+  tools.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:13px";
+  var dl = el("button", "act act-line act-sm", "ส่งออกเป็นไฟล์ CSV");
+  dl.disabled = !logs.length;
+  dl.onclick = function () { exportCsv(logs); };
+  tools.appendChild(dl);
   var find = el("input");
   find.placeholder = "กรองตามวันที่ ชื่อ หรือโรค";
   find.style.cssText = "padding:7px 12px;border:1px solid var(--rule);border-radius:var(--r);background:var(--paper);width:250px;max-width:100%";
@@ -1389,44 +1569,164 @@ views.ledger = async function (root) {
   var body = el("div");
   card.appendChild(body);
 
+  function judgeTag(l) {
+    if (!l.verify) return '<span class="tag-wait">ยังไม่ยืนยัน</span>';
+    if (l.verify.correct) return '<span class="tag-yes">ถูกต้อง</span>';
+    return '<span class="tag-no">ผิด · ที่จริงคือ ' + th(l.verify.actual || "ไม่ระบุ") + '</span>';
+  }
+
   function draw(filter) {
     body.innerHTML = "";
-    var rows = logs.filter(function (l) {
-      if (!filter) return true;
-      return (l.date + " " + (l.owner||"") + " " + l.disease).toLowerCase().indexOf(filter.toLowerCase()) !== -1;
-    });
     if (!logs.length) {
       body.appendChild(stateBlock("◇", "ทะเบียนยังว่าง", "บันทึกผลตรวจครั้งแรกเพื่อเริ่มทะเบียน"));
       return;
     }
+    var rows = logs.filter(function (l) {
+      if (!filter) return true;
+      return (l.date + " " + (l.owner||"") + " " + l.disease).toLowerCase().indexOf(filter.toLowerCase()) !== -1;
+    });
     if (!rows.length) {
       body.appendChild(stateBlock("◇", "ไม่พบรายการที่ตรงกับคำค้น", "ลองพิมพ์คำอื่น หรือล้างช่องค้นหา"));
       return;
     }
+
+    var wrap = el("div");
+    wrap.style.overflowX = "auto";
     var t = el("table");
-    t.innerHTML = "<thead><tr><th>วันที่</th><th>ผู้บันทึก</th><th>ผลตรวจ</th><th>pH</th><th>คะแนน</th><th>พิกัด</th></tr></thead>";
+    t.innerHTML = "<thead><tr><th>ภาพ</th><th>วันที่</th><th>ผลตรวจ AI</th><th>ผู้ใช้ยืนยัน</th><th>pH</th><th>คะแนน</th><th></th></tr></thead>";
     var tb = el("tbody");
+
     rows.forEach(function (l) {
       var tr = el("tr");
+
+      var tdImg = el("td");
+      if (l.hasImage) {
+        var img = el("img", "thumb");
+        img.alt = "ภาพใบข้าวที่ตรวจเมื่อ " + l.date;
+        img.loading = "lazy";
+        // โหลดภาพเฉพาะแถวที่มีจริง เพื่อไม่ให้ยิง request ที่ไม่จำเป็น
+        Store.imageOf(l.id)
+          .then(function (im) { img.src = "data:" + im.mimeType + ";base64," + im.data; })
+          .catch(function () { img.replaceWith(el("div", "thumb-blank", "โหลดไม่ได้")); });
+        img.onclick = function () { openLens(img.src, l); };
+        tdImg.appendChild(img);
+      } else {
+        tdImg.appendChild(el("div", "thumb-blank", "ไม่มี"));
+      }
+      tr.appendChild(tdImg);
+
       var wellClass = l.disease === "ไม่พบโรค" ? " well" : l.disease.indexOf("โรค") === 0 ? " ill" : "";
-      tr.innerHTML = "<td class='n'>" + l.date + "</td><td>" + (l.owner || "—") + "</td>" +
-        "<td class='dx" + wellClass + "'>" + l.disease + "</td>" +
-        "<td class='n'>" + (l.ph != null ? l.ph : "—") + "</td>" +
-        "<td class='n'>" + l.score + "</td><td class='n'>" + (l.gps || "—") + "</td>";
+      var rest = el("td", "n", l.date);
+      tr.appendChild(rest);
+      var tdDx = el("td", "dx" + wellClass, l.disease);
+      tr.appendChild(tdDx);
+      var tdJudge = el("td");
+      tdJudge.innerHTML = judgeTag(l);
+      tr.appendChild(tdJudge);
+      tr.appendChild(el("td", "n", l.ph != null ? String(l.ph) : "—"));
+      tr.appendChild(el("td", "n", String(l.score)));
+
+      var tdAct = el("td");
+      var del = el("button", "act act-line act-sm", "ลบ");
+      del.onclick = function () {
+        if (!confirm("ลบบันทึกวันที่ " + l.date + " ออกจากทะเบียน ยืนยันหรือไม่")) return;
+        del.disabled = true;
+        del.textContent = "กำลังลบ";
+        Store.remove(l.id)
+          .then(function () {
+            logs = logs.filter(function (x) { return x.id !== l.id; });
+            draw(find.value);
+          })
+          .catch(function (err) {
+            del.disabled = false;
+            del.textContent = "ลบไม่ได้";
+            alert(err.message);
+          });
+      };
+      tdAct.appendChild(del);
+      tr.appendChild(tdAct);
+
       tb.appendChild(tr);
     });
+
     t.appendChild(tb);
-    body.appendChild(t);
+    wrap.appendChild(t);
+    body.appendChild(wrap);
   }
+
   find.oninput = function () { draw(find.value); };
   draw(document.getElementById("seekInput").value);
   root.appendChild(card);
 };
 
+// ขยายดูภาพเต็ม ปิดด้วยปุ่ม คลิกพื้นหลัง หรือกด Escape
+function openLens(src, log) {
+  if (!src) return;
+  var lens = el("div", "lens");
+  var img = el("img");
+  img.src = src;
+  img.alt = "ภาพใบข้าวที่ตรวจเมื่อ " + log.date;
+  var shut = el("button", "lens-shut", "ปิด");
+  lens.appendChild(img);
+  lens.appendChild(shut);
+
+  function close() {
+    lens.remove();
+    document.removeEventListener("keydown", onKey);
+  }
+  function onKey(e) { if (e.key === "Escape") close(); }
+
+  shut.onclick = close;
+  lens.onclick = function (e) { if (e.target === lens) close(); };
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(lens);
+  shut.focus();
+}
+
+
 views.trend = async function (root) {
   var logs = await Store.list();
   var scores = logs.map(function (l) { return l.score; }).filter(function (v) { return typeof v === "number"; });
   var phs = logs.map(function (l) { return l.ph; }).filter(function (v) { return typeof v === "number"; });
+  var acc = accuracyReport(logs);
+
+  root.appendChild(bund("ความแม่นยำจริงในภาคสนาม"));
+  var accCard = plot(null);
+  if (!acc.judged) {
+    accCard.appendChild(stateBlock("◇", "ยังไม่มีผลยืนยันจากผู้ใช้",
+      "หลังตรวจภาพในหน้าวินิจฉัย กดยืนยันว่าผลตรงกับที่เห็นจริงหรือไม่ ระบบจะคำนวณความแม่นยำให้ที่นี่"));
+  } else {
+    var accWrap = el("div");
+    accWrap.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px";
+    accWrap.appendChild(readOut("ความแม่นยำที่ผู้ใช้ยืนยัน", acc.rate + "%",
+      "จากการยืนยัน " + acc.judged + " ครั้ง"));
+    accWrap.appendChild(readOut("ทายถูก", String(acc.right), "ครั้ง"));
+    accWrap.appendChild(readOut("ทายผิด", String(acc.wrong), "ครั้ง"));
+    accWrap.appendChild(readOut("รอยืนยัน", String(acc.pending), "รายการ"));
+    accCard.appendChild(accWrap);
+
+    var caveat = el("p", "", "ตัวเลขนี้วัดจากภาพจริงที่โมเดลไม่เคยเห็นตอนเทรน จึงสะท้อนการใช้งานจริงได้ตรงกว่าค่า accuracy ในหน้าเทรนโมเดล");
+    caveat.style.cssText = "font-size:.78rem;color:var(--ink-soft);margin:14px 0 0";
+    accCard.appendChild(caveat);
+
+    if (acc.confusion.length) {
+      accCard.appendChild(el("div", "read-label", "คู่ที่สับสนบ่อยที่สุด"));
+      var cf = el("div");
+      cf.style.cssText = "font-size:.84rem";
+      acc.confusion.slice(0, 5).forEach(function (c) {
+        var line = el("div");
+        line.style.cssText = "display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--rule-soft)";
+        line.appendChild(el("span", "", "AI ว่า " + c.pair.split(" → ")[0] + " แต่จริงคือ " + th(c.pair.split(" → ")[1])));
+        line.appendChild(el("span", "num", c.count + " ครั้ง"));
+        cf.appendChild(line);
+      });
+      accCard.appendChild(cf);
+      var hint = el("p", "", "แนะนำให้เก็บภาพของคลาสที่สับสนบ่อยเพิ่ม แล้วนำไปเทรนโมเดลรอบถัดไป");
+      hint.style.cssText = "font-size:.78rem;color:var(--ink-soft);margin:10px 0 0";
+      accCard.appendChild(hint);
+    }
+  }
+  root.appendChild(accCard);
 
   root.appendChild(bund("สรุปตัวเลข"));
   var stats = el("div", "row-3");
