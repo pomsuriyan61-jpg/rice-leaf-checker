@@ -3,297 +3,440 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SmartRice AI — ระบบตรวจโรคข้าวและจัดการแปลงนา</title>
+<title>SmartRice AI — ระบบวินิจฉัยโรคข้าวและติดตามแปลงนา</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Trirong:wght@500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root {
-    --ink: #14261A;
-    --text: #3C4A41;
-    --muted: #7A8B80;
-    --green: #1B7A45;
-    --green-dark: #155C34;
-    --green-deep: #0F4A2B;
-    --green-light: #E9F6EE;
-    --green-border: #C9E7D5;
-    --surface: #FFFFFF;
-    --bg: #F4FAF6;
-    --border: #E1EDE5;
-    --danger: #C0392B;
-    --danger-bg: #FDEEEC;
-    --warn: #B8860B;
-    --warn-bg: #FDF6E3;
-    --sidebar: #0F4A2B;
-    --sidebar-hover: #166A3D;
-    --font: 'IBM Plex Sans Thai', sans-serif;
+    /* จานสีดึงจากนาข้าวจริง ไม่ใช่เขียว UI ทั่วไป */
+    --flood:    #14352C;  /* น้ำขังในนายามเย็น */
+    --flood-up: #1E4A3C;  /* ผิวน้ำสะท้อนแสง */
+    --blade:    #4F7A3A;  /* ใบข้าวเขียวสมบูรณ์ */
+    --sprout:   #8FB05C;  /* ต้นกล้าอ่อน */
+    --grain:    #C79A2E;  /* รวงข้าวสุก */
+    --rust:     #A4462E;  /* สีแผลโรคบนใบข้าว */
+    --husk:     #F2EBDD;  /* เปลือกข้าว พื้นหลังหน้า */
+    --paper:    #FBF8F1;  /* ข้าวสาร พื้นการ์ด */
+    --ink:      #21281F;
+    --ink-soft: #5E6B58;
+    --ink-faint:#8A9484;
+    --rule:     #DCD3C0;  /* เส้นคันนา */
+    --rule-soft:#E8E1D2;
+
+    --tint-ok:   #EDF2E2;
+    --tint-warn: #FAF0D9;
+    --tint-bad:  #F7E7E1;
+
+    --f-display: 'Trirong', serif;
+    --f-body: 'IBM Plex Sans Thai', sans-serif;
+    --f-data: 'IBM Plex Mono', monospace;
+
+    --r: 3px;          /* มุมคม ให้ความรู้สึกเครื่องมือวัด */
+    --rail-w: 216px;
   }
+
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; font-family: var(--font); color: var(--text);
-    background: var(--bg); line-height: 1.6;
+    margin: 0;
+    font-family: var(--f-body);
+    font-size: 15px;
+    color: var(--ink);
+    background: var(--husk);
+    line-height: 1.65;
   }
-  h1,h2,h3 { margin: 0; color: var(--ink); }
-  button { font-family: var(--font); cursor: pointer; }
-  input, select, textarea { font-family: var(--font); }
-  :focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+  h1, h2, h3 { margin: 0; font-family: var(--f-display); font-weight: 600; color: var(--ink); letter-spacing: -.01em; }
+  button, input, select, textarea { font-family: inherit; font-size: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--blade); }
+  :focus-visible { outline: 2px solid var(--blade); outline-offset: 2px; }
   [hidden] { display: none !important; }
 
-  /* ---------- Layout ---------- */
-  .app { display: flex; min-height: 100vh; }
+  .num { font-family: var(--f-data); font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 
-  .sidebar {
-    width: 230px; flex-shrink: 0; background: var(--sidebar);
-    display: flex; flex-direction: column; position: sticky; top: 0;
-    height: 100vh; overflow-y: auto;
+  /* ─── โครงหน้า ─────────────────────────────── */
+  .shell { display: flex; min-height: 100vh; }
+
+  .rail {
+    width: var(--rail-w); flex-shrink: 0; background: var(--flood);
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    display: flex; flex-direction: column;
   }
-  .brand {
-    display: flex; align-items: center; gap: 10px;
-    padding: 20px 18px; color: #fff; font-weight: 700; font-size: 1.1rem;
+  .mark { padding: 22px 20px 18px; border-bottom: 1px solid rgba(255,255,255,.09); }
+  .mark-name {
+    font-family: var(--f-display); font-weight: 600; font-size: 1.12rem;
+    color: #F2EBDD; letter-spacing: -.015em; display: flex; align-items: center; gap: 9px;
   }
-  .nav { flex: 1; padding: 0 10px; }
-  .nav-item {
+  .mark-sub {
+    font-size: .68rem; letter-spacing: .16em; text-transform: uppercase;
+    color: #7E9587; margin-top: 5px; padding-left: 30px;
+  }
+
+  .rail-nav { padding: 12px 10px; flex: 1; }
+  .rail-item {
     display: flex; align-items: center; gap: 11px; width: 100%;
-    padding: 11px 14px; margin-bottom: 3px; border: none; background: transparent;
-    color: #C9E3D4; font-size: .92rem; text-align: left; border-radius: 9px;
-    transition: background .15s, color .15s;
+    padding: 9px 12px 9px 13px; margin-bottom: 1px; background: none;
+    border: none; border-left: 2px solid transparent;
+    color: #A8BBAD; font-size: .875rem; text-align: left;
+    transition: color .14s, background .14s;
   }
-  .nav-item:hover { background: rgba(255,255,255,.09); color: #fff; }
-  .nav-item.active { background: #1B7A45; color: #fff; font-weight: 600; }
-  .nav-item svg { flex-shrink: 0; }
-
-  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-
-  .topbar {
-    display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    padding: 14px clamp(16px,3vw,32px); background: var(--surface);
-    border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 30;
+  .rail-item:hover { color: #F2EBDD; background: rgba(255,255,255,.05); }
+  .rail-item.on {
+    color: #FBF8F1; background: rgba(143,176,92,.14);
+    border-left-color: var(--sprout); font-weight: 500;
   }
-  .page-title { font-size: 1.4rem; font-weight: 700; }
-  .topbar-right { display: flex; align-items: center; gap: 12px; }
-  .search-box {
-    display: flex; align-items: center; gap: 8px; background: var(--bg);
-    border: 1px solid var(--border); border-radius: 999px; padding: 7px 15px;
+  .rail-item svg { flex-shrink: 0; opacity: .85; }
+  .rail-item.on svg { opacity: 1; }
+
+  .rail-foot {
+    padding: 14px 20px 18px; border-top: 1px solid rgba(255,255,255,.09);
+    font-size: .7rem; color: #6E8375; line-height: 1.5;
   }
-  .search-box input { border: none; background: transparent; outline: none; font-size: .88rem; width: 150px; }
-  .avatar {
-    display: flex; align-items: center; gap: 8px; background: var(--green-light);
-    border: 1px solid var(--green-border); border-radius: 999px; padding: 5px 14px 5px 5px;
-    font-size: .86rem; font-weight: 600; color: var(--green-deep);
+  .rail-foot .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; background: #6E8375; }
+  .rail-foot .dot.live { background: var(--sprout); }
+  .rail-foot .dot.down { background: var(--rust); }
+
+  .stage { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  .bar {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 20px;
+    padding: 20px clamp(18px,3vw,36px) 16px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--husk);
   }
-  .avatar-circle {
-    width: 26px; height: 26px; border-radius: 50%; background: var(--green);
-    color: #fff; display: flex; align-items: center; justify-content: center;
-    font-size: .8rem; font-weight: 700;
+  .bar-title { font-size: 1.5rem; line-height: 1.25; }
+  .bar-kicker {
+    font-size: .7rem; letter-spacing: .15em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 3px;
   }
+  .bar-tools { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
-  .breadcrumb { padding: 12px clamp(16px,3vw,32px); font-size: .84rem; color: var(--muted); background: var(--surface); border-bottom: 1px solid var(--border); }
-  .breadcrumb b { color: var(--ink); font-weight: 600; }
-
-  .content { padding: clamp(16px,3vw,26px) clamp(16px,3vw,32px) 60px; }
-
-  /* ---------- Cards ---------- */
-  .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; padding: 20px;
+  .seek {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r);
+    padding: 6px 12px;
   }
-  .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .seek input { border: none; background: none; outline: none; font-size: .84rem; width: 148px; color: var(--ink); }
+  .seek input::placeholder { color: var(--ink-faint); }
 
-  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px,1fr)); gap: 14px; margin-bottom: 18px; }
-  .stat-label { font-size: .82rem; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
-  .stat-value { font-size: 1.75rem; font-weight: 700; color: var(--green); line-height: 1.2; }
-  .stat-value.danger { color: var(--danger); font-size: 1.3rem; }
-  .stat-value.plain { color: var(--ink); font-size: 1.5rem; }
-
-  .grid-2 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; }
-  @media (max-width: 980px) { .grid-2 { grid-template-columns: 1fr; } }
-
-  .tag {
-    display: inline-block; font-size: .72rem; font-weight: 600; padding: 3px 10px;
-    border-radius: 999px; background: var(--green-light); color: var(--green-deep);
-    border: 1px solid var(--green-border); margin-bottom: 10px;
+  .who { display: flex; align-items: center; gap: 8px; font-size: .84rem; font-weight: 500; color: var(--ink); }
+  .who-badge {
+    width: 27px; height: 27px; border-radius: 50%; background: var(--flood); color: #F2EBDD;
+    display: flex; align-items: center; justify-content: center; font-size: .78rem; font-weight: 600;
   }
 
-  /* ---------- Table ---------- */
-  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
-  th {
-    text-align: left; padding: 10px 8px; border-bottom: 2px solid var(--border);
-    font-weight: 600; color: var(--ink); white-space: nowrap;
-  }
-  td { padding: 11px 8px; border-bottom: 1px solid var(--border); }
-  tr:last-child td { border-bottom: none; }
-  .disease-cell { color: var(--danger); font-weight: 500; }
-  .disease-cell.ok { color: var(--green); }
+  .field { padding: clamp(18px,3vw,30px) clamp(18px,3vw,36px) 72px; }
 
-  /* ---------- Forms ---------- */
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  @media (max-width: 620px) { .form-grid { grid-template-columns: 1fr; } }
-  .field label { display: block; font-size: .82rem; font-weight: 600; color: var(--ink); margin-bottom: 5px; }
-  .field input, .field select, .field textarea {
-    width: 100%; padding: 9px 12px; border: 1px solid var(--border);
-    border-radius: 9px; font-size: .9rem; background: var(--surface); color: var(--text);
+  /* ─── คันนา: เส้นแบ่งหมวด ───────────────────── */
+  .bund { display: flex; align-items: center; gap: 13px; margin: 30px 0 16px; }
+  .bund:first-child { margin-top: 0; }
+  .bund-label {
+    font-size: .7rem; letter-spacing: .15em; text-transform: uppercase;
+    color: var(--ink-faint); white-space: nowrap; flex-shrink: 0;
   }
-  .field input:focus { border-color: var(--green); outline: none; }
-  .field input[readonly] { background: var(--bg); color: var(--muted); }
-
-  .btn {
-    border: none; border-radius: 999px; padding: 11px 24px;
-    font-size: .92rem; font-weight: 600; transition: background .15s, opacity .15s;
+  .bund-line {
+    flex: 1; height: 3px;
+    background: repeating-linear-gradient(90deg, var(--rule) 0 9px, transparent 9px 15px);
   }
-  .btn-primary { background: var(--green); color: #fff; }
-  .btn-primary:hover:not(:disabled) { background: var(--green-deep); }
-  .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
-  .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--border); }
-  .btn-ghost:hover { background: var(--bg); }
-  .btn-blue { background: #2563EB; color: #fff; }
-  .btn-blue:hover { background: #1D4ED8; }
-  .btn-full { width: 100%; display: block; text-align: center; }
 
-  .dropzone {
-    border: 1.5px dashed var(--border); border-radius: 11px; padding: 26px 16px;
-    text-align: center; cursor: pointer; background: var(--bg); transition: border-color .15s, background .15s;
+  /* ─── การ์ด ───────────────────────────────── */
+  .plot {
+    background: var(--paper); border: 1px solid var(--rule); border-radius: var(--r);
+    padding: 19px;
   }
-  .dropzone:hover, .dropzone.drag { border-color: var(--green); background: var(--green-light); }
-  .dropzone-text { font-weight: 600; font-size: .93rem; color: var(--ink); }
-  .file-input { display: none; }
+  .plot-head { margin-bottom: 15px; }
+  .plot-title { font-size: 1rem; font-weight: 600; font-family: var(--f-display); }
+  .plot-note { font-size: .8rem; color: var(--ink-soft); margin-top: 2px; }
 
-  .preview-wrap { margin-top: 14px; position: relative; border-radius: 11px; overflow: hidden; border: 1px solid var(--border); }
-  .preview-wrap img { display: block; width: 100%; max-height: 280px; object-fit: contain; background: var(--bg); }
-  .scan { position: absolute; inset: 0; background: rgba(27,122,69,.06); pointer-events: none; }
-  .scan-beam { position: absolute; left: 0; right: 0; height: 24%; top: -24%; background: linear-gradient(180deg, rgba(27,122,69,0), rgba(27,122,69,.4), rgba(27,122,69,0)); }
+  .row-2 { display: grid; grid-template-columns: 1.55fr 1fr; gap: 15px; align-items: start; }
+  .row-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: 15px; }
+  @media (max-width: 940px) { .row-2 { grid-template-columns: 1fr; } }
+
+  /* ─── SIGNATURE: แปลงนามาตรวัด ──────────────── */
+  .gauge-wrap { display: flex; gap: 20px; align-items: stretch; }
+  .gauge {
+    position: relative; width: 128px; flex-shrink: 0; min-height: 152px;
+    border: 1px solid var(--rule); border-radius: var(--r);
+    background: linear-gradient(180deg, #F7F2E7 0%, #EFE7D6 100%);
+    overflow: hidden;
+  }
+  .gauge-water {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 0;
+    background: var(--blade);
+    transition: height .9s cubic-bezier(.22,.85,.3,1), background-color .3s;
+  }
+  .gauge-water::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+    background: rgba(255,255,255,.55);
+  }
+  .gauge.warn .gauge-water { background: var(--grain); }
+  .gauge.bad  .gauge-water { background: var(--rust); }
+  @media (prefers-reduced-motion: reduce) { .gauge-water { transition: none; } }
+
+  .gauge-read {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 2;
+  }
+  .gauge-figure { font-family: var(--f-data); font-size: 2.7rem; font-weight: 500; line-height: 1; color: var(--paper); text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+  .gauge-figure.dim { color: var(--ink); text-shadow: none; }
+  .gauge-unit { font-size: .68rem; letter-spacing: .13em; text-transform: uppercase; color: var(--paper); opacity: .85; margin-top: 4px; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+  .gauge-unit.dim { color: var(--ink-faint); text-shadow: none; opacity: 1; }
+
+  .gauge-side { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 13px; }
+  .verdict-label { font-size: .7rem; letter-spacing: .15em; text-transform: uppercase; color: var(--ink-faint); }
+  .verdict-name { font-family: var(--f-display); font-size: 1.4rem; font-weight: 600; line-height: 1.25; margin-top: 3px; }
+  .verdict-name.ok  { color: var(--blade); }
+  .verdict-name.warn{ color: #8A6A12; }
+  .verdict-name.bad { color: var(--rust); }
+
+  /* ─── ตัวเลขวัดค่า ─────────────────────────── */
+  .read-label { font-size: .7rem; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 5px; }
+  .read-value { font-family: var(--f-data); font-size: 1.65rem; font-weight: 500; line-height: 1.15; }
+  .read-value.sm { font-size: 1.15rem; }
+  .read-foot { font-size: .76rem; color: var(--ink-soft); margin-top: 3px; }
+
+  /* ─── ปุ่ม ────────────────────────────────── */
+  .act {
+    border: 1px solid transparent; border-radius: var(--r);
+    padding: 10px 20px; font-size: .88rem; font-weight: 500;
+    transition: background .14s, border-color .14s, color .14s;
+  }
+  .act-go { background: var(--flood); color: var(--husk); }
+  .act-go:hover:not(:disabled) { background: var(--flood-up); }
+  .act-go:disabled { background: var(--rule); color: var(--ink-faint); cursor: not-allowed; }
+  .act-line { background: none; border-color: var(--rule); color: var(--ink); }
+  .act-line:hover { border-color: var(--ink-faint); background: var(--husk); }
+  .act-wide { width: 100%; }
+  .act-sm { padding: 6px 13px; font-size: .78rem; }
+
+  /* ─── ฟอร์ม ──────────────────────────────── */
+  .inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+  @media (max-width: 600px) { .inputs { grid-template-columns: 1fr; } }
+  .inp label { display: block; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 5px; }
+  .inp input {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--rule); border-radius: var(--r);
+    background: var(--paper); color: var(--ink);
+  }
+  .inp input:focus { border-color: var(--blade); outline: none; }
+  .inp input[readonly] { background: var(--husk); color: var(--ink-soft); }
+  .inp .num-in { font-family: var(--f-data); }
+
+  /* ─── รับภาพ ─────────────────────────────── */
+  .intake {
+    border: 1px dashed var(--rule); border-radius: var(--r);
+    padding: 30px 18px; text-align: center; cursor: pointer;
+    background: var(--husk); transition: border-color .14s, background .14s;
+  }
+  .intake:hover, .intake.over { border-color: var(--blade); background: var(--tint-ok); }
+  .intake-lead { font-weight: 500; font-size: .93rem; }
+  .intake-hint { font-size: .8rem; color: var(--ink-soft); margin-top: 3px; }
+  .hidden-file { display: none; }
+
+  .shot { margin-top: 14px; position: relative; border: 1px solid var(--rule); border-radius: var(--r); overflow: hidden; }
+  .shot img { display: block; width: 100%; max-height: 290px; object-fit: contain; background: var(--husk); }
+  .sweep { position: absolute; inset: 0; pointer-events: none; background: rgba(20,53,44,.07); }
+  .sweep-line { position: absolute; left: 0; right: 0; height: 2px; top: 0; background: var(--sprout); box-shadow: 0 0 14px 3px rgba(143,176,92,.55); }
   @media (prefers-reduced-motion: no-preference) {
-    .scan-beam { animation: scan 1.5s ease-in-out infinite; }
-    @keyframes scan { 0% { top:-24%; } 100% { top:100%; } }
+    .sweep-line { animation: sweep 1.5s cubic-bezier(.5,0,.5,1) infinite; }
+    @keyframes sweep { 0% { top: 0; } 100% { top: 100%; } }
   }
 
-  /* ---------- Results ---------- */
-  .res-section-title { font-size: .88rem; font-weight: 700; color: var(--green); margin: 16px 0 4px; }
-  .res-note { font-size: .78rem; color: var(--muted); margin-bottom: 10px; }
-  .res-row { display: grid; grid-template-columns: minmax(96px,auto) 1fr 46px; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; margin-bottom: 3px; }
-  .res-row.top { background: var(--green-light); border: 1px solid var(--green-border); }
-  .res-label { font-weight: 600; font-size: .88rem; }
-  .res-row.top .res-label { color: var(--green-deep); }
-  .res-track { background: var(--border); border-radius: 999px; height: 8px; overflow: hidden; }
-  .res-fill { height: 100%; background: var(--muted); border-radius: 999px; }
-  .res-row.top .res-fill { background: var(--green); }
-  .res-pct { text-align: right; font-size: .85rem; font-variant-numeric: tabular-nums; color: var(--muted); }
-  .res-row.top .res-pct { color: var(--green-deep); font-weight: 700; }
+  /* ─── แถบผลจำแนก ─────────────────────────── */
+  .verdict-src { font-size: .76rem; color: var(--ink-soft); margin-bottom: 11px; padding-bottom: 9px; border-bottom: 1px solid var(--rule-soft); }
+  .bar-row { display: grid; grid-template-columns: minmax(104px,auto) 1fr 50px; align-items: center; gap: 11px; padding: 7px 0; }
+  .bar-row + .bar-row { border-top: 1px solid var(--rule-soft); }
+  .bar-name { font-size: .87rem; color: var(--ink-soft); }
+  .bar-row.lead .bar-name { color: var(--ink); font-weight: 600; }
+  .bar-track { height: 6px; background: var(--rule-soft); border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--ink-faint); border-radius: 99px; }
+  .bar-row.lead .bar-fill { background: var(--blade); }
+  .bar-pct { font-family: var(--f-data); font-size: .84rem; text-align: right; color: var(--ink-faint); }
+  .bar-row.lead .bar-pct { color: var(--ink); font-weight: 500; }
 
-  .color-bar { display: flex; height: 9px; border-radius: 999px; overflow: hidden; background: var(--border); margin-top: 4px; }
-  .color-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: .78rem; color: var(--muted); }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+  /* ─── สัดส่วนสี ──────────────────────────── */
+  .mix { display: flex; height: 7px; border-radius: 99px; overflow: hidden; background: var(--rule-soft); }
+  .mix-key { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 9px; font-size: .77rem; color: var(--ink-soft); }
+  .mix-key b { font-family: var(--f-data); font-weight: 500; color: var(--ink); }
+  .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
 
-  /* ---------- Chat ---------- */
-  .chat-log { min-height: 260px; max-height: 420px; overflow-y: auto; padding: 4px; }
-  .msg { padding: 12px 15px; border-radius: 11px; margin-bottom: 10px; font-size: .9rem; max-width: 88%; }
-  .msg.ai { background: var(--green-light); border-left: 3px solid var(--green); color: var(--text); }
-  .msg.me { background: var(--bg); border: 1px solid var(--border); margin-left: auto; }
-  .chat-input-row { display: flex; gap: 9px; margin-top: 12px; }
-  .chat-input-row input { flex: 1; padding: 11px 15px; border: 1px solid var(--border); border-radius: 999px; font-size: .9rem; outline: none; }
-  .chat-input-row input:focus { border-color: var(--green); }
+  /* ─── ใบสั่งการรักษา ─────────────────────── */
+  .rx { margin-top: 18px; border: 1px solid var(--rule); border-left: 3px solid var(--blade); border-radius: 0; background: var(--tint-ok); padding: 17px 19px; }
+  .rx.warn { border-left-color: var(--grain); background: var(--tint-warn); }
+  .rx.bad  { border-left-color: var(--rust);  background: var(--tint-bad); }
+  .rx-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .rx-name { font-family: var(--f-display); font-weight: 600; font-size: 1.02rem; }
+  .rx-flag { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 600; padding: 2px 9px; border-radius: 99px; }
+  .rx-flag.hi { background: var(--rust); color: var(--paper); }
+  .rx-flag.mid{ background: var(--grain); color: #3A2C05; }
+  .rx-flag.lo { background: var(--sprout); color: #22300F; }
+  .rx-sect { font-size: .7rem; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-faint); margin: 13px 0 4px; }
+  .rx-sect:first-of-type { margin-top: 0; }
+  .rx p { margin: 0; font-size: .87rem; }
+  .rx ul { margin: 0; padding-left: 18px; font-size: .87rem; }
+  .rx li { margin-bottom: 3px; }
+  .rx-src { font-size: .73rem; color: var(--ink-faint); margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--rule); }
 
-  /* ---------- Misc ---------- */
-  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: .9rem; }
-  .status-line { font-size: .78rem; color: var(--muted); margin-top: 10px; }
-  .alert { padding: 11px 15px; border-radius: 9px; font-size: .86rem; margin-top: 12px; }
-  .alert.err { background: var(--danger-bg); color: var(--danger); border: 1px solid #F0C8C2; }
-  .alert.ok { background: var(--green-light); color: var(--green-deep); border: 1px solid var(--green-border); }
-  .list-item { display: flex; gap: 12px; align-items: center; padding: 13px 4px; border-bottom: 1px solid var(--border); }
-  .list-item:last-child { border-bottom: none; }
-  .list-main { flex: 1; min-width: 0; }
-  .list-title { font-weight: 600; font-size: .92rem; color: var(--ink); }
-  .list-sub { font-size: .82rem; color: var(--muted); }
-  #map { height: 380px; border-radius: 11px; border: 1px solid var(--border); }
+  /* ─── สนทนา ─────────────────────────────── */
+  .talk { min-height: 250px; max-height: 430px; overflow-y: auto; padding-right: 4px; }
+  .say { padding: 12px 15px; border-radius: var(--r); margin-bottom: 10px; font-size: .89rem; max-width: 87%; }
+  .say-ai { background: var(--tint-ok); border-left: 2px solid var(--blade); }
+  .say-me { background: var(--husk); border: 1px solid var(--rule); margin-left: auto; }
+  .say img { max-width: 168px; border-radius: var(--r); display: block; margin-bottom: 7px; }
+  .talk-bar { display: flex; gap: 8px; margin-top: 13px; }
+  .talk-bar input { flex: 1; padding: 10px 14px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--paper); outline: none; }
+  .talk-bar input:focus { border-color: var(--blade); }
+  .clip { display: flex; align-items: center; gap: 11px; margin-top: 11px; padding: 8px 11px; background: var(--tint-ok); border: 1px solid var(--rule); border-radius: var(--r); }
+  .clip img { width: 42px; height: 42px; object-fit: cover; border-radius: 2px; }
+  .clip span { flex: 1; font-size: .8rem; color: var(--ink-soft); }
+
+  /* ─── ตาราง ─────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+  thead th {
+    text-align: left; padding: 8px 9px; border-bottom: 1px solid var(--rule);
+    font-size: .7rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 500; white-space: nowrap;
+  }
+  tbody td { padding: 10px 9px; border-bottom: 1px solid var(--rule-soft); }
+  tbody tr:last-child td { border-bottom: none; }
+  td.dx { font-weight: 500; }
+  td.dx.ill { color: var(--rust); }
+  td.dx.well { color: var(--blade); }
+  td.n { font-family: var(--f-data); }
+
+  /* ─── สถานะว่าง/โหลด/ผิดพลาด ──────────────── */
+  .state { text-align: center; padding: 44px 22px; }
+  .state-mark { font-size: 1.6rem; margin-bottom: 8px; opacity: .5; }
+  .state-lead { font-weight: 500; font-size: .93rem; margin-bottom: 4px; }
+  .state-note { font-size: .83rem; color: var(--ink-soft); max-width: 300px; margin: 0 auto; }
+  .flash { padding: 11px 15px; border-radius: var(--r); font-size: .85rem; margin-top: 12px; }
+  .flash-bad { background: var(--tint-bad); border: 1px solid #E0BDB2; color: var(--rust); }
+  .flash-ok  { background: var(--tint-ok); border: 1px solid #CBD9AF; color: #3B5A28; }
+
+  .stack-item { display: flex; gap: 14px; align-items: center; padding: 13px 2px; border-bottom: 1px solid var(--rule-soft); }
+  .stack-item:last-child { border-bottom: none; }
+  .stack-chip { width: 42px; flex-shrink: 0; text-align: center; font-family: var(--f-data); font-size: 1.05rem; font-weight: 500; padding: 5px 0; border-radius: 2px; }
+  .stack-chip.ok { background: var(--tint-ok); color: #3B5A28; }
+  .stack-chip.warn { background: var(--tint-warn); color: #8A6A12; }
+  .stack-chip.bad { background: var(--tint-bad); color: var(--rust); }
+  .stack-main { flex: 1; min-width: 0; }
+  .stack-lead { font-weight: 500; font-size: .89rem; }
+  .stack-sub { font-size: .79rem; color: var(--ink-soft); }
+
+  #map { height: 380px; border: 1px solid var(--rule); border-radius: var(--r); }
   canvas { max-width: 100%; }
 
-  .mobile-nav-toggle { display: none; background: none; border: none; padding: 6px; }
-  @media (max-width: 820px) {
-    .sidebar { position: fixed; left: 0; top: 0; z-index: 60; transform: translateX(-100%); transition: transform .2s; }
-    .sidebar.open { transform: translateX(0); }
-    .mobile-nav-toggle { display: block; }
-    .search-box { display: none; }
+  .rail-toggle { display: none; background: none; border: none; padding: 5px; }
+  @media (max-width: 860px) {
+    .rail { position: fixed; z-index: 70; transform: translateX(-100%); transition: transform .2s; }
+    .rail.open { transform: translateX(0); }
+    .rail-toggle { display: block; }
+    .seek { display: none; }
+    .bar { align-items: center; }
+    .gauge-wrap { flex-direction: column; }
+    .gauge { width: 100%; min-height: 118px; }
   }
 </style>
 </head>
 <body>
 
-<div class="app">
-  <aside class="sidebar" id="sidebar">
-    <div class="brand">
-      <svg width="26" height="26" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-        <path d="M15 27C15 27 7 21.5 7 13.5C7 8.5 10.5 4 15 3C19.5 4 23 8.5 23 13.5C23 21.5 15 27 15 27Z" fill="#4ADE80"/>
-        <path d="M15 27V13.5C15 9.5 13 5.5 10.5 3.5" stroke="#0F4A2B" stroke-width="1.4" stroke-linecap="round"/>
-      </svg>
-      SmartRice AI
+<div class="shell">
+  <aside class="rail" id="rail">
+    <div class="mark">
+      <div class="mark-name">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 21c0-6 0-9 0-11" stroke="#8FB05C" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M12 10C12 6 9 3.5 5.5 3c-.4 3.8 2 7 6.5 7z" fill="#8FB05C"/>
+          <path d="M12 13c0-3.6 2.8-6 6-6.4.4 3.5-1.9 6.4-6 6.4z" fill="#4F7A3A"/>
+        </svg>
+        SmartRice AI
+      </div>
+      <div class="mark-sub">Field diagnostics</div>
     </div>
-    <nav class="nav" id="nav"></nav>
+    <nav class="rail-nav" id="railNav"></nav>
+    <div class="rail-foot">
+      <div><span class="dot" id="linkDot"></span><span id="linkText">กำลังเชื่อมต่อ</span></div>
+      <div style="margin-top:5px"><span class="dot" id="brainDot"></span><span id="brainText">กำลังโหลดโมเดล</span></div>
+    </div>
   </aside>
 
-  <div class="main">
-    <header class="topbar">
-      <div style="display:flex;align-items:center;gap:10px">
-        <button class="mobile-nav-toggle" id="navToggle" aria-label="เปิดเมนู">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="#14261A" stroke-width="2" stroke-linecap="round"/></svg>
+  <div class="stage">
+    <header class="bar">
+      <div style="display:flex;align-items:center;gap:11px;min-width:0">
+        <button class="rail-toggle" id="railToggle" aria-label="เปิดเมนู">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="#21281F" stroke-width="1.8" stroke-linecap="round"/></svg>
         </button>
-        <h1 class="page-title" id="pageTitle">Dashboard</h1>
-      </div>
-      <div class="topbar-right">
-        <div class="search-box">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#7A8B80" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="#7A8B80" stroke-width="2" stroke-linecap="round"/></svg>
-          <input type="text" id="globalSearch" placeholder="ค้นหาใน Field Log...">
+        <div style="min-width:0">
+          <div class="bar-kicker" id="barKicker">แปลงนา</div>
+          <h1 class="bar-title" id="barTitle">ภาพรวมแปลง</h1>
         </div>
-        <div class="avatar"><span class="avatar-circle" id="avatarLetter">ก</span><span id="avatarName">เกษตรกร</span></div>
+      </div>
+      <div class="bar-tools">
+        <div class="seek">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#8A9484" stroke-width="1.8"/><path d="M20 20l-3.6-3.6" stroke="#8A9484" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input type="text" id="seekInput" placeholder="ค้นหาบันทึกแปลง">
+        </div>
+        <div class="who"><span class="who-badge" id="whoBadge">ก</span><span id="whoName">เกษตรกร</span></div>
       </div>
     </header>
-
-    <div class="breadcrumb">หน้าแรก / <b id="crumb">Dashboard</b></div>
-
-    <main class="content" id="content"></main>
+    <main class="field" id="field"></main>
   </div>
 </div>
 
-<iframe id="riceFrame" src="rice-model/frame.html" style="display:none" title="rice classifier" aria-hidden="true"></iframe>
-<iframe id="diseaseFrame" src="disease-model/frame.html" style="display:none" title="disease classifier" aria-hidden="true"></iframe>
+<iframe id="riceFrame" src="rice-model/frame.html" style="display:none" title="โมเดลจำแนกข้าว" aria-hidden="true"></iframe>
+<iframe id="diseaseFrame" src="disease-model/frame.html" style="display:none" title="โมเดลจำแนกโรค" aria-hidden="true"></iframe>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="disease-guide.js"></script>
 <script>
 (function () {
 "use strict";
 
-// ============ ตั้งค่า ============
-// URL ของ Cloudflare Worker ที่สร้างไว้ — ทำหน้าที่เก็บ Field Log และเรียก Gemini
-// แทนหน้าเว็บ (API key ของ Gemini ถูกเก็บไว้ฝั่ง Worker ไม่หลุดออกมาที่หน้าเว็บ)
+// URL ของ Cloudflare Worker — เก็บ Field Log และเป็นตัวกลางเรียก Gemini
+// (API key ของ Gemini อยู่ฝั่ง Worker ไม่หลุดมาที่หน้าเว็บ)
 var API_BASE = "https://divine-frost-abbb.pomsuriyan61.workers.dev";
 
-// แปลชื่อคลาสจากโมเดลเป็นภาษาไทย ใช้แค่ตอนแสดงผล การเทียบ label ในโค้ด
-// ยังใช้ชื่ออังกฤษเดิมจากโมเดลเสมอ เพื่อให้เปลี่ยนโมเดลแล้วไม่พัง
+// เกณฑ์แบ่งสถานะสุขภาพ ใช้ร่วมกันทั้งระบบ ห้ามนิยามซ้ำที่อื่น
+// เพื่อให้ความหมายของสีคงที่ทุกหน้า (เขียว=ปกติ ทอง=เฝ้าระวัง แดงสนิม=เร่งด่วน)
+var SCORE_OK = 85, SCORE_WARN = 60;
+function statusOf(score) {
+  if (typeof score !== "number") return "none";
+  if (score >= SCORE_OK) return "ok";
+  if (score >= SCORE_WARN) return "warn";
+  return "bad";
+}
+function statusWord(s) {
+  return { ok: "แปลงสมบูรณ์", warn: "ควรเฝ้าระวัง", bad: "ต้องจัดการด่วน", none: "ยังไม่มีข้อมูล" }[s];
+}
+
+// แปลชื่อคลาสเป็นไทยเฉพาะตอนแสดงผล การเทียบ label ในโค้ดใช้ชื่ออังกฤษจากโมเดลเสมอ
 var LABEL_TH = {
-  "Rice": "ข้าว", "not Rice": "ไม่ใช่ข้าว", "other": "อื่นๆ",
+  "Rice": "ใบข้าว", "not Rice": "ไม่ใช่ใบข้าว", "other": "อื่นๆ",
   "Blast": "โรคไหม้", "Brown spot": "โรคใบจุดสีน้ำตาล",
-  "Sheath blight": "โรคกาบใบแห้ง", "Rice Tungro": "โรคทุงโร",
-  "Healthy": "ปกติ ไม่พบโรค", "Leaf smut": "โรคใบเขม่าดำ",
+  "Sheath blight": "โรคกาบใบแห้ง", "Rice Tungro": "โรคใบสีส้ม",
+  "Healthy": "ไม่พบโรค", "Leaf smut": "โรคใบเขม่าดำ",
   "narrow_brown_spot": "โรคใบขีดสีน้ำตาล", "Narrow brown spot": "โรคใบขีดสีน้ำตาล"
 };
-function th(label) { return LABEL_TH[label] || label; }
+function th(l) { return LABEL_TH[l] || l; }
 
 var PAGES = [
-  { id: "dashboard", label: "Dashboard", icon: "M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z" },
-  { id: "fields", label: "My Rice Fields", icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
-  { id: "survey", label: "Field Survey", icon: "M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zm2 5h4m-4 4h4m-4 4h2" },
-  { id: "detect", label: "Disease Detection", icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
-  { id: "log", label: "Field Log", icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
-  { id: "analytics", label: "Analytics", icon: "M5 20V10m7 10V4m7 16v-7" },
-  { id: "reports", label: "AI Reports", icon: "M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v13a2 2 0 01-2 2z" },
-  { id: "map", label: "Field Map", icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
-  { id: "profile", label: "Profile", icon: "M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 5v1h14v-1c0-3-3-5-7-5z" },
-  { id: "settings", label: "Settings", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zm8-3a8 8 0 01-.2 1.7l2 1.6-2 3.4-2.4-1a8 8 0 01-2.9 1.7l-.4 2.6h-4l-.4-2.6a8 8 0 01-2.9-1.7l-2.4 1-2-3.4 2-1.6A8 8 0 014 12" }
+  { id: "overview", label: "ภาพรวมแปลง",   kicker: "แปลงนา",   icon: "M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z" },
+  { id: "diagnose", label: "วินิจฉัยใบข้าว", kicker: "ตรวจโรค",  icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
+  { id: "survey",   label: "บันทึกสำรวจ",   kicker: "เก็บข้อมูล", icon: "M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zm2 5h4m-4 4h4m-4 4h2" },
+  { id: "plots",    label: "แปลงของฉัน",    kicker: "แปลงนา",   icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
+  { id: "ledger",   label: "ทะเบียนบันทึก", kicker: "เก็บข้อมูล", icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
+  { id: "trend",    label: "แนวโน้ม",       kicker: "วิเคราะห์",  icon: "M5 20V10m7 10V4m7 16v-7" },
+  { id: "consult",  label: "ปรึกษา AI",     kicker: "วิเคราะห์",  icon: "M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v13a2 2 0 01-2 2z" },
+  { id: "map",      label: "แผนที่แปลง",    kicker: "แปลงนา",   icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
+  { id: "profile",  label: "ข้อมูลผู้ใช้",   kicker: "ตั้งค่า",   icon: "M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 5v1h14v-1c0-3-3-5-7-5z" },
+  { id: "system",   label: "ระบบ",          kicker: "ตั้งค่า",   icon: "M12 15a3 3 0 100-6 3 3 0 000 6zm8-3a8 8 0 01-.2 1.7l2 1.6-2 3.4-2.4-1a8 8 0 01-2.9 1.7l-.4 2.6h-4l-.4-2.6a8 8 0 01-2.9-1.7l-2.4 1-2-3.4 2-1.6A8 8 0 014 12" }
 ];
 
-// ============ ชั้นข้อมูล ============
-// รวมการอ่าน/เขียนข้อมูลไว้ที่เดียว หน้าอื่นเรียกผ่าน Store เท่านั้น
-// ถ้าเปลี่ยนไปใช้ backend อื่นในอนาคต แก้แค่ในนี้ ไม่ต้องแตะโค้ดหน้าเว็บ
+// ─── ชั้นข้อมูล ────────────────────────────────
+// รวมการอ่าน/เขียนไว้ที่เดียว หน้าอื่นเรียกผ่าน Store เท่านั้น
+// ย้ายไป backend อื่นภายหลังแก้แค่ในนี้ ไม่ต้องแตะโค้ดหน้าเว็บ
 var Store = {
   _cache: null,
   _offline: false,
@@ -306,10 +449,11 @@ var Store = {
       this._cache = await res.json();
       this._offline = false;
     } catch (err) {
-      // ถ้า API ล่มหรือเน็ตหลุด ยังใช้งานต่อได้ด้วยข้อมูลในเครื่อง
+      // เน็ตหลุดหรือ API ล่ม ยังใช้งานต่อได้ด้วยสำเนาในเครื่อง
       this._offline = true;
       this._cache = JSON.parse(localStorage.getItem("smartrice-logs") || "[]");
     }
+    markLink();
     return this._cache;
   },
 
@@ -322,8 +466,9 @@ var Store = {
       });
       if (!res.ok) throw new Error("HTTP " + res.status);
       var saved = await res.json();
-      if (this._cache) this._cache.unshift(saved); else this._cache = [saved];
+      this._cache = this._cache ? [saved].concat(this._cache) : [saved];
       this._offline = false;
+      markLink();
       return saved;
     } catch (err) {
       this._offline = true;
@@ -332,7 +477,8 @@ var Store = {
       var local = JSON.parse(localStorage.getItem("smartrice-logs") || "[]");
       local.unshift(entry);
       localStorage.setItem("smartrice-logs", JSON.stringify(local.slice(0, 500)));
-      if (this._cache) this._cache.unshift(entry); else this._cache = [entry];
+      this._cache = this._cache ? [entry].concat(this._cache) : [entry];
+      markLink();
       return entry;
     }
   },
@@ -358,13 +504,21 @@ var Store = {
   saveProfile(p) { localStorage.setItem("smartrice-profile", JSON.stringify(p)); }
 };
 
-// ============ โมเดล AI (คุยผ่าน iframe) ============
+function markLink() {
+  var dot = document.getElementById("linkDot"), txt = document.getElementById("linkText");
+  if (!dot) return;
+  var off = Store.isOffline();
+  dot.className = "dot " + (off ? "down" : "live");
+  txt.textContent = off ? "ออฟไลน์ เก็บในเครื่อง" : "เชื่อมต่อเซิร์ฟเวอร์แล้ว";
+}
+
+// ─── โมเดล AI (คุยผ่าน iframe แยก) ──────────────
 var models = {
-  rice: { frame: document.getElementById("riceFrame"), ready: false, props: null },
+  rice:    { frame: document.getElementById("riceFrame"),    ready: false, props: null },
   disease: { frame: document.getElementById("diseaseFrame"), ready: false, props: null }
 };
-var pending = {};
-var reqId = 0;
+var waiting = {};
+var seq = 0;
 
 window.addEventListener("message", function (e) {
   var msg = e.data;
@@ -377,45 +531,60 @@ window.addEventListener("message", function (e) {
     models[which].ready = true;
     models[which].props = msg.properties;
     models[which].project = msg.project;
-    updateModelStatus();
+    markBrain();
   } else if (msg.type === "init-error") {
     models[which].error = msg.message;
-    updateModelStatus();
-  } else if (msg.type === "result" && pending[msg.requestId]) {
-    pending[msg.requestId].resolve(msg.result);
-    delete pending[msg.requestId];
-  } else if (msg.type === "error" && pending[msg.requestId]) {
-    pending[msg.requestId].reject(new Error(msg.message));
-    delete pending[msg.requestId];
+    markBrain();
+  } else if (msg.type === "result" && waiting[msg.requestId]) {
+    waiting[msg.requestId].resolve(msg.result);
+    delete waiting[msg.requestId];
+  } else if (msg.type === "error" && waiting[msg.requestId]) {
+    waiting[msg.requestId].reject(new Error(msg.message));
+    delete waiting[msg.requestId];
   }
 });
 
 function classify(which, features) {
   return new Promise(function (resolve, reject) {
-    var id = ++reqId;
-    pending[id] = { resolve: resolve, reject: reject };
+    var id = ++seq;
+    waiting[id] = { resolve: resolve, reject: reject };
     models[which].frame.contentWindow.postMessage({ type: "classify", requestId: id, features: features }, "*");
     setTimeout(function () {
-      if (pending[id]) { delete pending[id]; reject(new Error("โมเดลใช้เวลานานเกินไป")); }
+      if (waiting[id]) { delete waiting[id]; reject(new Error("โมเดลใช้เวลานานเกินไป ลองใหม่อีกครั้ง")); }
     }, 30000);
   });
 }
 
-function updateModelStatus() {
-  var els = document.querySelectorAll("[data-model-status]");
-  var ready = models.rice.ready && models.disease.ready;
-  els.forEach(function (el) {
+function brainReady() { return models.rice.ready && models.disease.ready; }
+
+function markBrain() {
+  var dot = document.getElementById("brainDot"), txt = document.getElementById("brainText");
+  if (dot) {
     if (models.rice.error || models.disease.error) {
-      el.textContent = "โหลดโมเดลไม่สำเร็จ";
-      el.disabled = true;
-    } else if (ready) {
-      el.textContent = el.dataset.readyText || "วิเคราะห์ภาพ";
-      el.disabled = !el.dataset.hasImage;
+      dot.className = "dot down"; txt.textContent = "โหลดโมเดลไม่สำเร็จ";
+    } else if (brainReady()) {
+      dot.className = "dot live"; txt.textContent = "โมเดล 2 ตัวพร้อมใช้";
     } else {
-      el.textContent = "กำลังโหลดโมเดล AI...";
-      el.disabled = true;
+      dot.className = "dot"; txt.textContent = "กำลังโหลดโมเดล";
+    }
+  }
+  document.querySelectorAll("[data-needs-brain]").forEach(function (btn) {
+    if (models.rice.error || models.disease.error) {
+      btn.textContent = "โหลดโมเดลไม่สำเร็จ"; btn.disabled = true;
+    } else if (brainReady()) {
+      btn.textContent = btn.dataset.readyLabel || "วิเคราะห์ภาพ";
+      btn.disabled = !btn.dataset.armed;
+    } else {
+      btn.textContent = "กำลังโหลดโมเดล AI"; btn.disabled = true;
     }
   });
+}
+
+function inputSize(props) {
+  return {
+    w: (props && props.image_input_width) || 96,
+    h: (props && props.image_input_height) || 96
+  };
 }
 
 function extractFeatures(img, w, h) {
@@ -429,13 +598,21 @@ function extractFeatures(img, w, h) {
   return f;
 }
 
-function dims(props) {
-  return { w: (props && props.image_input_width) || 96, h: (props && props.image_input_height) || 96 };
+// ย่อรูปก่อนส่งให้ Gemini — รูปจากมือถือมักหลาย MB ส่งดิบจะช้าและเปลือง token
+function imageToBase64(img, maxSide) {
+  maxSide = maxSide || 800;
+  var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  var scale = Math.min(1, maxSide / Math.max(w, h));
+  var c = document.createElement("canvas");
+  c.width = Math.round(w * scale);
+  c.height = Math.round(h * scale);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return { data: c.toDataURL("image/jpeg", 0.85).split(",")[1], mimeType: "image/jpeg" };
 }
 
-// ============ ด่านกรองสี/พื้นผิวก่อนเข้าโมเดล ============
-// รันก่อนโมเดลทุกครั้ง: โมเดลถูกฝึกให้ต้องเลือกคำตอบเสมอ ภาพที่ไม่ใช่พืชเลย
-// จึงได้คำตอบมั่วแต่มั่นใจสูง ด่านนี้ตัดภาพแบบนั้นทิ้งก่อนถึงโมเดล
+// ─── ด่านกรองสี/พื้นผิวก่อนเข้าโมเดล ────────────
+// โมเดลถูกฝึกให้ต้องเลือกคำตอบเสมอ ภาพที่ไม่ใช่พืชจึงได้คำตอบมั่วแต่มั่นใจสูง
+// ด่านนี้ตัดภาพแบบนั้นทิ้งก่อนถึงโมเดล
 function preCheck(img) {
   var SIZE = 64;
   var c = document.createElement("canvas");
@@ -450,19 +627,19 @@ function preCheck(img) {
     gray[p] = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
   }
 
-  var center = (SIZE - 1) / 2, maxDist = Math.sqrt(2) * center, NORM = 900;
+  var mid = (SIZE - 1) / 2, maxDist = Math.sqrt(2) * mid, EDGE_NORM = 900;
   var colorW = 0, edgeW = 0, wSum = 0, green = 0, yellow = 0, other = 0, total = 0;
 
   for (var y = 1; y < SIZE - 1; y++) {
     for (var x = 1; x < SIZE - 1; x++) {
-      var idx = (y * SIZE + x) * 4;
-      var hsl = rgbToHsl(d[idx], d[idx+1], d[idx+2]);
+      var k = (y * SIZE + x) * 4;
+      var hsl = rgbToHsl(d[k], d[k+1], d[k+2]);
       var isGreen = hsl.h >= 60 && hsl.h <= 170;
       var isYB = hsl.h >= 20 && hsl.h < 60;
-      var colorful = hsl.s > 0.12 && hsl.l > 0.08 && hsl.l < 0.9;
+      var vivid = hsl.s > 0.12 && hsl.l > 0.08 && hsl.l < 0.9;
       total++;
-      if (isGreen && colorful) green++;
-      else if (isYB && colorful) yellow++;
+      if (isGreen && vivid) green++;
+      else if (isYB && vivid) yellow++;
       else other++;
 
       var gx = -gray[(y-1)*SIZE+(x-1)] + gray[(y-1)*SIZE+(x+1)]
@@ -470,29 +647,29 @@ function preCheck(img) {
              - gray[(y+1)*SIZE+(x-1)] + gray[(y+1)*SIZE+(x+1)];
       var gy = -gray[(y-1)*SIZE+(x-1)] - 2*gray[(y-1)*SIZE+x] - gray[(y-1)*SIZE+(x+1)]
              + gray[(y+1)*SIZE+(x-1)] + 2*gray[(y+1)*SIZE+x] + gray[(y+1)*SIZE+(x+1)];
-      var edge = Math.min(Math.sqrt(gx*gx + gy*gy) / NORM, 1);
+      var edge = Math.min(Math.sqrt(gx*gx + gy*gy) / EDGE_NORM, 1);
 
-      var dist = Math.sqrt((x-center)*(x-center) + (y-center)*(y-center)) / maxDist;
-      var w = 1 - 0.6 * dist;
-      colorW += ((isGreen || isYB) && colorful ? 1 : 0) * w;
+      var dist = Math.sqrt((x-mid)*(x-mid) + (y-mid)*(y-mid)) / maxDist;
+      var w = 1 - 0.6 * dist;   // กลางภาพมีน้ำหนักกว่าขอบ เพราะวัตถุหลักมักอยู่กลางเฟรม
+      colorW += ((isGreen || isYB) && vivid ? 1 : 0) * w;
       edgeW += edge * w;
       wSum += w;
     }
   }
 
   var colorScore = colorW / wSum, edgeScore = edgeW / wSum;
-  var texFactor = 0.5 + 0.5 * Math.min(edgeScore / 0.08, 1);
-  var plant = colorScore * texFactor;
-  if (edgeScore < 0.015) plant = Math.min(plant, 0.3);
+  var texture = 0.5 + 0.5 * Math.min(edgeScore / 0.08, 1);
+  var plant = colorScore * texture;
+  if (edgeScore < 0.015) plant = Math.min(plant, 0.3);  // ผิวเรียบสนิทไม่ใช่ใบไม้จริง
 
   var greenPct = green / total * 100;
-  var GREEN_MIN = 15;
+  var GREEN_MIN = 15;   // ใบข้าวจริงต้องมีเขียวเหลืออยู่บ้าง แม้ป่วยหนัก
 
   return {
     skip: greenPct < GREEN_MIN || plant < 0.18,
-    reason: greenPct < GREEN_MIN
-      ? "ภาพนี้มีสีเขียวเพียง " + Math.round(greenPct) + "% ต่ำกว่ามาตรฐานภาพใบข้าว จึงไม่ส่งให้โมเดลตรวจ"
-      : "ภาพนี้ไม่มีลักษณะของใบพืช จึงไม่ส่งให้โมเดลตรวจ",
+    why: greenPct < GREEN_MIN
+      ? "ภาพนี้มีสีเขียวเพียง " + Math.round(greenPct) + "% ต่ำกว่าเกณฑ์ใบข้าว จึงไม่ส่งเข้าโมเดล"
+      : "ภาพนี้ไม่มีลักษณะพื้นผิวของใบพืช จึงไม่ส่งเข้าโมเดล",
     green: Math.round(greenPct),
     yellow: Math.round(yellow / total * 100),
     other: Math.round(other / total * 100)
@@ -512,63 +689,98 @@ function rgbToHsl(r, g, b) {
   return { h: h, s: s, l: l };
 }
 
-// รันครบทั้ง 2 ขั้น: เช็คว่าเป็นข้าวก่อน ถ้าใช่ค่อยตรวจโรคต่อ
+// ตรวจครบ 2 ขั้น: เป็นข้าวไหม → ถ้าใช่ ตรวจโรคต่อ
 async function runFullAnalysis(img) {
   var pre = preCheck(img);
-  var out = { pre: pre, rice: null, disease: null, topDisease: null, isRice: false };
+  var out = { pre: pre, rice: null, disease: null, topDisease: null, isRice: false, gated: false };
 
   if (pre.skip) {
     var labels = (models.rice.props && models.rice.props.labels) || ["Rice", "not Rice"];
     var neg = labels.find(function (l) { return /not|non|other|ไม่ใช่/i.test(l); }) || labels[labels.length-1];
     out.rice = { results: labels.map(function (l) { return { label: l, value: l === neg ? 1 : 0 }; }) };
-    out.forcedByPreCheck = true;
+    out.gated = true;
     return out;
   }
 
-  var rd = dims(models.rice.props);
-  out.rice = await classify("rice", extractFeatures(img, rd.w, rd.h));
+  var rs = inputSize(models.rice.props);
+  out.rice = await classify("rice", extractFeatures(img, rs.w, rs.h));
 
-  var sorted = out.rice.results.slice().sort(function (a,b) { return b.value - a.value; });
-  out.isRice = sorted[0] && !/not|non|other|ไม่ใช่/i.test(sorted[0].label);
+  var ranked = out.rice.results.slice().sort(function (a,b) { return b.value - a.value; });
+  out.isRice = ranked[0] && !/not|non|other|ไม่ใช่/i.test(ranked[0].label);
 
   if (out.isRice && models.disease.ready) {
-    var dd2 = dims(models.disease.props);
-    out.disease = await classify("disease", extractFeatures(img, dd2.w, dd2.h));
-    var ds = out.disease.results.slice().sort(function (a,b) { return b.value - a.value; });
-    out.topDisease = ds[0];
+    var ds = inputSize(models.disease.props);
+    out.disease = await classify("disease", extractFeatures(img, ds.w, ds.h));
+    out.topDisease = out.disease.results.slice().sort(function (a,b) { return b.value - a.value; })[0];
   }
   return out;
 }
 
-// คะแนนสุขภาพ: ใบปกติได้เต็ม ใบที่พบโรคหักตามความมั่นใจของโมเดล
-function healthScore(result) {
-  if (!result.isRice) return 99;
-  if (!result.topDisease) return 90;
-  if (/healthy/i.test(result.topDisease.label)) return 95;
-  return Math.max(40, Math.round(100 - result.topDisease.value * 45));
+// คะแนนสุขภาพ: ใบปกติได้เกือบเต็ม ใบป่วยหักตามความมั่นใจของโมเดล
+function healthScore(r) {
+  if (!r.isRice) return 99;
+  if (!r.topDisease) return 90;
+  if (/healthy/i.test(r.topDisease.label)) return 95;
+  return Math.max(40, Math.round(100 - r.topDisease.value * 45));
+}
+function diagnosisName(r) {
+  if (!r.isRice) return "ภาพไม่ชัดเจน";
+  if (!r.topDisease) return "ไม่ระบุ";
+  return th(r.topDisease.label);
 }
 
-function diseaseName(result) {
-  if (!result.isRice) return "ภาพไม่ชัดเจน";
-  if (!result.topDisease) return "ไม่ระบุ";
-  return th(result.topDisease.label);
+// ─── ฐานความรู้แนวทางแก้ไข ─────────────────────
+function getGuide(label) {
+  return (window.DISEASE_GUIDE && window.DISEASE_GUIDE[label]) || null;
 }
 
-// ย่อรูปให้ด้านยาวสุดไม่เกิน 800px ก่อนแปลงเป็น base64
-// รูปจากมือถือมักใหญ่หลาย MB ส่งดิบๆ จะช้าและกินโควตา token เกินจำเป็น
-function imageToBase64(img, maxSide) {
-  maxSide = maxSide || 800;
-  var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-  var scale = Math.min(1, maxSide / Math.max(w, h));
-  var c = document.createElement("canvas");
-  c.width = Math.round(w * scale);
-  c.height = Math.round(h * scale);
-  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-  var url = c.toDataURL("image/jpeg", 0.85);
-  return { data: url.split(",")[1], mimeType: "image/jpeg" };
+function buildRx(label) {
+  var g = getGuide(label);
+  if (!g) return null;
+
+  var urgent = g.urgency || "";
+  var tone = urgent.indexOf("สูง") === 0 ? "bad" : urgent === "ปานกลาง" ? "warn" : "";
+  var box = el("div", "rx " + tone);
+
+  var top = el("div", "rx-top");
+  top.appendChild(el("div", "rx-name", "แนวทางจัดการ: " + g.thai));
+  if (urgent && urgent !== "-") {
+    var flagTone = urgent.indexOf("สูง") === 0 ? "hi" : urgent === "ปานกลาง" ? "mid" : "lo";
+    top.appendChild(el("span", "rx-flag " + flagTone, "ความเร่งด่วน " + urgent));
+  }
+  box.appendChild(top);
+
+  function part(head, body) {
+    if (!body || (Array.isArray(body) && !body.length)) return;
+    box.appendChild(el("div", "rx-sect", head));
+    if (Array.isArray(body)) {
+      var ul = el("ul");
+      body.forEach(function (line) { ul.appendChild(el("li", "", line)); });
+      box.appendChild(ul);
+    } else {
+      box.appendChild(el("p", "", body));
+    }
+  }
+  part("สาเหตุ", g.cause);
+  part("ลักษณะอาการ", g.symptoms);
+  part("วิธีจัดการ", g.treatment);
+  part("การป้องกันรอบหน้า", g.prevention);
+
+  if (g.source && g.source !== "-") box.appendChild(el("div", "rx-src", "อ้างอิง: " + g.source));
+  return box;
 }
 
-// ============ ตัวช่วย UI ============
+// ส่งฐานความรู้ให้ Gemini อ้างอิง ถ้าไม่มีข้อมูลบอกตรงๆ ไม่ปล่อยให้เดา
+function guideForPrompt(label) {
+  var g = getGuide(label);
+  if (!g) return "\n\n[ไม่มีข้อมูลแนวทางแก้ไขของโรคนี้ในฐานข้อมูลอ้างอิง — แจ้งผู้ใช้ให้ปรึกษาเจ้าหน้าที่เกษตรในพื้นที่ ห้ามแต่งชื่อสารเคมีหรืออัตราใช้ขึ้นเอง]";
+  return "\n\n[ข้อมูลอ้างอิงทางการ ให้ยึดเป็นหลัก ห้ามเพิ่มชื่อสารเคมีหรืออัตราใช้เอง]\n" +
+    "โรค: " + g.thai + "\nสาเหตุ: " + g.cause + "\nอาการ: " + g.symptoms +
+    "\nวิธีจัดการ: " + (g.treatment || []).join(" / ") +
+    "\nการป้องกัน: " + (g.prevention || []).join(" / ");
+}
+
+// ─── ตัวช่วยสร้าง UI ────────────────────────────
 function el(tag, cls, text) {
   var e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -576,186 +788,541 @@ function el(tag, cls, text) {
   return e;
 }
 
-function renderBars(container, results, forced) {
-  container.innerHTML = "";
-  if (forced) {
-    var note = el("div", "res-note", "ผลนี้มาจากด่านตรวจสี/พื้นผิว ไม่ได้ส่งภาพให้โมเดล AI");
-    container.appendChild(note);
+function bund(label) {
+  var b = el("div", "bund");
+  b.appendChild(el("div", "bund-label", label));
+  b.appendChild(el("div", "bund-line"));
+  return b;
+}
+
+function plot(title, note) {
+  var p = el("div", "plot");
+  if (title) {
+    var h = el("div", "plot-head");
+    h.appendChild(el("div", "plot-title", title));
+    if (note) h.appendChild(el("div", "plot-note", note));
+    p.appendChild(h);
   }
+  return p;
+}
+
+// สถานะว่าง/กำลังโหลด/ผิดพลาด ต้องบอกเสมอว่าเกิดอะไรและทำอะไรต่อ
+function stateBlock(mark, lead, note) {
+  var s = el("div", "state");
+  s.appendChild(el("div", "state-mark", mark));
+  s.appendChild(el("div", "state-lead", lead));
+  if (note) s.appendChild(el("div", "state-note", note));
+  return s;
+}
+
+function todayStamp() {
+  var d = new Date();
+  return String(d.getDate()).padStart(2,"0") + "/" +
+         String(d.getMonth()+1).padStart(2,"0") + "/" +
+         String(d.getFullYear()+543).slice(-2);
+}
+
+// SIGNATURE: คะแนนสุขภาพเป็นภาพตัดขวางแปลงนา ระดับน้ำ = คะแนน สี = สถานะ
+function buildGauge(score, caption) {
+  var wrap = el("div", "gauge-wrap");
+  var s = statusOf(score);
+  var g = el("div", "gauge " + (s === "none" ? "" : s));
+  var water = el("div", "gauge-water");
+  var read = el("div", "gauge-read");
+  var hasScore = typeof score === "number";
+  var fig = el("div", "gauge-figure" + (hasScore ? "" : " dim"), hasScore ? String(score) : "—");
+  var unit = el("div", "gauge-unit" + (hasScore ? "" : " dim"), "คะแนนสุขภาพ");
+  read.appendChild(fig); read.appendChild(unit);
+  g.appendChild(water); g.appendChild(read);
+  wrap.appendChild(g);
+
+  var side = el("div", "gauge-side");
+  side.appendChild(el("div", "verdict-label", "สถานะแปลงล่าสุด"));
+  var name = el("div", "verdict-name " + (s === "none" ? "" : s), statusWord(s));
+  side.appendChild(name);
+  if (caption) side.appendChild(el("div", "read-foot", caption));
+  wrap.appendChild(side);
+
+  // ให้ระดับน้ำไหลขึ้นหลัง paint แรก เพื่อให้เห็น transition
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { water.style.height = (hasScore ? score : 0) + "%"; });
+  });
+  return wrap;
+}
+
+function readOut(label, value, foot, small) {
+  var b = el("div");
+  b.appendChild(el("div", "read-label", label));
+  b.appendChild(el("div", "read-value num" + (small ? " sm" : ""), value));
+  if (foot) b.appendChild(el("div", "read-foot", foot));
+  return b;
+}
+
+function renderRanking(host, results, gated) {
+  host.innerHTML = "";
+  host.appendChild(el("div", "verdict-src", gated
+    ? "ตัดสินจากด่านตรวจสี/พื้นผิว ไม่ได้ส่งภาพเข้าโมเดล AI"
+    : "ผลจากโมเดลที่เทรนไว้ เรียงตามความมั่นใจ"));
   results.slice().sort(function (a,b) { return b.value - a.value; }).forEach(function (r, i) {
     var pct = Math.round(r.value * 100);
-    var row = el("div", "res-row" + (i === 0 ? " top" : ""));
-    row.appendChild(el("div", "res-label", th(r.label)));
-    var track = el("div", "res-track");
-    var fill = el("div", "res-fill");
+    var row = el("div", "bar-row" + (i === 0 ? " lead" : ""));
+    row.appendChild(el("div", "bar-name", th(r.label)));
+    var track = el("div", "bar-track");
+    var fill = el("div", "bar-fill");
     fill.style.width = pct + "%";
     track.appendChild(fill);
     row.appendChild(track);
-    row.appendChild(el("div", "res-pct", pct + "%"));
-    container.appendChild(row);
+    row.appendChild(el("div", "bar-pct", pct + "%"));
+    host.appendChild(row);
   });
 }
 
-function todayStr() {
-  var d = new Date();
-  return String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + "/" + String(d.getFullYear()+543).slice(-2);
+function renderMix(host, pre) {
+  host.innerHTML = "";
+  host.appendChild(el("div", "read-label", "สัดส่วนโทนสีในภาพ"));
+  var bar = el("div", "mix");
+  [["var(--blade)", pre.green], ["var(--grain)", pre.yellow], ["var(--ink-faint)", pre.other]].forEach(function (x) {
+    var seg = el("div");
+    seg.style.background = x[0];
+    seg.style.width = x[1] + "%";
+    bar.appendChild(seg);
+  });
+  host.appendChild(bar);
+  var key = el("div", "mix-key");
+  [["var(--blade)", "เขียว", pre.green], ["var(--grain)", "เหลือง/น้ำตาล", pre.yellow], ["var(--ink-faint)", "สีอื่น", pre.other]]
+    .forEach(function (x) {
+      var s = el("span");
+      var sw = el("i", "swatch");
+      sw.style.background = x[0];
+      s.appendChild(sw);
+      s.appendChild(document.createTextNode(x[1] + " "));
+      s.appendChild(el("b", "", x[2] + "%"));
+      key.appendChild(s);
+    });
+  host.appendChild(key);
 }
 
-function makeUploader(opts) {
+// ตัวรับภาพ ใช้ร่วมกันทุกหน้าที่ต้องอัปโหลดรูป
+function makeIntake(opts) {
+  opts = opts || {};
   var wrap = el("div");
-  var dz = el("div", "dropzone");
-  dz.tabIndex = 0;
-  dz.setAttribute("role", "button");
-  dz.innerHTML = '<div class="dropzone-text">📷 ' + (opts.label || "Upload Rice Leaf") + '</div>';
-  var input = el("input", "file-input");
-  input.type = "file";
-  input.accept = "image/*";
-  var pv = el("div", "preview-wrap");
-  pv.hidden = true;
+  var zone = el("div", "intake");
+  zone.tabIndex = 0;
+  zone.setAttribute("role", "button");
+  zone.appendChild(el("div", "intake-lead", opts.lead || "เลือกภาพใบข้าว หรือลากมาวางตรงนี้"));
+  zone.appendChild(el("div", "intake-hint", opts.hint || "ถ่ายใกล้ให้เห็นแผลบนใบชัดเจน จะได้ผลแม่นที่สุด"));
+  var file = el("input", "hidden-file");
+  file.type = "file";
+  file.accept = "image/*";
+  var shot = el("div", "shot");
+  shot.hidden = true;
   var img = el("img");
-  var scan = el("div", "scan");
-  scan.hidden = true;
-  scan.innerHTML = '<div class="scan-beam"></div>';
-  pv.appendChild(img); pv.appendChild(scan);
+  img.alt = "ภาพใบข้าวที่เลือก";
+  var sweep = el("div", "sweep");
+  sweep.hidden = true;
+  sweep.appendChild(el("div", "sweep-line"));
+  shot.appendChild(img); shot.appendChild(sweep);
+  wrap.appendChild(zone); wrap.appendChild(file); wrap.appendChild(shot);
 
-  wrap.appendChild(dz); wrap.appendChild(input); wrap.appendChild(pv);
-
-  var loaded = null;
-  function load(file) {
-    if (!file || file.type.indexOf("image/") !== 0) return;
-    var url = URL.createObjectURL(file);
+  var current = null;
+  function take(f) {
+    if (!f || f.type.indexOf("image/") !== 0) return;
+    var url = URL.createObjectURL(f);
     var im = new Image();
     im.onload = function () {
-      loaded = im;
+      current = im;
       img.src = url;
-      pv.hidden = false;
-      opts.onLoad && opts.onLoad(im);
+      shot.hidden = false;
+      opts.onReady && opts.onReady(im);
     };
+    im.onerror = function () { opts.onFail && opts.onFail("เปิดไฟล์ภาพนี้ไม่ได้ ลองไฟล์อื่น"); };
     im.src = url;
   }
 
-  dz.onclick = function () { input.click(); };
-  dz.onkeydown = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } };
-  dz.ondragover = function (e) { e.preventDefault(); dz.classList.add("drag"); };
-  dz.ondragleave = function () { dz.classList.remove("drag"); };
-  dz.ondrop = function (e) { e.preventDefault(); dz.classList.remove("drag"); load(e.dataTransfer.files[0]); };
-  input.onchange = function (e) { load(e.target.files[0]); };
+  zone.onclick = function () { file.click(); };
+  zone.onkeydown = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); file.click(); } };
+  zone.ondragover = function (e) { e.preventDefault(); zone.classList.add("over"); };
+  zone.ondragleave = function () { zone.classList.remove("over"); };
+  zone.ondrop = function (e) { e.preventDefault(); zone.classList.remove("over"); take(e.dataTransfer.files[0]); };
+  file.onchange = function (e) { take(e.target.files[0]); };
 
   return {
-    element: wrap,
-    getImage: function () { return loaded; },
-    setScanning: function (on) { scan.hidden = !on; },
-    reset: function () { loaded = null; pv.hidden = true; input.value = ""; }
+    node: wrap,
+    image: function () { return current; },
+    sweeping: function (on) { sweep.hidden = !on; },
+    clear: function () { current = null; shot.hidden = true; file.value = ""; }
   };
 }
 
-// ============ หน้าต่างๆ ============
-var pageBuilders = {};
+// ─── หน้าต่างๆ ─────────────────────────────────
+var views = {};
 
-pageBuilders.dashboard = async function (root) {
+views.overview = async function (root) {
   var logs = await Store.list();
-  var latest = logs[0];
-  var avgPh = (function () {
-    var vals = logs.map(function (l) { return l.ph; }).filter(function (v) { return typeof v === "number"; });
-    return vals.length ? (vals.reduce(function (a,b) { return a+b; }, 0) / vals.length).toFixed(2) : "-";
-  })();
+  var newest = logs[0];
+  var phValues = logs.map(function (l) { return l.ph; }).filter(function (v) { return typeof v === "number"; });
+  var avgPh = phValues.length ? (phValues.reduce(function (a,b) { return a+b; },0) / phValues.length).toFixed(2) : null;
 
-  var stats = el("div", "stat-grid");
-  [
-    { label: "Health Score", value: latest ? latest.score : "-", cls: "" },
-    { label: "Disease", value: latest ? latest.disease : "-", cls: latest && latest.disease !== "ปกติ ไม่พบโรค" && latest.disease !== "ภาพไม่ชัดเจน" ? "danger" : "plain" },
-    { label: "Avg pH", value: avgPh, cls: "plain" },
-    { label: "Weather", value: "กำลังโหลด...", cls: "plain", id: "weatherStat" },
-    { label: "GPS", value: latest && latest.gps ? latest.gps : "-", cls: "plain" }
-  ].forEach(function (s) {
-    var c = el("div", "card");
-    c.appendChild(el("div", "stat-label", s.label));
-    var v = el("div", "stat-value " + s.cls, s.value);
-    if (s.id) v.id = s.id;
-    c.appendChild(v);
-    stats.appendChild(c);
-  });
-  root.appendChild(stats);
+  root.appendChild(bund("สถานะล่าสุด"));
 
-  var grid = el("div", "grid-2");
+  var top = el("div", "row-2");
+  var gaugeCard = plot();
+  gaugeCard.appendChild(buildGauge(
+    newest ? newest.score : null,
+    newest ? "บันทึกเมื่อ " + newest.date + " · " + newest.disease : "ยังไม่มีการบันทึก เริ่มที่หน้าวินิจฉัยใบข้าว"
+  ));
+  top.appendChild(gaugeCard);
 
-  var chartCard = el("div", "card");
-  chartCard.appendChild(el("div", "card-title", "📈 Soil pH Trend"));
+  var meters = plot();
+  var mrow = el("div");
+  mrow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:16px";
+  mrow.appendChild(readOut("โรคที่พบล่าสุด", newest ? newest.disease : "—", null, true));
+  mrow.appendChild(readOut("pH ดินเฉลี่ย", avgPh || "—", avgPh ? "จาก " + phValues.length + " ครั้ง" : "ยังไม่มีค่า"));
+  mrow.appendChild(readOut("บันทึกทั้งหมด", String(logs.length), "รายการ"));
+  var wx = readOut("อุณหภูมิ", "—", "กำลังอ่านค่า");
+  wx.querySelector(".read-value").id = "wxRead";
+  wx.querySelector(".read-foot").id = "wxFoot";
+  mrow.appendChild(wx);
+  meters.appendChild(mrow);
+  top.appendChild(meters);
+  root.appendChild(top);
+
+  root.appendChild(bund("แนวโน้มความเป็นกรด-ด่างของดิน"));
+  var phCard = plot(null);
   var cv = el("canvas");
-  cv.height = 220;
-  chartCard.appendChild(cv);
-  grid.appendChild(chartCard);
+  cv.height = 210;
+  if (phValues.length < 2) {
+    phCard.appendChild(stateBlock("〜", "ยังวาดกราฟไม่ได้",
+      "ต้องมีค่า pH อย่างน้อย 2 ครั้งจึงจะเห็นแนวโน้ม บันทึกเพิ่มได้ที่หน้าบันทึกสำรวจ"));
+  } else {
+    phCard.appendChild(cv);
+  }
+  root.appendChild(phCard);
 
-  var aiCard = el("div", "card");
-  aiCard.appendChild(el("div", "card-title", "🤖 AI Insight"));
-  var tag = el("span", "tag", "Generative AI · Gemini");
-  aiCard.appendChild(tag);
-  var aiText = el("p");
-  aiText.style.fontSize = ".88rem";
-  aiText.textContent = logs.length
-    ? "กำลังให้ Gemini วิเคราะห์ข้อมูลแปลงนาของคุณ..."
-    : "ยังไม่มีข้อมูล กรอกแบบสำรวจในหน้า Field Survey เพื่อให้ Gemini วิเคราะห์แปลงนาของคุณ";
-  aiCard.appendChild(aiText);
-  grid.appendChild(aiCard);
+  root.appendChild(bund("ข้อสังเกตจาก AI"));
+  var aiCard = plot();
+  var aiBody = el("div");
+  aiCard.appendChild(aiBody);
+  root.appendChild(aiCard);
 
-  root.appendChild(grid);
-
-  // กราฟ pH ย้อนหลัง
-  var phLogs = logs.filter(function (l) { return typeof l.ph === "number"; }).slice(0, 8).reverse();
-  new Chart(cv, {
-    type: "line",
-    data: {
-      labels: phLogs.length ? phLogs.map(function (l) { return l.date; }) : ["ยังไม่มีข้อมูล"],
-      datasets: [{
-        label: "pH",
-        data: phLogs.length ? phLogs.map(function (l) { return l.ph; }) : [],
-        borderColor: "#1B7A45",
-        backgroundColor: "rgba(27,122,69,.1)",
-        fill: true, tension: .35, pointRadius: 4
-      }]
-    },
-    options: { responsive: true, plugins: { legend: { display: true, position: "top", align: "start" } }, scales: { y: { beginAtZero: false } } }
-  });
-
-  // สภาพอากาศจาก open-meteo (ฟรี ไม่ต้องใช้ key)
-  navigator.geolocation && navigator.geolocation.getCurrentPosition(function (pos) {
-    fetch("https://api.open-meteo.com/v1/forecast?latitude=" + pos.coords.latitude + "&longitude=" + pos.coords.longitude + "&current=temperature_2m")
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        var w = document.getElementById("weatherStat");
-        if (w && d.current) w.textContent = d.current.temperature_2m + "°C 🌦️";
-      }).catch(function () {});
-  }, function () {
-    var w = document.getElementById("weatherStat");
-    if (w) w.textContent = "-";
-  });
-
-  // ให้ Gemini สรุปภาพรวมจากข้อมูลจริงที่บันทึกไว้
-  if (logs.length) {
-    var summary = logs.slice(0, 5).map(function (l) {
-      return "วันที่ " + l.date + " โรคที่พบ: " + l.disease + " คะแนนสุขภาพ: " + l.score + (l.ph ? " pH ดิน: " + l.ph : "");
+  if (!logs.length) {
+    aiBody.appendChild(stateBlock("◇", "ยังไม่มีข้อมูลให้วิเคราะห์",
+      "บันทึกผลตรวจอย่างน้อย 1 ครั้ง แล้ว AI จะสรุปสถานการณ์แปลงให้อัตโนมัติ"));
+  } else {
+    aiBody.appendChild(stateBlock("◌", "กำลังให้ AI อ่านข้อมูลแปลง", "ใช้เวลาสักครู่"));
+    var digest = logs.slice(0, 5).map(function (l) {
+      return "วันที่ " + l.date + " พบ " + l.disease + " คะแนน " + l.score + (l.ph ? " pH " + l.ph : "");
     }).join("\n");
     Store.askGemini(
-      "คุณเป็นผู้เชี่ยวชาญด้านข้าวไทย นี่คือข้อมูลสำรวจแปลงนาล่าสุด:\n" + summary +
-      "\n\nสรุปสถานการณ์แปลงนาสั้นๆ 2-3 ประโยค พร้อมคำแนะนำที่ทำได้จริง 1 ข้อ ตอบเป็นภาษาไทย ไม่ต้องใส่หัวข้อ"
-    ).then(function (t) { aiText.textContent = t; })
-     .catch(function (e) { aiText.textContent = "เชื่อมต่อ AI ไม่ได้: " + e.message; });
+      "คุณเป็นผู้เชี่ยวชาญข้าวไทย นี่คือบันทึกสำรวจแปลงล่าสุด:\n" + digest +
+      "\n\nสรุปสถานการณ์แปลง 2-3 ประโยค แล้วให้คำแนะนำที่ลงมือทำได้ทันที 1 ข้อ ตอบภาษาไทย ไม่ต้องใส่หัวข้อ"
+    ).then(function (t) {
+      aiBody.innerHTML = "";
+      var p = el("p", "", t);
+      p.style.cssText = "margin:0;font-size:.9rem";
+      aiBody.appendChild(p);
+    }).catch(function (e) {
+      aiBody.innerHTML = "";
+      aiBody.appendChild(stateBlock("!", "เชื่อมต่อ AI ไม่ได้", e.message + " — ลองรีเฟรชหน้าอีกครั้ง"));
+    });
+  }
+
+  if (phValues.length >= 2) {
+    var series = logs.filter(function (l) { return typeof l.ph === "number"; }).slice(0, 8).reverse();
+    new Chart(cv, {
+      type: "line",
+      data: {
+        labels: series.map(function (l) { return l.date; }),
+        datasets: [{
+          label: "pH ดิน", data: series.map(function (l) { return l.ph; }),
+          borderColor: "#4F7A3A", backgroundColor: "rgba(79,122,58,.09)",
+          fill: true, tension: .32, pointRadius: 3, pointBackgroundColor: "#4F7A3A", borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: false, grid: { color: "#E8E1D2" }, ticks: { font: { family: "IBM Plex Mono" } } },
+          x: { grid: { display: false }, ticks: { font: { family: "IBM Plex Mono", size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // อากาศจาก open-meteo (ฟรี ไม่ต้องใช้ key) — ถ้าผู้ใช้ไม่ให้สิทธิ์ตำแหน่ง ต้องบอกให้ชัด
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      fetch("https://api.open-meteo.com/v1/forecast?latitude=" + pos.coords.latitude +
+            "&longitude=" + pos.coords.longitude + "&current=temperature_2m,relative_humidity_2m")
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var v = document.getElementById("wxRead"), f = document.getElementById("wxFoot");
+          if (v && d.current) {
+            v.textContent = d.current.temperature_2m + "°C";
+            if (f) f.textContent = "ความชื้น " + d.current.relative_humidity_2m + "%";
+          }
+        })
+        .catch(function () { setWxFail("อ่านค่าอากาศไม่ได้"); });
+    }, function () { setWxFail("ไม่ได้เปิดสิทธิ์ตำแหน่ง"); });
+  } else {
+    setWxFail("อุปกรณ์นี้ไม่รองรับ");
+  }
+  function setWxFail(msg) {
+    var f = document.getElementById("wxFoot");
+    if (f) f.textContent = msg;
   }
 };
 
-pageBuilders.fields = async function (root) {
+views.diagnose = function (root) {
+  root.appendChild(bund("รับภาพเข้าตรวจ"));
+
+  var wrap = el("div", "row-2");
+
+  var left = plot("ภาพใบข้าว", "ระบบตรวจ 2 ขั้น: เป็นใบข้าวหรือไม่ → ถ้าใช่ จำแนกชนิดโรค");
+  var intake = makeIntake({
+    onReady: function () { runBtn.dataset.armed = "1"; markBrain(); },
+    onFail: function (m) { showFlash(m, "bad"); }
+  });
+  left.appendChild(intake.node);
+
+  var runBtn = el("button", "act act-go act-wide");
+  runBtn.style.marginTop = "14px";
+  runBtn.setAttribute("data-needs-brain", "");
+  runBtn.dataset.readyLabel = "ตรวจภาพนี้";
+  runBtn.disabled = true;
+  left.appendChild(runBtn);
+
+  var flashHost = el("div");
+  left.appendChild(flashHost);
+  wrap.appendChild(left);
+
+  var right = plot("ผลวินิจฉัย");
+  var resultHost = el("div");
+  resultHost.appendChild(stateBlock("◇", "ยังไม่มีผล", "เลือกภาพแล้วกดตรวจ ผลจะแสดงที่นี่"));
+  right.appendChild(resultHost);
+  wrap.appendChild(right);
+
+  root.appendChild(wrap);
+
+  function showFlash(msg, kind) {
+    flashHost.innerHTML = "";
+    flashHost.appendChild(el("div", "flash flash-" + kind, msg));
+  }
+
+  runBtn.onclick = async function () {
+    flashHost.innerHTML = "";
+    runBtn.disabled = true;
+    runBtn.textContent = "กำลังตรวจ";
+    intake.sweeping(true);
+    resultHost.innerHTML = "";
+    resultHost.appendChild(stateBlock("◌", "กำลังตรวจภาพ", "โมเดลกำลังประมวลผลบนเครื่องของคุณ"));
+    await new Promise(function (r) { setTimeout(r, 60); });
+
+    try {
+      var res = await runFullAnalysis(intake.image());
+      resultHost.innerHTML = "";
+
+      var score = healthScore(res);
+      resultHost.appendChild(buildGauge(score, diagnosisName(res)));
+
+      resultHost.appendChild(bund("ขั้นที่ 1 · เป็นใบข้าวหรือไม่"));
+      var r1 = el("div");
+      resultHost.appendChild(r1);
+      renderRanking(r1, res.rice.results, res.gated);
+
+      if (res.disease) {
+        resultHost.appendChild(bund("ขั้นที่ 2 · ชนิดของโรค"));
+        var r2 = el("div");
+        resultHost.appendChild(r2);
+        renderRanking(r2, res.disease.results, false);
+
+        if (res.topDisease) {
+          var rx = buildRx(res.topDisease.label);
+          if (rx) resultHost.appendChild(rx);
+          else resultHost.appendChild(el("div", "flash flash-bad",
+            "ยังไม่มีแนวทางจัดการของโรคนี้ในฐานข้อมูล กรุณาปรึกษาเจ้าหน้าที่เกษตรในพื้นที่"));
+        }
+      } else {
+        resultHost.appendChild(el("div", "flash flash-bad",
+          res.gated ? res.pre.why : "ภาพนี้ไม่ใช่ใบข้าว ระบบจึงไม่ตรวจโรคต่อ"));
+      }
+
+      resultHost.appendChild(bund("หลักฐานเชิงสี"));
+      var mixHost = el("div");
+      resultHost.appendChild(mixHost);
+      renderMix(mixHost, res.pre);
+
+      await Store.add({
+        date: todayStamp(),
+        owner: Store.profile().name,
+        gps: "",
+        ph: null,
+        disease: diagnosisName(res),
+        score: score
+      });
+      showFlash(Store.isOffline()
+        ? "บันทึกลงเครื่องแล้ว จะซิงก์ขึ้นเซิร์ฟเวอร์เมื่อเชื่อมต่อได้"
+        : "บันทึกผลลงทะเบียนแล้ว", "ok");
+    } catch (err) {
+      resultHost.innerHTML = "";
+      resultHost.appendChild(stateBlock("!", "ตรวจภาพไม่สำเร็จ", err.message));
+      showFlash("ตรวจไม่สำเร็จ: " + err.message, "bad");
+    } finally {
+      intake.sweeping(false);
+      runBtn.disabled = false;
+      runBtn.textContent = "ตรวจภาพนี้";
+    }
+  };
+
+  markBrain();
+};
+
+views.survey = async function (root) {
   var logs = await Store.list();
-  var card = el("div", "card");
-  card.appendChild(el("div", "card-title", "🌾 แปลงนาของฉัน"));
+  root.appendChild(bund("บันทึกการสำรวจแปลง"));
+
+  var wrap = el("div", "row-2");
+
+  var form = plot("แบบสำรวจใหม่", "วัด pH 5 จุดในแปลง ระบบจะเฉลี่ยให้อัตโนมัติ");
+  var grid = el("div", "inputs");
+  var prof = Store.profile();
+
+  function inputBox(label, id, placeholder, value, readonly, isNum) {
+    var f = el("div", "inp");
+    f.appendChild(el("label", "", label));
+    var i = el("input");
+    i.id = id;
+    i.placeholder = placeholder || "";
+    if (isNum) { i.className = "num-in"; i.inputMode = "decimal"; }
+    if (value) i.value = value;
+    if (readonly) i.readOnly = true;
+    f.appendChild(i);
+    return f;
+  }
+
+  grid.appendChild(inputBox("เจ้าของแปลง", "svOwner", "ชื่อผู้บันทึก", prof.name));
+
+  var gpsBox = inputBox("พิกัดแปลง", "svGps", "กดปุ่มด้านล่างเพื่อดึงพิกัด");
+  var gpsBtn = el("button", "act act-line act-sm", "ดึงพิกัดปัจจุบัน");
+  gpsBtn.style.marginTop = "7px";
+  gpsBtn.onclick = function () {
+    gpsBtn.textContent = "กำลังหาพิกัด";
+    gpsBtn.disabled = true;
+    navigator.geolocation.getCurrentPosition(function (p) {
+      document.getElementById("svGps").value = p.coords.latitude.toFixed(5) + "," + p.coords.longitude.toFixed(5);
+      gpsBtn.textContent = "ดึงพิกัดปัจจุบัน";
+      gpsBtn.disabled = false;
+    }, function () {
+      gpsBtn.textContent = "หาพิกัดไม่ได้ ลองอีกครั้ง";
+      gpsBtn.disabled = false;
+    });
+  };
+  gpsBox.appendChild(gpsBtn);
+  grid.appendChild(gpsBox);
+
+  for (var n = 1; n <= 5; n++) grid.appendChild(inputBox("pH จุดที่ " + n, "svPh" + n, "0.0", "", false, true));
+  grid.appendChild(inputBox("ค่าเฉลี่ย", "svAvg", "คำนวณให้อัตโนมัติ", "", true, true));
+  form.appendChild(grid);
+
+  function recalc() {
+    var vals = [];
+    for (var i = 1; i <= 5; i++) {
+      var v = parseFloat(document.getElementById("svPh" + i).value);
+      if (!isNaN(v)) vals.push(v);
+    }
+    document.getElementById("svAvg").value = vals.length
+      ? (vals.reduce(function (a,b) { return a+b; },0) / vals.length).toFixed(2) : "";
+  }
+  for (var k = 1; k <= 5; k++) grid.querySelector("#svPh" + k).oninput = recalc;
+
+  var intakeWrap = el("div");
+  intakeWrap.style.marginTop = "15px";
+  intakeWrap.appendChild(el("div", "read-label", "แนบภาพใบข้าว (ไม่บังคับ)"));
+  var intake = makeIntake({ lead: "แนบภาพเพื่อตรวจโรคไปพร้อมกัน", hint: "ถ้าไม่แนบ ระบบจะบันทึกเฉพาะค่า pH และพิกัด" });
+  intakeWrap.appendChild(intake.node);
+  form.appendChild(intakeWrap);
+
+  var saveBtn = el("button", "act act-go act-wide", "บันทึกแบบสำรวจ");
+  saveBtn.style.marginTop = "15px";
+  form.appendChild(saveBtn);
+  var msgHost = el("div");
+  form.appendChild(msgHost);
+
+  saveBtn.onclick = async function () {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "กำลังบันทึก";
+    msgHost.innerHTML = "";
+    try {
+      var entry = {
+        date: todayStamp(),
+        owner: document.getElementById("svOwner").value.trim() || "ไม่ระบุ",
+        gps: document.getElementById("svGps").value.trim(),
+        ph: parseFloat(document.getElementById("svAvg").value) || null,
+        disease: "ไม่ได้ตรวจภาพ",
+        score: 90
+      };
+      var img = intake.image();
+      if (img) {
+        intake.sweeping(true);
+        var res = await runFullAnalysis(img);
+        intake.sweeping(false);
+        entry.disease = diagnosisName(res);
+        entry.score = healthScore(res);
+      }
+      await Store.add(entry);
+      msgHost.appendChild(el("div", "flash flash-ok", Store.isOffline()
+        ? "บันทึกลงเครื่องแล้ว จะซิงก์เมื่อเชื่อมต่อได้"
+        : "บันทึกแบบสำรวจแล้ว"));
+      setTimeout(function () { open("survey"); }, 900);
+    } catch (err) {
+      msgHost.appendChild(el("div", "flash flash-bad", "บันทึกไม่สำเร็จ: " + err.message));
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = "บันทึกแบบสำรวจ";
+    }
+  };
+  wrap.appendChild(form);
+
+  var recent = plot("บันทึกล่าสุด", "8 รายการหลังสุด");
   if (!logs.length) {
-    card.appendChild(el("div", "empty", "ยังไม่มีบันทึกแปลงนา เริ่มจากหน้า Field Survey หรือ Disease Detection"));
+    recent.appendChild(stateBlock("◇", "ยังไม่มีบันทึก", "กรอกแบบสำรวจด้านซ้ายเพื่อเริ่มเก็บข้อมูลแปลง"));
+  } else {
+    var t = el("table");
+    t.innerHTML = "<thead><tr><th>วันที่</th><th>ผลตรวจ</th><th>pH</th><th>คะแนน</th></tr></thead>";
+    var tb = el("tbody");
+    logs.slice(0, 8).forEach(function (l) {
+      var tr = el("tr");
+      var wellClass = l.disease === "ไม่พบโรค" ? " well" : l.disease.indexOf("โรค") === 0 ? " ill" : "";
+      tr.innerHTML = "<td class='n'>" + l.date + "</td>" +
+        "<td class='dx" + wellClass + "'>" + l.disease + "</td>" +
+        "<td class='n'>" + (l.ph != null ? l.ph : "—") + "</td>" +
+        "<td class='n'>" + l.score + "</td>";
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    recent.appendChild(t);
+  }
+  wrap.appendChild(recent);
+  root.appendChild(wrap);
+};
+
+views.plots = async function (root) {
+  var logs = await Store.list();
+  root.appendChild(bund("แปลงที่บันทึกไว้"));
+  var card = plot();
+  if (!logs.length) {
+    card.appendChild(stateBlock("◇", "ยังไม่มีแปลงในระบบ",
+      "เริ่มจากหน้าวินิจฉัยใบข้าว หรือบันทึกสำรวจ แล้วรายการจะขึ้นที่นี่"));
   } else {
     logs.forEach(function (l) {
-      var item = el("div", "list-item");
-      item.innerHTML = '<span style="font-size:1.3rem">🌾</span>';
-      var main = el("div", "list-main");
-      main.appendChild(el("div", "list-title", l.date + " · Score " + l.score));
-      main.appendChild(el("div", "list-sub", l.disease + " · pH " + (l.ph || "-") + " · GPS " + (l.gps || "-")));
+      var item = el("div", "stack-item");
+      var chip = el("div", "stack-chip " + statusOf(l.score), String(l.score));
+      item.appendChild(chip);
+      var main = el("div", "stack-main");
+      main.appendChild(el("div", "stack-lead", l.disease));
+      main.appendChild(el("div", "stack-sub",
+        l.date + " · pH " + (l.ph != null ? l.ph : "—") + " · " + (l.gps || "ไม่มีพิกัด")));
       item.appendChild(main);
       card.appendChild(item);
     });
@@ -763,638 +1330,438 @@ pageBuilders.fields = async function (root) {
   root.appendChild(card);
 };
 
-pageBuilders.survey = async function (root) {
+views.ledger = async function (root) {
   var logs = await Store.list();
-  var grid = el("div", "grid-2");
+  root.appendChild(bund("ทะเบียนบันทึกทั้งหมด"));
+  var card = plot(null);
 
-  // ตารางบันทึกล่าสุด
-  var logCard = el("div", "card");
-  logCard.appendChild(el("div", "card-title", "📊 Field Log"));
-  var table = el("table");
-  table.innerHTML = "<thead><tr><th>วันที่</th><th>โรค</th><th>pH</th><th>Score</th></tr></thead>";
-  var tb = el("tbody");
-  if (!logs.length) {
-    tb.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#7A8B80;padding:24px">ยังไม่มีรายการ</td></tr>';
-  } else {
-    logs.slice(0, 8).forEach(function (l) {
-      var tr = el("tr");
-      tr.innerHTML = "<td>" + l.date + "</td><td class='disease-cell" + (l.disease === "ปกติ ไม่พบโรค" ? " ok" : "") + "'>" + l.disease + "</td><td>" + (l.ph || "-") + "</td><td>" + l.score + "</td>";
-      tb.appendChild(tr);
-    });
-  }
-  table.appendChild(tb);
-  logCard.appendChild(table);
-  grid.appendChild(logCard);
+  var tools = el("div");
+  tools.style.cssText = "display:flex;justify-content:flex-end;margin-bottom:12px";
+  var find = el("input");
+  find.placeholder = "กรองตามวันที่ ชื่อ หรือโรค";
+  find.style.cssText = "padding:7px 12px;border:1px solid var(--rule);border-radius:var(--r);background:var(--paper);width:250px;max-width:100%";
+  tools.appendChild(find);
+  card.appendChild(tools);
 
-  // ฟอร์มบันทึกใหม่
-  var formCard = el("div", "card");
-  formCard.appendChild(el("div", "card-title", "📝 New Survey"));
-  var fg = el("div", "form-grid");
-  var prof = Store.profile();
-
-  function field(label, id, ph, val, ro) {
-    var f = el("div", "field");
-    f.appendChild(el("label", "", label));
-    var i = el("input");
-    i.id = id; i.placeholder = ph || label;
-    if (val) i.value = val;
-    if (ro) i.readOnly = true;
-    f.appendChild(i);
-    return f;
-  }
-
-  fg.appendChild(field("Owner", "sOwner", "ชื่อเจ้าของแปลง", prof.name));
-  var gpsField = field("GPS", "sGps", "กด GPS Auto");
-  var gpsBtn = el("button", "btn btn-ghost", "📍 GPS Auto");
-  gpsBtn.style.marginTop = "6px";
-  gpsBtn.style.padding = "6px 14px";
-  gpsBtn.style.fontSize = ".8rem";
-  gpsBtn.onclick = function () {
-    gpsBtn.textContent = "กำลังหาพิกัด...";
-    navigator.geolocation.getCurrentPosition(function (p) {
-      document.getElementById("sGps").value = p.coords.latitude.toFixed(5) + "," + p.coords.longitude.toFixed(5);
-      gpsBtn.textContent = "📍 GPS Auto";
-    }, function () {
-      gpsBtn.textContent = "หาพิกัดไม่ได้ ลองใหม่";
-    });
-  };
-  gpsField.appendChild(gpsBtn);
-  fg.appendChild(gpsField);
-
-  for (var n = 1; n <= 5; n++) fg.appendChild(field("pH" + n, "sPh" + n, "pH" + n));
-  fg.appendChild(field("Average", "sAvg", "คำนวณอัตโนมัติ", "", true));
-  formCard.appendChild(fg);
-
-  // คำนวณค่าเฉลี่ย pH ให้อัตโนมัติเมื่อกรอก
-  function recalc() {
-    var vals = [];
-    for (var i = 1; i <= 5; i++) {
-      var v = parseFloat(document.getElementById("sPh" + i).value);
-      if (!isNaN(v)) vals.push(v);
-    }
-    document.getElementById("sAvg").value = vals.length ? (vals.reduce(function (a,b) { return a+b; },0)/vals.length).toFixed(2) : "";
-  }
-  for (var k = 1; k <= 5; k++) fg.querySelector("#sPh" + k).oninput = recalc;
-
-  var up = makeUploader({ label: "Upload Rice Leaf" });
-  up.element.style.marginTop = "14px";
-  formCard.appendChild(up.element);
-
-  var saveBtn = el("button", "btn btn-primary btn-full", "บันทึกแบบสำรวจ");
-  saveBtn.style.marginTop = "14px";
-  formCard.appendChild(saveBtn);
-  var alertBox = el("div");
-  formCard.appendChild(alertBox);
-
-  saveBtn.onclick = async function () {
-    saveBtn.disabled = true;
-    saveBtn.textContent = "กำลังบันทึก...";
-    alertBox.innerHTML = "";
-    try {
-      var entry = {
-        date: todayStr(),
-        owner: document.getElementById("sOwner").value || "ไม่ระบุ",
-        gps: document.getElementById("sGps").value || "",
-        ph: parseFloat(document.getElementById("sAvg").value) || null,
-        disease: "ไม่ระบุ",
-        score: 90
-      };
-      var img = up.getImage();
-      if (img) {
-        up.setScanning(true);
-        var res = await runFullAnalysis(img);
-        up.setScanning(false);
-        entry.disease = diseaseName(res);
-        entry.score = healthScore(res);
-      }
-      await Store.add(entry);
-      var a = el("div", "alert ok", "บันทึกแล้ว" + (Store.isOffline() ? " (เก็บในเครื่องชั่วคราว เชื่อมต่อ API ไม่ได้)" : ""));
-      alertBox.appendChild(a);
-      setTimeout(function () { go("survey"); }, 900);
-    } catch (err) {
-      alertBox.appendChild(el("div", "alert err", "บันทึกไม่สำเร็จ: " + err.message));
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = "บันทึกแบบสำรวจ";
-    }
-  };
-
-  grid.appendChild(formCard);
-  root.appendChild(grid);
-};
-
-pageBuilders.detect = function (root) {
-  var card = el("div", "card");
-  card.style.maxWidth = "620px";
-  var head = el("div");
-  head.style.display = "flex";
-  head.style.justifyContent = "space-between";
-  head.appendChild(el("div", "card-title", "📷 Disease Detection"));
-  var badge = el("span");
-  badge.style.fontSize = ".76rem";
-  badge.style.color = "#7A8B80";
-  badge.textContent = "AI 2 ขั้นตอน · Computer Vision";
-  head.appendChild(badge);
-  card.appendChild(head);
-
-  var desc = el("p");
-  desc.style.fontSize = ".86rem";
-  desc.style.color = "#7A8B80";
-  desc.textContent = "ตรวจโรคจากภาพใบข้าวแบบเร็ว ผลลัพธ์จะถูกบันทึกลง Field Log อัตโนมัติ (ไม่มีค่า pH/GPS — ถ้าต้องการบันทึกพร้อมค่าเหล่านั้น ให้ใช้หน้า Field Survey แทน)";
-  card.appendChild(desc);
-
-  var up = makeUploader({ label: "Upload Rice Leaf", onLoad: function () {
-    btn.dataset.hasImage = "1";
-    updateModelStatus();
-  }});
-  card.appendChild(up.element);
-
-  var btn = el("button", "btn btn-primary btn-full");
-  btn.style.marginTop = "14px";
-  btn.setAttribute("data-model-status", "");
-  btn.dataset.readyText = "วิเคราะห์ภาพ";
-  btn.disabled = true;
-  card.appendChild(btn);
-
-  var out = el("div");
-  card.appendChild(out);
-
-  btn.onclick = async function () {
-    out.innerHTML = "";
-    btn.disabled = true;
-    btn.textContent = "กำลังวิเคราะห์...";
-    up.setScanning(true);
-    await new Promise(function (r) { setTimeout(r, 60); });
-    try {
-      var res = await runFullAnalysis(up.getImage());
-
-      out.appendChild(el("div", "res-section-title", "ขั้นที่ 1 — เป็นข้าวหรือไม่"));
-      var b1 = el("div");
-      out.appendChild(b1);
-      renderBars(b1, res.rice.results, res.forcedByPreCheck);
-
-      if (res.disease) {
-        out.appendChild(el("div", "res-section-title", "ขั้นที่ 2 — ชนิดของโรค"));
-        var b2 = el("div");
-        out.appendChild(b2);
-        renderBars(b2, res.disease.results);
-      } else if (!res.isRice) {
-        out.appendChild(el("div", "res-note", res.pre.skip ? res.pre.reason : "ภาพนี้ไม่ใช่ใบข้าว จึงไม่ตรวจโรคต่อ"));
-      }
-
-      // สัดส่วนสีในภาพ ช่วยให้เห็นว่าทำไมระบบตัดสินแบบนั้น
-      var cb = el("div");
-      cb.style.marginTop = "16px";
-      cb.style.paddingTop = "14px";
-      cb.style.borderTop = "1px solid var(--border)";
-      cb.appendChild(el("div", "res-note", "สัดส่วนโทนสีในภาพ"));
-      var bar = el("div", "color-bar");
-      [["#1B7A45", res.pre.green], ["#D9A441", res.pre.yellow], ["#B7C2BB", res.pre.other]].forEach(function (x) {
-        var seg = el("div");
-        seg.style.background = x[0];
-        seg.style.width = x[1] + "%";
-        bar.appendChild(seg);
-      });
-      cb.appendChild(bar);
-      var leg = el("div", "color-legend");
-      leg.innerHTML = '<span><i class="dot" style="background:#1B7A45"></i>เขียว <b>' + res.pre.green +
-        '%</b></span><span><i class="dot" style="background:#D9A441"></i>เหลือง/น้ำตาล <b>' + res.pre.yellow +
-        '%</b></span><span><i class="dot" style="background:#B7C2BB"></i>สีอื่น <b>' + res.pre.other + '%</b></span>';
-      cb.appendChild(leg);
-      out.appendChild(cb);
-
-      // บันทึกลง Field Log ให้อัตโนมัติ
-      await Store.add({
-        date: todayStr(),
-        owner: Store.profile().name,
-        gps: "",
-        ph: null,
-        disease: diseaseName(res),
-        score: healthScore(res)
-      });
-      out.appendChild(el("div", "alert ok", "บันทึกผลลง Field Log แล้ว" + (Store.isOffline() ? " (เก็บในเครื่องชั่วคราว)" : "")));
-    } catch (err) {
-      out.appendChild(el("div", "alert err", "วิเคราะห์ไม่สำเร็จ: " + err.message));
-    } finally {
-      up.setScanning(false);
-      btn.disabled = false;
-      btn.textContent = "วิเคราะห์ภาพ";
-    }
-  };
-
-  root.appendChild(card);
-  updateModelStatus();
-};
-
-pageBuilders.log = async function (root) {
-  var logs = await Store.list();
-  var card = el("div", "card");
-  card.appendChild(el("div", "card-title", "📗 Field Log ทั้งหมด"));
-
-  var searchRow = el("div");
-  searchRow.style.textAlign = "right";
-  searchRow.style.marginBottom = "10px";
-  var si = el("input");
-  si.placeholder = "ค้นหา...";
-  si.style.padding = "7px 13px";
-  si.style.border = "1px solid var(--border)";
-  si.style.borderRadius = "8px";
-  searchRow.appendChild(si);
-  card.appendChild(searchRow);
-
-  var table = el("table");
-  table.innerHTML = "<thead><tr><th>วันที่</th><th>Owner</th><th>โรค</th><th>pH</th><th>Score</th><th>GPS</th></tr></thead>";
-  var tb = el("tbody");
-  table.appendChild(tb);
-  card.appendChild(table);
+  var body = el("div");
+  card.appendChild(body);
 
   function draw(filter) {
-    tb.innerHTML = "";
+    body.innerHTML = "";
     var rows = logs.filter(function (l) {
       if (!filter) return true;
-      return (l.date + l.owner + l.disease).toLowerCase().indexOf(filter.toLowerCase()) !== -1;
+      return (l.date + " " + (l.owner||"") + " " + l.disease).toLowerCase().indexOf(filter.toLowerCase()) !== -1;
     });
-    if (!rows.length) {
-      tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#7A8B80;padding:28px">ยังไม่มีรายการ</td></tr>';
+    if (!logs.length) {
+      body.appendChild(stateBlock("◇", "ทะเบียนยังว่าง", "บันทึกผลตรวจครั้งแรกเพื่อเริ่มทะเบียน"));
       return;
     }
+    if (!rows.length) {
+      body.appendChild(stateBlock("◇", "ไม่พบรายการที่ตรงกับคำค้น", "ลองพิมพ์คำอื่น หรือล้างช่องค้นหา"));
+      return;
+    }
+    var t = el("table");
+    t.innerHTML = "<thead><tr><th>วันที่</th><th>ผู้บันทึก</th><th>ผลตรวจ</th><th>pH</th><th>คะแนน</th><th>พิกัด</th></tr></thead>";
+    var tb = el("tbody");
     rows.forEach(function (l) {
       var tr = el("tr");
-      tr.innerHTML = "<td>" + l.date + "</td><td>" + (l.owner || "-") + "</td>" +
-        "<td class='disease-cell" + (l.disease === "ปกติ ไม่พบโรค" ? " ok" : "") + "'>" + l.disease + "</td>" +
-        "<td>" + (l.ph || "-") + "</td><td>" + l.score + "</td><td>" + (l.gps || "-") + "</td>";
+      var wellClass = l.disease === "ไม่พบโรค" ? " well" : l.disease.indexOf("โรค") === 0 ? " ill" : "";
+      tr.innerHTML = "<td class='n'>" + l.date + "</td><td>" + (l.owner || "—") + "</td>" +
+        "<td class='dx" + wellClass + "'>" + l.disease + "</td>" +
+        "<td class='n'>" + (l.ph != null ? l.ph : "—") + "</td>" +
+        "<td class='n'>" + l.score + "</td><td class='n'>" + (l.gps || "—") + "</td>";
       tb.appendChild(tr);
     });
+    t.appendChild(tb);
+    body.appendChild(t);
   }
-  si.oninput = function () { draw(si.value); };
-  draw(document.getElementById("globalSearch").value);
+  find.oninput = function () { draw(find.value); };
+  draw(document.getElementById("seekInput").value);
   root.appendChild(card);
 };
 
-pageBuilders.analytics = async function (root) {
+views.trend = async function (root) {
   var logs = await Store.list();
   var scores = logs.map(function (l) { return l.score; }).filter(function (v) { return typeof v === "number"; });
   var phs = logs.map(function (l) { return l.ph; }).filter(function (v) { return typeof v === "number"; });
 
-  var stats = el("div", "stat-grid");
-  [
-    ["จำนวนแบบสำรวจ", logs.length],
-    ["Health Score เฉลี่ย", scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : "-"],
-    ["pH เฉลี่ย", phs.length ? (phs.reduce(function(a,b){return a+b;},0)/phs.length).toFixed(2) : "-"]
-  ].forEach(function (s) {
-    var c = el("div", "card");
-    c.appendChild(el("div", "stat-label", s[0]));
-    c.appendChild(el("div", "stat-value", s[1]));
-    stats.appendChild(c);
-  });
+  root.appendChild(bund("สรุปตัวเลข"));
+  var stats = el("div", "row-3");
+  var avgScore = scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0)/scores.length) : null;
+  var s1 = plot(); s1.appendChild(readOut("จำนวนการสำรวจ", String(logs.length), "รายการสะสม")); stats.appendChild(s1);
+  var s2 = plot(); s2.appendChild(readOut("คะแนนสุขภาพเฉลี่ย", avgScore != null ? String(avgScore) : "—",
+    avgScore != null ? statusWord(statusOf(avgScore)) : "ยังไม่มีข้อมูล")); stats.appendChild(s2);
+  var s3 = plot(); s3.appendChild(readOut("pH เฉลี่ย", phs.length ? (phs.reduce(function(a,b){return a+b;},0)/phs.length).toFixed(2) : "—",
+    phs.length ? "จาก " + phs.length + " ครั้ง" : "ยังไม่มีค่า")); stats.appendChild(s3);
   root.appendChild(stats);
 
-  var c1 = el("div", "card");
-  c1.appendChild(el("div", "card-title", "📈 Health Score ตามช่วงเวลา"));
-  var cv1 = el("canvas");
-  cv1.height = 200;
-  c1.appendChild(cv1);
+  root.appendChild(bund("คะแนนสุขภาพตามช่วงเวลา"));
+  var c1 = plot(null);
   root.appendChild(c1);
 
-  var series = logs.slice(0, 12).reverse();
-  new Chart(cv1, {
-    type: "line",
-    data: {
-      labels: series.length ? series.map(function (l) { return l.date; }) : ["ยังไม่มีข้อมูล"],
-      datasets: [{ label: "Health Score", data: series.map(function (l) { return l.score; }),
-        borderColor: "#D9A441", backgroundColor: "rgba(217,164,65,.12)", fill: true, tension: .35 }]
-    },
-    options: { responsive: true, scales: { y: { min: 0, max: 100 } } }
-  });
+  if (scores.length < 2) {
+    c1.appendChild(stateBlock("〜", "ยังวาดกราฟไม่ได้", "ต้องมีบันทึกอย่างน้อย 2 ครั้งจึงจะเห็นแนวโน้ม"));
+  } else {
+    var cv1 = el("canvas");
+    cv1.height = 200;
+    c1.appendChild(cv1);
+    var series = logs.slice(0, 12).reverse();
+    new Chart(cv1, {
+      type: "line",
+      data: {
+        labels: series.map(function (l) { return l.date; }),
+        datasets: [{
+          label: "คะแนนสุขภาพ", data: series.map(function (l) { return l.score; }),
+          borderColor: "#C79A2E", backgroundColor: "rgba(199,154,46,.11)",
+          fill: true, tension: .32, pointRadius: 3, pointBackgroundColor: "#C79A2E", borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { min: 0, max: 100, grid: { color: "#E8E1D2" }, ticks: { font: { family: "IBM Plex Mono" } } },
+          x: { grid: { display: false }, ticks: { font: { family: "IBM Plex Mono", size: 10 } } }
+        }
+      }
+    });
+  }
 
-  // สรุปว่าพบโรคไหนบ่อยสุด
-  var counts = {};
-  logs.forEach(function (l) { counts[l.disease] = (counts[l.disease] || 0) + 1; });
-  var keys = Object.keys(counts);
-  if (keys.length) {
-    var c2 = el("div", "card");
-    c2.style.marginTop = "16px";
-    c2.appendChild(el("div", "card-title", "🦠 โรคที่พบบ่อย"));
+  var tally = {};
+  logs.forEach(function (l) { tally[l.disease] = (tally[l.disease] || 0) + 1; });
+  var names = Object.keys(tally);
+
+  root.appendChild(bund("โรคที่พบบ่อย"));
+  var c2 = plot(null);
+  root.appendChild(c2);
+  if (!names.length) {
+    c2.appendChild(stateBlock("◇", "ยังไม่มีข้อมูลโรค", "ตรวจภาพใบข้าวอย่างน้อย 1 ครั้ง"));
+  } else {
     var cv2 = el("canvas");
-    cv2.height = 180;
+    cv2.height = 175;
     c2.appendChild(cv2);
-    root.appendChild(c2);
     new Chart(cv2, {
       type: "bar",
-      data: { labels: keys, datasets: [{ label: "จำนวนครั้ง", data: keys.map(function (k) { return counts[k]; }), backgroundColor: "#1B7A45" }] },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      data: {
+        labels: names,
+        datasets: [{ data: names.map(function (k) { return tally[k]; }), backgroundColor: "#4F7A3A", borderRadius: 2 }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: "IBM Plex Mono" } }, grid: { color: "#E8E1D2" } },
+          x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+        }
+      }
     });
   }
 };
 
-pageBuilders.reports = async function (root) {
-  var card = el("div", "card");
-  card.appendChild(el("div", "card-title", "💬 ปรึกษาหมอข้าว AI"));
+views.consult = async function (root) {
+  root.appendChild(bund("ปรึกษาผู้เชี่ยวชาญ AI"));
+  var card = plot(null);
 
-  var log = el("div", "chat-log");
-  var greet = el("div", "msg ai");
-  greet.textContent = "สวัสดีครับ ผมคือ AI ผู้เชี่ยวชาญด้านข้าวไทย ผมนำผลจากโมเดล Computer Vision ค่า pH ดิน ตำแหน่ง GPS และข้อมูลแปลงนาของคุณมาใช้ประกอบการตอบด้วยครับ สอบถามเรื่องโรคข้าว วิธีแก้ หรือยี่ห้อปุ๋ยที่ควรใช้ได้เลย หรือจะแนบรูปใบข้าวมาให้ดูก็ได้ครับ 📷";
-  log.appendChild(greet);
-  card.appendChild(log);
+  var talk = el("div", "talk");
+  talk.appendChild(el("div", "say say-ai",
+    "สวัสดีครับ ผมใช้ผลจากโมเดลตรวจภาพ ค่า pH ดิน และบันทึกแปลงของคุณประกอบการตอบ " +
+    "ถามเรื่องโรคข้าว วิธีจัดการ หรือแนบภาพใบข้าวมาให้ดูได้เลยครับ"));
+  card.appendChild(talk);
 
-  // แถบแสดงรูปที่แนบไว้ ก่อนกดส่ง
-  var attachBar = el("div");
-  attachBar.hidden = true;
-  attachBar.style.cssText = "display:flex;align-items:center;gap:10px;margin-top:10px;padding:8px 12px;background:var(--green-light);border:1px solid var(--green-border);border-radius:10px";
-  var thumb = el("img");
-  thumb.style.cssText = "width:44px;height:44px;object-fit:cover;border-radius:7px";
-  var attachName = el("span");
-  attachName.style.cssText = "font-size:.82rem;flex:1;color:var(--green-deep)";
-  var removeBtn = el("button", "btn btn-ghost", "เอาออก");
-  removeBtn.style.cssText = "padding:5px 13px;font-size:.78rem";
-  attachBar.appendChild(thumb);
-  attachBar.appendChild(attachName);
-  attachBar.appendChild(removeBtn);
-  card.appendChild(attachBar);
+  var clip = el("div", "clip");
+  clip.hidden = true;
+  var clipImg = el("img");
+  var clipText = el("span");
+  var clipDrop = el("button", "act act-line act-sm", "เอาออก");
+  clip.appendChild(clipImg); clip.appendChild(clipText); clip.appendChild(clipDrop);
+  card.appendChild(clip);
 
-  var row = el("div", "chat-input-row");
-  var camBtn = el("button", "btn btn-primary");
-  camBtn.innerHTML = "📷";
-  camBtn.title = "แนบรูปใบข้าว";
-  camBtn.style.cssText = "padding:11px 16px;flex-shrink:0";
-  var fileInput = el("input", "file-input");
-  fileInput.type = "file";
-  fileInput.accept = "image/*";
-  var input = el("input");
-  input.placeholder = "พิมพ์ถาม เช่น ใบข้าวมีจุดสีน้ำตาลใช้ปุ๋ยยี่ห้อไหนดี...";
-  var send = el("button", "btn btn-primary", "ส่ง");
-  row.appendChild(camBtn);
-  row.appendChild(fileInput);
-  row.appendChild(input);
-  row.appendChild(send);
-  card.appendChild(row);
+  var bar = el("div", "talk-bar");
+  var camBtn = el("button", "act act-line");
+  camBtn.title = "แนบภาพใบข้าว";
+  camBtn.setAttribute("aria-label", "แนบภาพใบข้าว");
+  camBtn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="display:block"><path d="M4 7h3l2-2h6l2 2h3v12H4z" stroke="#21281F" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="#21281F" stroke-width="1.6"/></svg>';
+  var fileIn = el("input", "hidden-file");
+  fileIn.type = "file";
+  fileIn.accept = "image/*";
+  var q = el("input");
+  q.placeholder = "เช่น ใบข้าวมีจุดสีน้ำตาล ควรทำอย่างไร";
+  var sendBtn = el("button", "act act-go", "ถาม");
+  bar.appendChild(camBtn); bar.appendChild(fileIn); bar.appendChild(q); bar.appendChild(sendBtn);
+  card.appendChild(bar);
   root.appendChild(card);
 
-  var attached = null;
-
-  camBtn.onclick = function () { fileInput.click(); };
-  fileInput.onchange = function (e) {
-    var file = e.target.files[0];
-    if (!file || file.type.indexOf("image/") !== 0) return;
-    var url = URL.createObjectURL(file);
+  var pinned = null;
+  camBtn.onclick = function () { fileIn.click(); };
+  fileIn.onchange = function (e) {
+    var f = e.target.files[0];
+    if (!f || f.type.indexOf("image/") !== 0) return;
+    var url = URL.createObjectURL(f);
     var im = new Image();
     im.onload = function () {
-      attached = im;
-      thumb.src = url;
-      attachName.textContent = "แนบรูปแล้ว — ระบบจะตรวจโรคให้ก่อนส่งให้ AI อธิบาย";
-      attachBar.hidden = false;
+      pinned = im;
+      clipImg.src = url;
+      clipText.textContent = "แนบภาพแล้ว ระบบจะตรวจโรคก่อนส่งให้ AI อธิบาย";
+      clip.hidden = false;
     };
     im.src = url;
   };
-  removeBtn.onclick = function () {
-    attached = null;
-    fileInput.value = "";
-    attachBar.hidden = true;
-  };
+  clipDrop.onclick = function () { pinned = null; fileIn.value = ""; clip.hidden = true; };
 
   var logs = await Store.list();
   var context = logs.slice(0, 5).map(function (l) {
-    return "- " + l.date + ": พบ " + l.disease + " คะแนนสุขภาพ " + l.score + (l.ph ? " pH " + l.ph : "");
+    return "- " + l.date + " พบ " + l.disease + " คะแนน " + l.score + (l.ph ? " pH " + l.ph : "");
   }).join("\n");
 
   async function ask() {
-    var q = input.value.trim();
-    if (!q && !attached) return;
+    var text = q.value.trim();
+    if (!text && !pinned) return;
 
-    var myMsg = el("div", "msg me");
-    if (attached) {
-      var mi = el("img");
-      mi.src = attached.src;
-      mi.style.cssText = "max-width:170px;border-radius:8px;display:block;margin-bottom:6px";
-      myMsg.appendChild(mi);
+    var mine = el("div", "say say-me");
+    if (pinned) {
+      var pv = el("img");
+      pv.src = pinned.src;
+      mine.appendChild(pv);
     }
-    if (q) myMsg.appendChild(document.createTextNode(q));
-    log.appendChild(myMsg);
+    if (text) mine.appendChild(document.createTextNode(text));
+    talk.appendChild(mine);
 
-    var imgForAI = attached;
-    input.value = "";
-    attached = null;
-    fileInput.value = "";
-    attachBar.hidden = true;
-    log.scrollTop = log.scrollHeight;
+    var shot = pinned;
+    q.value = "";
+    pinned = null;
+    fileIn.value = "";
+    clip.hidden = true;
+    talk.scrollTop = talk.scrollHeight;
 
-    var thinking = el("div", "msg ai", imgForAI ? "กำลังตรวจภาพด้วยโมเดล AI..." : "กำลังคิด...");
-    log.appendChild(thinking);
-    log.scrollTop = log.scrollHeight;
+    var reply = el("div", "say say-ai", shot ? "กำลังตรวจภาพด้วยโมเดล" : "กำลังคิด");
+    talk.appendChild(reply);
+    talk.scrollTop = talk.scrollHeight;
 
     try {
-      var cvContext = "";
-      var payloadImage = null;
-
-      if (imgForAI) {
-        // รันโมเดล CV ในเครื่องก่อน แล้วส่งผลไปเป็นบริบทให้ Gemini
-        // Gemini จะได้อธิบายต่อยอดจากผลตรวจจริง ไม่ใช่เดาจากภาพอย่างเดียว
+      var cvNote = "", payload = null;
+      if (shot) {
+        // ตรวจด้วยโมเดลในเครื่องก่อน แล้วส่งผลไปเป็นบริบท
+        // Gemini จะอธิบายต่อยอดจากผลตรวจจริง ไม่ใช่เดาจากภาพอย่างเดียว
         try {
-          var res = await runFullAnalysis(imgForAI);
+          var res = await runFullAnalysis(shot);
           if (!res.isRice) {
-            cvContext = "\n\n[ผลจากโมเดลตรวจภาพ: ภาพนี้ไม่ใช่ใบข้าว หรือภาพไม่ชัดพอให้ตรวจโรค]";
+            cvNote = "\n\n[ผลจากโมเดลตรวจภาพ: ไม่ใช่ใบข้าว หรือภาพไม่ชัดพอให้จำแนกโรค]";
           } else if (res.topDisease) {
-            cvContext = "\n\n[ผลจากโมเดลตรวจภาพ: เป็นใบข้าว โรคที่ตรวจพบคือ " +
-              th(res.topDisease.label) + " ความมั่นใจ " + Math.round(res.topDisease.value * 100) + "%]";
+            cvNote = "\n\n[ผลจากโมเดลตรวจภาพ: เป็นใบข้าว โรคที่พบคือ " + th(res.topDisease.label) +
+                     " ความมั่นใจ " + Math.round(res.topDisease.value * 100) + "%]" +
+                     guideForPrompt(res.topDisease.label);
           }
         } catch (e) {
-          cvContext = "\n\n[หมายเหตุ: โมเดลตรวจภาพทำงานไม่สำเร็จ ให้วิเคราะห์จากภาพโดยตรง]";
+          cvNote = "\n\n[โมเดลตรวจภาพทำงานไม่สำเร็จ ให้วิเคราะห์จากภาพโดยตรง]";
         }
-        thinking.textContent = "กำลังให้ AI อธิบายผล...";
-        payloadImage = imageToBase64(imgForAI);
+        reply.textContent = "กำลังให้ AI อธิบายผล";
+        payload = imageToBase64(shot);
       }
 
-      var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าวและการเกษตรไทย ตอบเป็นภาษาไทยแบบเข้าใจง่าย กระชับ\n\n" +
-        (context ? "ข้อมูลแปลงนาล่าสุดของผู้ถาม:\n" + context + "\n\n" : "") +
-        "คำถาม: " + (q || "ช่วยดูรูปใบข้าวนี้ให้หน่อยว่าเป็นโรคอะไร และควรแก้ไขอย่างไร") +
-        cvContext;
+      var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าวและการเกษตรไทย ตอบภาษาไทยแบบเข้าใจง่าย กระชับ\n\n" +
+        (context ? "บันทึกแปลงล่าสุดของผู้ถาม:\n" + context + "\n\n" : "") +
+        "คำถาม: " + (text || "ช่วยดูภาพใบข้าวนี้ว่าเป็นโรคอะไร และควรจัดการอย่างไร") + cvNote;
 
-      var ans = await Store.askGemini(prompt, payloadImage);
-      thinking.textContent = ans;
+      reply.textContent = await Store.askGemini(prompt, payload);
     } catch (err) {
-      thinking.textContent = "เชื่อมต่อ AI ไม่ได้: " + err.message;
+      reply.textContent = "เชื่อมต่อ AI ไม่ได้: " + err.message;
     }
-    log.scrollTop = log.scrollHeight;
+    talk.scrollTop = talk.scrollHeight;
   }
 
-  send.onclick = ask;
-  input.onkeydown = function (e) { if (e.key === "Enter") ask(); };
+  sendBtn.onclick = ask;
+  q.onkeydown = function (e) { if (e.key === "Enter") ask(); };
 };
 
-
-pageBuilders.map = async function (root) {
+views.map = async function (root) {
   var logs = await Store.list();
-  var card = el("div", "card");
-  card.appendChild(el("div", "card-title", "🗺️ Field Map"));
+  var pins = logs.filter(function (l) { return l.gps && l.gps.indexOf(",") !== -1; });
 
-  var pts = logs.filter(function (l) { return l.gps && l.gps.indexOf(",") !== -1; });
-  var note = el("p");
-  note.style.fontSize = ".85rem";
-  note.style.color = "#7A8B80";
-  note.textContent = pts.length
-    ? "แสดงพิกัดแปลงนาที่บันทึกไว้ " + pts.length + " จุด"
-    : "ยังไม่มีข้อมูล GPS จริงในบัญชีของคุณ — แสดงพิกัดตัวอย่างไว้ก่อน (กด GPS Auto ในหน้า Field Survey เพื่อบันทึกพิกัดจริง)";
-  card.appendChild(note);
+  root.appendChild(bund("ตำแหน่งแปลง"));
+  var card = plot(null, null);
 
-  var btn = el("button", "btn btn-primary btn-full", "📍 ตำแหน่งปัจจุบันของฉัน");
-  btn.style.marginBottom = "10px";
-  card.appendChild(btn);
+  var head = el("div");
+  head.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:13px";
+  var info = el("div");
+  info.appendChild(el("div", "plot-title", "แผนที่แปลง"));
+  info.appendChild(el("div", "plot-note", pins.length
+    ? "ปักหมุดจากพิกัดที่บันทึกไว้ " + pins.length + " จุด"
+    : "ยังไม่มีพิกัดในระบบ กดดึงพิกัดที่หน้าบันทึกสำรวจเพื่อเริ่มปักหมุด"));
+  head.appendChild(info);
+  var hereBtn = el("button", "act act-line act-sm", "ไปที่ตำแหน่งของฉัน");
+  head.appendChild(hereBtn);
+  card.appendChild(head);
 
-  var mapDiv = el("div");
-  mapDiv.id = "map";
-  card.appendChild(mapDiv);
+  var canvasHost = el("div");
+  canvasHost.id = "map";
+  card.appendChild(canvasHost);
   root.appendChild(card);
 
-  var center = pts.length ? pts[0].gps.split(",").map(Number) : [16.4419, 102.8360];
-  var map = L.map("map").setView(center, pts.length ? 12 : 6);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" }).addTo(map);
+  var center = pins.length ? pins[0].gps.split(",").map(Number) : [15.87, 100.99];
+  var map = L.map("map").setView(center, pins.length ? 12 : 6);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap", maxZoom: 19
+  }).addTo(map);
 
-  if (pts.length) {
-    pts.forEach(function (p) {
-      var c = p.gps.split(",").map(Number);
-      L.marker(c).addTo(map).bindPopup(p.date + "<br>" + p.disease + "<br>Score " + p.score);
-    });
-  } else {
-    L.marker(center).addTo(map).bindPopup("พิกัดตัวอย่าง (ยังไม่มีข้อมูลจริง)").openPopup();
-  }
+  pins.forEach(function (p) {
+    var c = p.gps.split(",").map(Number);
+    L.marker(c).addTo(map).bindPopup(
+      "<b>" + p.date + "</b><br>" + p.disease + "<br>คะแนน " + p.score);
+  });
 
-  btn.onclick = function () {
-    btn.textContent = "กำลังหาตำแหน่ง...";
+  hereBtn.onclick = function () {
+    hereBtn.textContent = "กำลังหาตำแหน่ง";
+    hereBtn.disabled = true;
     navigator.geolocation.getCurrentPosition(function (p) {
       var c = [p.coords.latitude, p.coords.longitude];
       map.setView(c, 14);
-      L.marker(c).addTo(map).bindPopup("ตำแหน่งปัจจุบันของคุณ").openPopup();
-      btn.textContent = "📍 ตำแหน่งปัจจุบันของฉัน";
+      L.circleMarker(c, { radius: 8, color: "#4F7A3A", fillColor: "#8FB05C", fillOpacity: .9, weight: 2 })
+        .addTo(map).bindPopup("ตำแหน่งปัจจุบันของคุณ").openPopup();
+      hereBtn.textContent = "ไปที่ตำแหน่งของฉัน";
+      hereBtn.disabled = false;
     }, function () {
-      btn.textContent = "หาตำแหน่งไม่ได้ — เปิดสิทธิ์ตำแหน่งในเบราว์เซอร์ก่อน";
+      hereBtn.textContent = "เปิดสิทธิ์ตำแหน่งก่อน";
+      hereBtn.disabled = false;
     });
   };
 };
 
-pageBuilders.profile = function (root) {
+views.profile = function (root) {
   var p = Store.profile();
-  var card = el("div", "card");
+  root.appendChild(bund("ข้อมูลผู้ใช้"));
+  var card = plot("โปรไฟล์", "ชื่อนี้จะถูกบันทึกไว้กับทุกรายการสำรวจ");
   card.style.maxWidth = "520px";
-  card.appendChild(el("div", "card-title", "👤 Profile"));
 
-  var fg = el("div");
-  [["ชื่อ", "pName", p.name], ["ชื่อแปลงนา / ฟาร์ม", "pFarm", p.farm], ["เบอร์ติดต่อ", "pPhone", p.phone]].forEach(function (f) {
-    var d = el("div", "field");
-    d.style.marginBottom = "12px";
+  var fields = [["ชื่อผู้ใช้", "pfName", p.name], ["ชื่อแปลงนา หรือฟาร์ม", "pfFarm", p.farm], ["เบอร์ติดต่อ", "pfPhone", p.phone]];
+  fields.forEach(function (f) {
+    var d = el("div", "inp");
+    d.style.marginBottom = "13px";
     d.appendChild(el("label", "", f[0]));
     var i = el("input");
     i.id = f[1];
     i.value = f[2] || "";
     d.appendChild(i);
-    fg.appendChild(d);
+    card.appendChild(d);
   });
-  card.appendChild(fg);
 
-  var save = el("button", "btn btn-primary", "บันทึกโปรไฟล์");
+  var save = el("button", "act act-go", "บันทึกข้อมูล");
   card.appendChild(save);
   var msg = el("div");
   card.appendChild(msg);
 
   save.onclick = function () {
     Store.saveProfile({
-      name: document.getElementById("pName").value || "เกษตรกร",
-      farm: document.getElementById("pFarm").value,
-      phone: document.getElementById("pPhone").value
+      name: document.getElementById("pfName").value.trim() || "เกษตรกร",
+      farm: document.getElementById("pfFarm").value.trim(),
+      phone: document.getElementById("pfPhone").value.trim()
     });
-    applyProfile();
+    paintWho();
     msg.innerHTML = "";
-    msg.appendChild(el("div", "alert ok", "บันทึกโปรไฟล์แล้ว"));
+    msg.appendChild(el("div", "flash flash-ok", "บันทึกข้อมูลแล้ว"));
   };
   root.appendChild(card);
 };
 
-pageBuilders.settings = function (root) {
-  var card = el("div", "card");
-  card.style.maxWidth = "620px";
-  card.appendChild(el("div", "card-title", "⚙️ Settings"));
+views.system = function (root) {
+  root.appendChild(bund("สถานะระบบ"));
+  var card = plot(null);
+  card.style.maxWidth = "640px";
 
-  var info = el("div");
-  info.style.fontSize = ".87rem";
-  info.innerHTML =
-    "<p><b>API:</b> <span style='color:#7A8B80'>" + API_BASE + "</span></p>" +
-    "<p><b>โมเดลตรวจข้าว:</b> <span id='m1' style='color:#7A8B80'>กำลังโหลด...</span></p>" +
-    "<p><b>โมเดลตรวจโรค:</b> <span id='m2' style='color:#7A8B80'>กำลังโหลด...</span></p>";
-  card.appendChild(info);
+  function line(label, valueId, initial) {
+    var d = el("div");
+    d.style.cssText = "display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--rule-soft);font-size:.86rem";
+    d.appendChild(el("span", "", label));
+    var v = el("span", "num");
+    v.id = valueId;
+    v.textContent = initial;
+    v.style.cssText = "color:var(--ink-soft);text-align:right;word-break:break-all";
+    d.appendChild(v);
+    return d;
+  }
+  card.appendChild(line("เซิร์ฟเวอร์ข้อมูล", "sysApi", API_BASE));
+  card.appendChild(line("โมเดลจำแนกข้าว", "sysM1", "กำลังโหลด"));
+  card.appendChild(line("โมเดลจำแนกโรค", "sysM2", "กำลังโหลด"));
+  card.appendChild(line("ฐานความรู้แนวทางแก้ไข", "sysGuide",
+    window.DISEASE_GUIDE ? Object.keys(window.DISEASE_GUIDE).length + " โรค" : "ไม่พบไฟล์ disease-guide.js"));
 
   setTimeout(function () {
-    var m1 = document.getElementById("m1"), m2 = document.getElementById("m2");
-    if (m1 && models.rice.project) m1.textContent = models.rice.project.owner + "/" + models.rice.project.name + " (v" + models.rice.project.deploy_version + ")";
-    if (m2 && models.disease.project) m2.textContent = models.disease.project.owner + "/" + models.disease.project.name + " (v" + models.disease.project.deploy_version + ")";
-  }, 1500);
+    var m1 = document.getElementById("sysM1"), m2 = document.getElementById("sysM2");
+    if (m1) m1.textContent = models.rice.project
+      ? models.rice.project.name + " v" + models.rice.project.deploy_version : "โหลดไม่สำเร็จ";
+    if (m2) m2.textContent = models.disease.project
+      ? models.disease.project.name + " v" + models.disease.project.deploy_version : "โหลดไม่สำเร็จ";
+  }, 1600);
 
-  var clear = el("button", "btn btn-ghost", "ล้างข้อมูลที่เก็บในเครื่องนี้");
-  clear.style.marginTop = "10px";
-  clear.onclick = function () {
-    if (confirm("ลบข้อมูลสำรองในเครื่องนี้ทั้งหมด? (ข้อมูลบนเซิร์ฟเวอร์ยังอยู่)")) {
-      localStorage.removeItem("smartrice-logs");
-      Store._cache = null;
-      alert("ล้างข้อมูลในเครื่องแล้ว");
-    }
-  };
-  card.appendChild(clear);
-
-  var note = el("p");
-  note.style.fontSize = ".8rem";
-  note.style.color = "#7A8B80";
-  note.style.marginTop = "14px";
-  note.textContent = "ภาพถ่ายทั้งหมดประมวลผลในเบราว์เซอร์ของคุณเอง ไม่ถูกส่งขึ้นเซิร์ฟเวอร์ ส่วนข้อมูลแบบสำรวจ (วันที่ โรคที่พบ ค่า pH พิกัด) จะถูกเก็บผ่าน API เพื่อให้เปิดดูข้ามเครื่องได้";
+  var note = el("p", "", "ภาพถ่ายทั้งหมดประมวลผลในเบราว์เซอร์ของคุณเอง ไม่ถูกส่งขึ้นเซิร์ฟเวอร์ ส่วนบันทึกสำรวจ (วันที่ ผลตรวจ ค่า pH พิกัด) เก็บผ่านเซิร์ฟเวอร์เพื่อให้เปิดดูข้ามเครื่องได้");
+  note.style.cssText = "font-size:.8rem;color:var(--ink-soft);margin:16px 0 0";
   card.appendChild(note);
 
+  var wipe = el("button", "act act-line act-sm", "ล้างสำเนาข้อมูลในเครื่องนี้");
+  wipe.style.marginTop = "14px";
+  wipe.onclick = function () {
+    if (confirm("ลบสำเนาข้อมูลในเครื่องนี้ทั้งหมด ข้อมูลบนเซิร์ฟเวอร์จะยังอยู่ ยืนยันหรือไม่")) {
+      localStorage.removeItem("smartrice-logs");
+      Store._cache = null;
+      wipe.textContent = "ล้างข้อมูลในเครื่องแล้ว";
+    }
+  };
+  card.appendChild(wipe);
   root.appendChild(card);
 };
 
-// ============ Router ============
-var current = "dashboard";
+// ─── ตัวสลับหน้า ────────────────────────────────
+var here = "overview";
 
-function buildNav() {
-  var nav = document.getElementById("nav");
+function paintNav() {
+  var nav = document.getElementById("railNav");
   nav.innerHTML = "";
   PAGES.forEach(function (p) {
-    var b = el("button", "nav-item" + (p.id === current ? " active" : ""));
-    b.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="' + p.icon + '"/></svg>';
+    var b = el("button", "rail-item" + (p.id === here ? " on" : ""));
+    b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + p.icon + '"/></svg>';
     b.appendChild(document.createTextNode(p.label));
-    b.onclick = function () { go(p.id); document.getElementById("sidebar").classList.remove("open"); };
+    b.onclick = function () {
+      open(p.id);
+      document.getElementById("rail").classList.remove("open");
+    };
     nav.appendChild(b);
   });
 }
 
-async function go(id) {
-  current = id;
+async function open(id) {
+  here = id;
   var page = PAGES.find(function (p) { return p.id === id; });
-  document.getElementById("pageTitle").textContent = page.label;
-  document.getElementById("crumb").textContent = page.label;
-  buildNav();
-  var root = document.getElementById("content");
-  root.innerHTML = '<div class="empty">กำลังโหลด...</div>';
+  document.getElementById("barTitle").textContent = page.label;
+  document.getElementById("barKicker").textContent = page.kicker;
+  paintNav();
+
+  var root = document.getElementById("field");
+  root.innerHTML = "";
+  root.appendChild(stateBlock("◌", "กำลังเปิดหน้า", null));
   try {
     root.innerHTML = "";
-    await pageBuilders[id](root);
+    await views[id](root);
   } catch (err) {
     root.innerHTML = "";
-    root.appendChild(el("div", "alert err", "เปิดหน้านี้ไม่ได้: " + err.message));
+    root.appendChild(stateBlock("!", "เปิดหน้านี้ไม่ได้", err.message + " — ลองรีเฟรชหน้าอีกครั้ง"));
   }
 }
 
-function applyProfile() {
+function paintWho() {
   var p = Store.profile();
-  document.getElementById("avatarName").textContent = p.name;
-  document.getElementById("avatarLetter").textContent = (p.name || "ก").charAt(0);
+  document.getElementById("whoName").textContent = p.name;
+  document.getElementById("whoBadge").textContent = (p.name || "ก").charAt(0);
 }
 
-document.getElementById("navToggle").onclick = function () {
-  document.getElementById("sidebar").classList.toggle("open");
+document.getElementById("railToggle").onclick = function () {
+  document.getElementById("rail").classList.toggle("open");
 };
-document.getElementById("globalSearch").oninput = function () {
-  if (current === "log") go("log");
+document.getElementById("seekInput").oninput = function () {
+  if (here === "ledger") open("ledger");
 };
 
-applyProfile();
-go("dashboard");
+paintWho();
+markBrain();
+open("overview");
 
 })();
 </script>
