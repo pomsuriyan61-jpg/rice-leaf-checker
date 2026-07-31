@@ -495,7 +495,8 @@ var Store = {
     });
     var data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || "เรียก AI ไม่สำเร็จ");
-    return data.text;
+    // Worker เวอร์ชันเก่าไม่ส่ง imageReceived กลับมา ถือว่ารูปไม่ถึง Gemini
+    return { text: data.text, sawImage: data.imageReceived === true };
   },
 
   profile() {
@@ -780,6 +781,51 @@ function guideForPrompt(label) {
     "\nการป้องกัน: " + (g.prevention || []).join(" / ");
 }
 
+// รวบรวมข้อมูลจากทุกหน้าให้ AI ใช้ประกอบการตอบ
+// สรุปเป็นตัวเลขก่อนส่ง แทนที่จะโยนรายการดิบทั้งหมด เพราะ AI ตอบแม่นกว่า
+// เมื่อได้ข้อมูลที่ย่อยมาแล้ว และประหยัด token ด้วย
+function buildFarmContext(logs) {
+  var prof = Store.profile();
+  if (!logs.length) {
+    return "ข้อมูลผู้ใช้: " + prof.name + (prof.farm ? " แปลง " + prof.farm : "") +
+           "\nยังไม่มีบันทึกสำรวจในระบบ";
+  }
+
+  var scores = logs.map(function (l) { return l.score; }).filter(function (v) { return typeof v === "number"; });
+  var phs = logs.map(function (l) { return l.ph; }).filter(function (v) { return typeof v === "number"; });
+  var avg = function (arr) { return arr.reduce(function (a,b) { return a+b; }, 0) / arr.length; };
+
+  var tally = {};
+  logs.forEach(function (l) { tally[l.disease] = (tally[l.disease] || 0) + 1; });
+  var ranked = Object.keys(tally).sort(function (a,b) { return tally[b] - tally[a]; });
+
+  var lines = [];
+  lines.push("ข้อมูลผู้ใช้: " + prof.name + (prof.farm ? " แปลง " + prof.farm : ""));
+  lines.push("จำนวนการสำรวจสะสม: " + logs.length + " ครั้ง");
+  if (scores.length) {
+    lines.push("คะแนนสุขภาพเฉลี่ย: " + Math.round(avg(scores)) + " (" + statusWord(statusOf(Math.round(avg(scores)))) + ")");
+  }
+  if (phs.length) {
+    lines.push("pH ดินเฉลี่ย: " + avg(phs).toFixed(2) + " จากการวัด " + phs.length + " ครั้ง");
+  } else {
+    lines.push("pH ดิน: ยังไม่เคยวัด");
+  }
+  lines.push("โรคที่พบบ่อยที่สุด: " + ranked.slice(0, 3).map(function (k) {
+    return k + " " + tally[k] + " ครั้ง";
+  }).join(", "));
+
+  var withGps = logs.filter(function (l) { return l.gps; });
+  if (withGps.length) lines.push("พิกัดแปลงล่าสุด: " + withGps[0].gps);
+
+  lines.push("บันทึก 5 ครั้งล่าสุด:");
+  logs.slice(0, 5).forEach(function (l) {
+    lines.push("  " + l.date + " พบ " + l.disease + " คะแนน " + l.score +
+               (l.ph != null ? " pH " + l.ph : ""));
+  });
+
+  return lines.join("\n");
+}
+
 // ─── ตัวช่วยสร้าง UI ────────────────────────────
 function el(tag, cls, text) {
   var e = document.createElement(tag);
@@ -1010,15 +1056,12 @@ views.overview = async function (root) {
       "บันทึกผลตรวจอย่างน้อย 1 ครั้ง แล้ว AI จะสรุปสถานการณ์แปลงให้อัตโนมัติ"));
   } else {
     aiBody.appendChild(stateBlock("◌", "กำลังให้ AI อ่านข้อมูลแปลง", "ใช้เวลาสักครู่"));
-    var digest = logs.slice(0, 5).map(function (l) {
-      return "วันที่ " + l.date + " พบ " + l.disease + " คะแนน " + l.score + (l.ph ? " pH " + l.ph : "");
-    }).join("\n");
     Store.askGemini(
-      "คุณเป็นผู้เชี่ยวชาญข้าวไทย นี่คือบันทึกสำรวจแปลงล่าสุด:\n" + digest +
+      "คุณเป็นผู้เชี่ยวชาญข้าวไทย นี่คือข้อมูลแปลงนาจากระบบ:\n" + buildFarmContext(logs) +
       "\n\nสรุปสถานการณ์แปลง 2-3 ประโยค แล้วให้คำแนะนำที่ลงมือทำได้ทันที 1 ข้อ ตอบภาษาไทย ไม่ต้องใส่หัวข้อ"
-    ).then(function (t) {
+    ).then(function (answer) {
       aiBody.innerHTML = "";
-      var p = el("p", "", t);
+      var p = el("p", "", answer.text);
       p.style.cssText = "margin:0;font-size:.9rem";
       aiBody.appendChild(p);
     }).catch(function (e) {
@@ -1509,9 +1552,7 @@ views.consult = async function (root) {
   clipDrop.onclick = function () { pinned = null; fileIn.value = ""; clip.hidden = true; };
 
   var logs = await Store.list();
-  var context = logs.slice(0, 5).map(function (l) {
-    return "- " + l.date + " พบ " + l.disease + " คะแนน " + l.score + (l.ph ? " pH " + l.ph : "");
-  }).join("\n");
+  var farmContext = buildFarmContext(logs);
 
   async function ask() {
     var text = q.value.trim();
@@ -1545,24 +1586,44 @@ views.consult = async function (root) {
         try {
           var res = await runFullAnalysis(shot);
           if (!res.isRice) {
-            cvNote = "\n\n[ผลจากโมเดลตรวจภาพ: ไม่ใช่ใบข้าว หรือภาพไม่ชัดพอให้จำแนกโรค]";
+            cvNote = "\n\n[ผลตรวจภาพที่แนบมา: ไม่ใช่ใบข้าว หรือภาพไม่ชัดพอให้จำแนกโรค]";
           } else if (res.topDisease) {
-            cvNote = "\n\n[ผลจากโมเดลตรวจภาพ: เป็นใบข้าว โรคที่พบคือ " + th(res.topDisease.label) +
+            cvNote = "\n\n[ผลตรวจภาพที่แนบมา: เป็นใบข้าว โรคที่พบคือ " + th(res.topDisease.label) +
                      " ความมั่นใจ " + Math.round(res.topDisease.value * 100) + "%]" +
                      guideForPrompt(res.topDisease.label);
           }
         } catch (e) {
-          cvNote = "\n\n[โมเดลตรวจภาพทำงานไม่สำเร็จ ให้วิเคราะห์จากภาพโดยตรง]";
+          cvNote = "\n\n[โมเดลตรวจภาพทำงานไม่สำเร็จ ให้วิเคราะห์จากภาพที่แนบมาโดยตรง]";
         }
         reply.textContent = "กำลังให้ AI อธิบายผล";
         payload = imageToBase64(shot);
       }
 
-      var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าวและการเกษตรไทย ตอบภาษาไทยแบบเข้าใจง่าย กระชับ\n\n" +
-        (context ? "บันทึกแปลงล่าสุดของผู้ถาม:\n" + context + "\n\n" : "") +
-        "คำถาม: " + (text || "ช่วยดูภาพใบข้าวนี้ว่าเป็นโรคอะไร และควรจัดการอย่างไร") + cvNote;
+      // เมื่อมีภาพแนบมา ต้องระบุให้ชัดว่าภาพคือประเด็นหลัก
+      // ไม่งั้น AI มักไปตอบจากบันทึกเก่าในบริบทแทน
+      var focus = shot
+        ? "ผู้ใช้แนบภาพใบข้าวมาด้วย ให้ตอบโดยยึดภาพที่แนบมาและผลตรวจภาพเป็นหลัก " +
+          "ใช้บันทึกแปลงด้านล่างเป็นข้อมูลประกอบเท่านั้น ห้ามตอบจากบันทึกเก่าแทนภาพที่แนบมา\n\n"
+        : "";
 
-      reply.textContent = await Store.askGemini(prompt, payload);
+      var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าวและการเกษตรไทย ตอบภาษาไทยแบบเข้าใจง่าย กระชับ\n\n" +
+        focus +
+        "ข้อมูลแปลงนาของผู้ถาม (จากบันทึกในระบบ):\n" + farmContext + "\n\n" +
+        "คำถาม: " + (text || "ช่วยดูภาพใบข้าวที่แนบมาว่าเป็นโรคอะไร และควรจัดการอย่างไร") + cvNote;
+
+      var answer = await Store.askGemini(prompt, payload);
+      reply.textContent = answer.text;
+
+      // ถ้าแนบรูปแต่ Worker ไม่ได้ส่งรูปไปถึง Gemini ต้องบอกตรงๆ
+      // ไม่ปล่อยให้ผู้ใช้เข้าใจผิดว่า AI ดูรูปแล้ว
+      if (shot && !answer.sawImage) {
+        var warn = el("div", "flash flash-bad",
+          "AI ยังไม่ได้เห็นภาพที่แนบมา — เซิร์ฟเวอร์ที่ใช้อยู่เป็นเวอร์ชันเก่าที่ยังไม่รองรับรูป " +
+          "คำตอบด้านบนมาจากผลตรวจของโมเดลและบันทึกแปลงเท่านั้น " +
+          "แก้โดยนำโค้ด smartrice-worker.js เวอร์ชันล่าสุดไป Deploy ทับใน Cloudflare");
+        warn.style.maxWidth = "87%";
+        talk.appendChild(warn);
+      }
     } catch (err) {
       reply.textContent = "เชื่อมต่อ AI ไม่ได้: " + err.message;
     }
