@@ -339,11 +339,13 @@ var Store = {
 
   isOffline() { return this._offline; },
 
-  async askGemini(prompt) {
+  async askGemini(prompt, image) {
+    var payload = { prompt: prompt };
+    if (image) payload.image = image;
     var res = await fetch(API_BASE + "/gemini", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: prompt })
+      body: JSON.stringify(payload)
     });
     var data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || "เรียก AI ไม่สำเร็จ");
@@ -550,6 +552,20 @@ function diseaseName(result) {
   if (!result.isRice) return "ภาพไม่ชัดเจน";
   if (!result.topDisease) return "ไม่ระบุ";
   return th(result.topDisease.label);
+}
+
+// ย่อรูปให้ด้านยาวสุดไม่เกิน 800px ก่อนแปลงเป็น base64
+// รูปจากมือถือมักใหญ่หลาย MB ส่งดิบๆ จะช้าและกินโควตา token เกินจำเป็น
+function imageToBase64(img, maxSide) {
+  maxSide = maxSide || 800;
+  var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  var scale = Math.min(1, maxSide / Math.max(w, h));
+  var c = document.createElement("canvas");
+  c.width = Math.round(w * scale);
+  c.height = Math.round(h * scale);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  var url = c.toDataURL("image/jpeg", 0.85);
+  return { data: url.split(",")[1], mimeType: "image/jpeg" };
 }
 
 // ============ ตัวช่วย UI ============
@@ -1077,18 +1093,64 @@ pageBuilders.reports = async function (root) {
 
   var log = el("div", "chat-log");
   var greet = el("div", "msg ai");
-  greet.textContent = "สวัสดีครับ ผมคือ AI ผู้เชี่ยวชาญด้านข้าวไทย ผมนำผลจากโมเดล Computer Vision ค่า pH ดิน ตำแหน่ง GPS และข้อมูลแปลงนาของคุณมาใช้ประกอบการตอบด้วยครับ สอบถามเรื่องโรคข้าว วิธีแก้ หรือยี่ห้อปุ๋ยที่ควรใช้ได้เลยครับ";
+  greet.textContent = "สวัสดีครับ ผมคือ AI ผู้เชี่ยวชาญด้านข้าวไทย ผมนำผลจากโมเดล Computer Vision ค่า pH ดิน ตำแหน่ง GPS และข้อมูลแปลงนาของคุณมาใช้ประกอบการตอบด้วยครับ สอบถามเรื่องโรคข้าว วิธีแก้ หรือยี่ห้อปุ๋ยที่ควรใช้ได้เลย หรือจะแนบรูปใบข้าวมาให้ดูก็ได้ครับ 📷";
   log.appendChild(greet);
   card.appendChild(log);
 
+  // แถบแสดงรูปที่แนบไว้ ก่อนกดส่ง
+  var attachBar = el("div");
+  attachBar.hidden = true;
+  attachBar.style.cssText = "display:flex;align-items:center;gap:10px;margin-top:10px;padding:8px 12px;background:var(--green-light);border:1px solid var(--green-border);border-radius:10px";
+  var thumb = el("img");
+  thumb.style.cssText = "width:44px;height:44px;object-fit:cover;border-radius:7px";
+  var attachName = el("span");
+  attachName.style.cssText = "font-size:.82rem;flex:1;color:var(--green-deep)";
+  var removeBtn = el("button", "btn btn-ghost", "เอาออก");
+  removeBtn.style.cssText = "padding:5px 13px;font-size:.78rem";
+  attachBar.appendChild(thumb);
+  attachBar.appendChild(attachName);
+  attachBar.appendChild(removeBtn);
+  card.appendChild(attachBar);
+
   var row = el("div", "chat-input-row");
+  var camBtn = el("button", "btn btn-primary");
+  camBtn.innerHTML = "📷";
+  camBtn.title = "แนบรูปใบข้าว";
+  camBtn.style.cssText = "padding:11px 16px;flex-shrink:0";
+  var fileInput = el("input", "file-input");
+  fileInput.type = "file";
+  fileInput.accept = "image/*";
   var input = el("input");
   input.placeholder = "พิมพ์ถาม เช่น ใบข้าวมีจุดสีน้ำตาลใช้ปุ๋ยยี่ห้อไหนดี...";
   var send = el("button", "btn btn-primary", "ส่ง");
+  row.appendChild(camBtn);
+  row.appendChild(fileInput);
   row.appendChild(input);
   row.appendChild(send);
   card.appendChild(row);
   root.appendChild(card);
+
+  var attached = null;
+
+  camBtn.onclick = function () { fileInput.click(); };
+  fileInput.onchange = function (e) {
+    var file = e.target.files[0];
+    if (!file || file.type.indexOf("image/") !== 0) return;
+    var url = URL.createObjectURL(file);
+    var im = new Image();
+    im.onload = function () {
+      attached = im;
+      thumb.src = url;
+      attachName.textContent = "แนบรูปแล้ว — ระบบจะตรวจโรคให้ก่อนส่งให้ AI อธิบาย";
+      attachBar.hidden = false;
+    };
+    im.src = url;
+  };
+  removeBtn.onclick = function () {
+    attached = null;
+    fileInput.value = "";
+    attachBar.hidden = true;
+  };
 
   var logs = await Store.list();
   var context = logs.slice(0, 5).map(function (l) {
@@ -1097,30 +1159,68 @@ pageBuilders.reports = async function (root) {
 
   async function ask() {
     var q = input.value.trim();
-    if (!q) return;
-    var me = el("div", "msg me", q);
-    log.appendChild(me);
+    if (!q && !attached) return;
+
+    var myMsg = el("div", "msg me");
+    if (attached) {
+      var mi = el("img");
+      mi.src = attached.src;
+      mi.style.cssText = "max-width:170px;border-radius:8px;display:block;margin-bottom:6px";
+      myMsg.appendChild(mi);
+    }
+    if (q) myMsg.appendChild(document.createTextNode(q));
+    log.appendChild(myMsg);
+
+    var imgForAI = attached;
     input.value = "";
+    attached = null;
+    fileInput.value = "";
+    attachBar.hidden = true;
     log.scrollTop = log.scrollHeight;
 
-    var thinking = el("div", "msg ai", "กำลังคิด...");
+    var thinking = el("div", "msg ai", imgForAI ? "กำลังตรวจภาพด้วยโมเดล AI..." : "กำลังคิด...");
     log.appendChild(thinking);
     log.scrollTop = log.scrollHeight;
 
     try {
+      var cvContext = "";
+      var payloadImage = null;
+
+      if (imgForAI) {
+        // รันโมเดล CV ในเครื่องก่อน แล้วส่งผลไปเป็นบริบทให้ Gemini
+        // Gemini จะได้อธิบายต่อยอดจากผลตรวจจริง ไม่ใช่เดาจากภาพอย่างเดียว
+        try {
+          var res = await runFullAnalysis(imgForAI);
+          if (!res.isRice) {
+            cvContext = "\n\n[ผลจากโมเดลตรวจภาพ: ภาพนี้ไม่ใช่ใบข้าว หรือภาพไม่ชัดพอให้ตรวจโรค]";
+          } else if (res.topDisease) {
+            cvContext = "\n\n[ผลจากโมเดลตรวจภาพ: เป็นใบข้าว โรคที่ตรวจพบคือ " +
+              th(res.topDisease.label) + " ความมั่นใจ " + Math.round(res.topDisease.value * 100) + "%]";
+          }
+        } catch (e) {
+          cvContext = "\n\n[หมายเหตุ: โมเดลตรวจภาพทำงานไม่สำเร็จ ให้วิเคราะห์จากภาพโดยตรง]";
+        }
+        thinking.textContent = "กำลังให้ AI อธิบายผล...";
+        payloadImage = imageToBase64(imgForAI);
+      }
+
       var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าวและการเกษตรไทย ตอบเป็นภาษาไทยแบบเข้าใจง่าย กระชับ\n\n" +
         (context ? "ข้อมูลแปลงนาล่าสุดของผู้ถาม:\n" + context + "\n\n" : "") +
-        "คำถาม: " + q;
-      var ans = await Store.askGemini(prompt);
+        "คำถาม: " + (q || "ช่วยดูรูปใบข้าวนี้ให้หน่อยว่าเป็นโรคอะไร และควรแก้ไขอย่างไร") +
+        cvContext;
+
+      var ans = await Store.askGemini(prompt, payloadImage);
       thinking.textContent = ans;
     } catch (err) {
       thinking.textContent = "เชื่อมต่อ AI ไม่ได้: " + err.message;
     }
     log.scrollTop = log.scrollHeight;
   }
+
   send.onclick = ask;
   input.onkeydown = function (e) { if (e.key === "Enter") ask(); };
 };
+
 
 pageBuilders.map = async function (root) {
   var logs = await Store.list();
