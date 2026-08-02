@@ -325,6 +325,39 @@
   .tag-no  { font-size: .72rem; padding: 2px 8px; border-radius: 99px; background: var(--tint-bad); color: var(--rust); white-space: nowrap; }
   .tag-wait{ font-size: .72rem; padding: 2px 8px; border-radius: 99px; background: var(--husk); color: var(--ink-faint); white-space: nowrap; border: 1px solid var(--rule); }
 
+  /* ─── หน้าจอเข้าสู่ระบบ ─────────────────────── */
+  .gate {
+    position: fixed; inset: 0; z-index: 100; background: var(--husk);
+    display: flex; align-items: center; justify-content: center; padding: 22px;
+    overflow-y: auto;
+  }
+  .gate-card {
+    width: 100%; max-width: 396px; background: var(--paper);
+    border: 1px solid var(--rule); border-radius: var(--r); padding: 30px 28px;
+  }
+  .gate-mark { display: flex; align-items: center; gap: 9px; font-family: var(--f-display); font-weight: 600; font-size: 1.2rem; color: var(--flood); }
+  .gate-sub { font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint); margin: 5px 0 24px 30px; }
+  .gate-title { font-size: 1.22rem; margin-bottom: 4px; }
+  .gate-note { font-size: .84rem; color: var(--ink-soft); margin-bottom: 20px; }
+  .gate-field { margin-bottom: 14px; }
+  .gate-field label { display: block; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 5px; }
+  .gate-field input {
+    width: 100%; padding: 10px 13px; border: 1px solid var(--rule);
+    border-radius: var(--r); background: var(--paper); color: var(--ink);
+  }
+  .gate-field input:focus { border-color: var(--blade); outline: none; }
+  .gate-hint { font-size: .74rem; color: var(--ink-faint); margin-top: 4px; }
+  .gate-swap { text-align: center; margin-top: 18px; font-size: .84rem; color: var(--ink-soft); }
+  .gate-swap button { background: none; border: none; color: var(--blade); font-weight: 500; text-decoration: underline; padding: 0; font-size: inherit; }
+  .gate-foot { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--rule-soft); font-size: .74rem; color: var(--ink-faint); line-height: 1.55; }
+
+  .rail-out {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 8px 12px; margin-top: 10px; background: none; border: 1px solid rgba(255,255,255,.16);
+    border-radius: var(--r); color: #A8BBAD; font-size: .8rem; justify-content: center;
+  }
+  .rail-out:hover { color: #F2EBDD; border-color: rgba(255,255,255,.3); }
+
   .state { text-align: center; padding: 44px 22px; }  .state-mark { font-size: 1.6rem; margin-bottom: 8px; opacity: .5; }
   .state-lead { font-weight: 500; font-size: .93rem; margin-bottom: 4px; }
   .state-note { font-size: .83rem; color: var(--ink-soft); max-width: 300px; margin: 0 auto; }
@@ -376,6 +409,7 @@
     <div class="rail-foot">
       <div><span class="dot" id="linkDot"></span><span id="linkText">กำลังเชื่อมต่อ</span></div>
       <div style="margin-top:5px"><span class="dot" id="brainDot"></span><span id="brainText">กำลังโหลดโมเดล</span></div>
+      <button class="rail-out" id="signOut">ออกจากระบบ</button>
     </div>
   </aside>
 
@@ -446,11 +480,64 @@ var PAGES = [
   { id: "plots",    label: "แปลงของฉัน",    kicker: "แปลงนา",   icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
   { id: "ledger",   label: "ทะเบียนบันทึก", kicker: "เก็บข้อมูล", icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
   { id: "trend",    label: "แนวโน้ม",       kicker: "วิเคราะห์",  icon: "M5 20V10m7 10V4m7 16v-7" },
+  { id: "weather",  label: "อากาศและความเสี่ยง", kicker: "วิเคราะห์", icon: "M7 17a4 4 0 010-8 5.5 5.5 0 0110.5 1.5A3.5 3.5 0 0117 17zm-1 2l-1 2m4-2l-1 2m4-2l-1 2" },
   { id: "consult",  label: "ปรึกษา AI",     kicker: "วิเคราะห์",  icon: "M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v13a2 2 0 01-2 2z" },
   { id: "map",      label: "แผนที่แปลง",    kicker: "แปลงนา",   icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
   { id: "profile",  label: "ข้อมูลผู้ใช้",   kicker: "ตั้งค่า",   icon: "M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 5v1h14v-1c0-3-3-5-7-5z" },
+  { id: "admin",    label: "ผู้ดูแลระบบ",    kicker: "ตั้งค่า",   adminOnly: true, icon: "M12 3l7 3v6c0 4.4-3 8.2-7 9-4-.8-7-4.6-7-9V6zm0 6v4m0 3h.01" },
   { id: "system",   label: "ระบบ",          kicker: "ตั้งค่า",   icon: "M12 15a3 3 0 100-6 3 3 0 000 6zm8-3a8 8 0 01-.2 1.7l2 1.6-2 3.4-2.4-1a8 8 0 01-2.9 1.7l-.4 2.6h-4l-.4-2.6a8 8 0 01-2.9-1.7l-2.4 1-2-3.4 2-1.6A8 8 0 014 12" }
 ];
+
+// ─── สิทธิ์การเข้าใช้ ───────────────────────────
+// เก็บ token ไว้ใน localStorage เพื่อไม่ต้องล็อกอินซ้ำทุกครั้งที่เปิดเว็บ
+// ข้อจำกัดที่ต้องรู้: ถ้าเว็บถูกเจาะด้วย XSS token ก็หลุดได้
+// เหมาะกับการใช้งานในวงจำกัด ถ้าขยายเป็นสาธารณะควรย้ายไปใช้ auth provider เต็มรูปแบบ
+var Session = {
+  token: localStorage.getItem("smartrice-token") || null,
+  user: null,
+
+  save: function (token, user) {
+    this.token = token;
+    this.user = user;
+    localStorage.setItem("smartrice-token", token);
+  },
+
+  clear: function () {
+    this.token = null;
+    this.user = null;
+    localStorage.removeItem("smartrice-token");
+  },
+
+  headers: function (extra) {
+    var h = extra || {};
+    if (this.token) h["Authorization"] = "Bearer " + this.token;
+    return h;
+  }
+};
+
+// เรียก API พร้อมแนบ token ให้อัตโนมัติ
+// ถ้าเซิร์ฟเวอร์ตอบว่า token ใช้ไม่ได้ จะเด้งกลับหน้าล็อกอินทันที
+// ไม่ปล่อยให้ผู้ใช้เจอหน้าเปล่าโดยไม่รู้สาเหตุ
+async function api(path, options) {
+  options = options || {};
+  var init = {
+    method: options.method || "GET",
+    headers: Session.headers(options.body ? { "Content-Type": "application/json" } : {})
+  };
+  if (options.body) init.body = JSON.stringify(options.body);
+
+  var res = await fetch(API_BASE + path, init);
+  var data = null;
+  try { data = await res.json(); } catch (e) { data = {}; }
+
+  if (res.status === 401 && data.needLogin) {
+    Session.clear();
+    showAuthScreen("หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่");
+    throw new Error("หมดเวลาใช้งาน");
+  }
+  if (!res.ok) throw new Error(data.error || "คำขอไม่สำเร็จ (HTTP " + res.status + ")");
+  return data;
+}
 
 // ─── ชั้นข้อมูล ────────────────────────────────
 // รวมการอ่าน/เขียนไว้ที่เดียว หน้าอื่นเรียกผ่าน Store เท่านั้น
@@ -462,39 +549,43 @@ var Store = {
   async list() {
     if (this._cache) return this._cache;
     try {
-      var res = await fetch(API_BASE + "/field-logs");
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      this._cache = await res.json();
+      this._cache = await api("/field-logs");
       this._offline = false;
     } catch (err) {
-      // เน็ตหลุดหรือ API ล่ม ยังใช้งานต่อได้ด้วยสำเนาในเครื่อง
+      if (/หมดเวลา/.test(err.message)) throw err;
+      // เน็ตหลุดหรือเซิร์ฟเวอร์ล่ม ยังใช้งานต่อได้ด้วยสำเนาในเครื่อง
+      // แยกสำเนาตามชื่อผู้ใช้ ไม่ให้ข้อมูลคนละบัญชีปนกันบนเครื่องเดียว
       this._offline = true;
-      this._cache = JSON.parse(localStorage.getItem("smartrice-logs") || "[]");
+      this._cache = JSON.parse(localStorage.getItem(this._localKey()) || "[]");
     }
     markLink();
     return this._cache;
   },
 
+  _localKey() {
+    return "smartrice-logs:" + (Session.user ? Session.user.username : "guest");
+  },
+
   async add(entry) {
     try {
-      var res = await fetch(API_BASE + "/field-logs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(entry)
-      });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      var saved = await res.json();
+      var saved = await api("/field-logs", { method: "POST", body: entry });
       this._cache = this._cache ? [saved].concat(this._cache) : [saved];
       this._offline = false;
       markLink();
       return saved;
     } catch (err) {
+      if (/หมดเวลา/.test(err.message)) throw err;
       this._offline = true;
+      delete entry.image;   // ไม่เก็บภาพลง localStorage จะเต็มโควตาเบราว์เซอร์เร็วมาก
       entry.id = Date.now().toString(36);
       entry.created_at = new Date().toISOString();
-      var local = JSON.parse(localStorage.getItem("smartrice-logs") || "[]");
+      entry.hasImage = false;
+      entry.verify = null;
+      var local = JSON.parse(localStorage.getItem(this._localKey()) || "[]");
       local.unshift(entry);
-      localStorage.setItem("smartrice-logs", JSON.stringify(local.slice(0, 500)));
+      try {
+        localStorage.setItem(this._localKey(), JSON.stringify(local.slice(0, 200)));
+      } catch (e) { /* พื้นที่เต็ม ข้ามการเก็บสำเนา ผลตรวจยังแสดงบนหน้าจอได้ */ }
       this._cache = this._cache ? [entry].concat(this._cache) : [entry];
       markLink();
       return entry;
@@ -503,19 +594,12 @@ var Store = {
 
   isOffline() { return this._offline; },
 
-  // บันทึกผลยืนยันจากผู้ใช้ว่า AI ทายถูกหรือผิด
-  // ทำงานได้เฉพาะตอนออนไลน์ เพราะต้องแก้ข้อมูลที่เซิร์ฟเวอร์
+  // บันทึกผลยืนยันว่า AI ทายถูกหรือผิด ต้องออนไลน์เพราะแก้ข้อมูลที่เซิร์ฟเวอร์
   async verify(id, correct, actual) {
-    var res = await fetch(API_BASE + "/field-logs/" + id, {
+    var updated = await api("/field-logs/" + id, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ correct: correct, actual: actual || null })
+      body: { correct: correct, actual: actual || null }
     });
-    if (!res.ok) {
-      var msg = await res.json().catch(function () { return {}; });
-      throw new Error(msg.error || "บันทึกผลยืนยันไม่สำเร็จ");
-    }
-    var updated = await res.json();
     if (this._cache) {
       var i = this._cache.findIndex(function (l) { return l.id === id; });
       if (i !== -1) this._cache[i] = updated;
@@ -524,38 +608,42 @@ var Store = {
   },
 
   async remove(id) {
-    var res = await fetch(API_BASE + "/field-logs/" + id, { method: "DELETE" });
-    if (!res.ok) throw new Error("ลบบันทึกไม่สำเร็จ");
+    await api("/field-logs/" + id, { method: "DELETE" });
     if (this._cache) {
       this._cache = this._cache.filter(function (l) { return l.id !== id; });
     }
   },
 
   async imageOf(id) {
-    var res = await fetch(API_BASE + "/images/" + id);
-    if (!res.ok) throw new Error("ไม่พบภาพของบันทึกนี้");
-    return await res.json();
+    return await api("/images/" + id);
   },
 
   async askGemini(prompt, image) {
-    var payload = { prompt: prompt };
-    if (image) payload.image = image;
-    var res = await fetch(API_BASE + "/gemini", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    var data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error || "เรียก AI ไม่สำเร็จ");
-    // Worker เวอร์ชันเก่าไม่ส่ง imageReceived กลับมา ถือว่ารูปไม่ถึง Gemini
+    var body = { prompt: prompt };
+    if (image) body.image = image;
+    var data = await api("/gemini", { method: "POST", body: body });
+    // Worker เวอร์ชันเก่าไม่ส่ง imageReceived กลับมา ถือว่าภาพไม่ถึง Gemini
     return { text: data.text, sawImage: data.imageReceived === true };
   },
 
+  // โปรไฟล์มาจากบัญชีที่ล็อกอิน ไม่ใช่ localStorage แล้ว
+  // ข้อมูลจึงตามผู้ใช้ไปทุกเครื่อง
   profile() {
-    return JSON.parse(localStorage.getItem("smartrice-profile") || '{"name":"เกษตรกร","farm":"","phone":""}');
+    return Session.user || { name: "ผู้ใช้", farm: "", phone: "" };
   },
-  saveProfile(p) { localStorage.setItem("smartrice-profile", JSON.stringify(p)); }
+
+  async saveProfile(p) {
+    var data = await api("/auth/me", { method: "PATCH", body: p });
+    Session.user = data.user;
+    return data.user;
+  },
+
+  reset() {
+    this._cache = null;
+    this._offline = false;
+  }
 };
+
 
 function markLink() {
   var dot = document.getElementById("linkDot"), txt = document.getElementById("linkText");
@@ -931,6 +1019,139 @@ function exportCsv(logs) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// ─── ความเสี่ยงโรคจากสภาพอากาศ ──────────────────
+// โรคข้าวส่วนใหญ่เกิดจากเชื้อรา ซึ่งขับเคลื่อนด้วยความชื้น ฝน และแสงแดด
+// ตารางนี้อิงจากสภาพที่เอื้อต่อการระบาดของแต่ละโรคตามหลักการทั่วไป
+//
+// สำคัญ: ค่านี้เป็นดัชนีบ่งชี้เบื้องต้นเพื่อการเฝ้าระวัง ไม่ใช่การพยากรณ์การระบาด
+// เกณฑ์ตัวเลขยังไม่ได้สอบเทียบกับข้อมูลระบาดจริงในพื้นที่
+// ก่อนใช้อ้างอิงจริงจัง ควรตรวจสอบกับคำแนะนำของกรมการข้าวหรือศูนย์วิจัยข้าว
+var RISK_RULES = [
+  {
+    label: "Blast",
+    thai: "โรคไหม้",
+    why: "เชื้อราชอบอากาศชื้นจัด แดดน้อย และอุณหภูมิไม่ร้อนจัด น้ำค้างเกาะใบนานทำให้สปอร์งอกได้ดี",
+    score: function (w) {
+      var s = 0;
+      if (w.humidity >= 85) s += 40; else if (w.humidity >= 75) s += 22;
+      if (w.sunHours <= 4) s += 25; else if (w.sunHours <= 6) s += 12;
+      if (w.tempMax >= 22 && w.tempMax <= 30) s += 20; else if (w.tempMax <= 33) s += 8;
+      if (w.rain7 >= 40) s += 15; else if (w.rain7 >= 15) s += 8;
+      return s;
+    }
+  },
+  {
+    label: "Sheath blight",
+    thai: "โรคกาบใบแห้ง",
+    why: "ระบาดแรงเมื่อชื้นสูงร่วมกับอากาศร้อน โดยเฉพาะในนาที่ปลูกแน่นและมีน้ำขัง",
+    score: function (w) {
+      var s = 0;
+      if (w.humidity >= 85) s += 38; else if (w.humidity >= 75) s += 20;
+      if (w.tempMax >= 30) s += 30; else if (w.tempMax >= 27) s += 16;
+      if (w.rain7 >= 40) s += 22; else if (w.rain7 >= 15) s += 11;
+      if (w.sunHours <= 5) s += 10;
+      return s;
+    }
+  },
+  {
+    label: "Brown spot",
+    thai: "โรคใบจุดสีน้ำตาล",
+    why: "มักรุนแรงในช่วงที่ต้นข้าวเครียด เช่น ฝนทิ้งช่วงหรือดินขาดธาตุอาหาร ต่างจากโรคอื่นที่ชอบฝนชุก",
+    score: function (w) {
+      var s = 0;
+      if (w.rain7 <= 5) s += 35; else if (w.rain7 <= 20) s += 18;
+      if (w.humidity >= 80) s += 20; else if (w.humidity >= 70) s += 12;
+      if (w.tempMax >= 28) s += 20; else if (w.tempMax >= 24) s += 10;
+      if (w.sunHours >= 8) s += 15;
+      return s;
+    }
+  }
+];
+
+function riskBand(score) {
+  if (score >= 70) return { key: "bad",  word: "สูง" };
+  if (score >= 45) return { key: "warn", word: "ปานกลาง" };
+  return { key: "ok", word: "ต่ำ" };
+}
+
+// ดึงข้อมูลอากาศจาก 2 แหล่งที่วัดคนละวิธี เพื่อให้ตรวจสอบไขว้กันได้
+//
+// WeatherAPI  — ค่าปัจจุบัน อัปเดตทุก 10-15 นาที เป็นแหล่งอ้างอิงหลักของค่าปัจจุบัน
+//               ข้อจำกัด: ข้อมูลย้อนหลังเป็นค่าพยากรณ์ที่เก็บถาวรไว้ ไม่ใช่ค่าที่วัดได้จริง
+// Open-Meteo  — ย้อนหลัง 7 วันและชั่วโมงแสงแดด ซึ่ง WeatherAPI ไม่มีให้
+//
+// ถ้าจะเปลี่ยนไปใช้ API กรมอุตุนิยมวิทยา แก้เฉพาะ 2 ฟังก์ชันนี้
+// (ข้อมูลกรมอุตุฯ มีลิขสิทธิ์ หากเผยแพร่ต้องระบุแหล่งที่มากำกับทุกครั้ง
+//  และตรวจวัดทุก 3 ชั่วโมง ไม่ได้ละเอียดรายชั่วโมง)
+async function fetchLiveWeather(lat, lon) {
+  return await api("/weather?lat=" + lat + "&lon=" + lon);
+}
+
+async function fetchWeather(lat, lon) {
+  var url = "https://api.open-meteo.com/v1/forecast" +
+    "?latitude=" + lat + "&longitude=" + lon +
+    "&daily=precipitation_sum,sunshine_duration,temperature_2m_max,temperature_2m_min" +
+    "&hourly=relative_humidity_2m" +
+    "&past_days=7&forecast_days=7&timezone=Asia%2FBangkok";
+
+  var res = await fetch(url);
+  if (!res.ok) throw new Error("ดึงข้อมูลอากาศไม่สำเร็จ (HTTP " + res.status + ")");
+  var d = await res.json();
+
+  var days = d.daily.time.map(function (date, i) {
+    return {
+      date: date,
+      rain: d.daily.precipitation_sum[i],
+      // Open-Meteo คืนค่าแสงแดดเป็นวินาที แปลงเป็นชั่วโมงให้อ่านง่าย
+      sunHours: d.daily.sunshine_duration[i] != null
+        ? +(d.daily.sunshine_duration[i] / 3600).toFixed(1) : null,
+      tempMax: d.daily.temperature_2m_max[i],
+      tempMin: d.daily.temperature_2m_min[i]
+    };
+  });
+
+  // เฉลี่ยความชื้นรายชั่วโมงให้เป็นรายวัน เพราะ Open-Meteo ไม่ได้ให้ค่ารายวันมาตรง
+  if (d.hourly && d.hourly.relative_humidity_2m) {
+    var byDate = {};
+    d.hourly.time.forEach(function (t, i) {
+      var day = t.slice(0, 10);
+      if (!byDate[day]) byDate[day] = [];
+      var v = d.hourly.relative_humidity_2m[i];
+      if (v != null) byDate[day].push(v);
+    });
+    days.forEach(function (day) {
+      var arr = byDate[day.date];
+      day.humidity = arr && arr.length
+        ? Math.round(arr.reduce(function (a, b) { return a + b; }, 0) / arr.length) : null;
+    });
+  }
+
+  var todayIndex = days.findIndex(function (day) {
+    return day.date === new Date().toISOString().slice(0, 10);
+  });
+  if (todayIndex === -1) todayIndex = 7;
+
+  var past = days.slice(0, todayIndex + 1);
+  var rain7 = past.reduce(function (a, day) { return a + (day.rain || 0); }, 0);
+  var recent = past.slice(-3);
+  var avg = function (key) {
+    var vals = recent.map(function (r) { return r[key]; }).filter(function (v) { return v != null; });
+    return vals.length ? vals.reduce(function (a, b) { return a + b; }, 0) / vals.length : 0;
+  };
+
+  return {
+    days: days,
+    todayIndex: todayIndex,
+    summary: {
+      rain7: +rain7.toFixed(1),
+      humidity: Math.round(avg("humidity")),
+      sunHours: +avg("sunHours").toFixed(1),
+      tempMax: +avg("tempMax").toFixed(1),
+      tempMin: +avg("tempMin").toFixed(1)
+    }
+  };
 }
 
 // ─── ตัวช่วยสร้าง UI ────────────────────────────
@@ -1801,6 +2022,272 @@ views.trend = async function (root) {
   }
 };
 
+views.weather = async function (root) {
+  root.appendChild(bund("สภาพอากาศแปลงนา"));
+
+  var host = el("div");
+  host.appendChild(stateBlock("◌", "กำลังหาตำแหน่งแปลง", "กรุณาอนุญาตให้เว็บเข้าถึงตำแหน่ง"));
+  root.appendChild(host);
+
+  // ใช้พิกัดที่เคยบันทึกไว้ก่อน ถ้าไม่มีค่อยขอตำแหน่งปัจจุบัน
+  // เพราะพิกัดแปลงที่บันทึกไว้ตรงกับที่ต้องการดูมากกว่าตำแหน่งที่ผู้ใช้ยืนอยู่ตอนนี้
+  var logs = await Store.list();
+  var saved = logs.filter(function (l) { return l.gps && l.gps.indexOf(",") !== -1; })[0];
+
+  var coords = null;
+  var source = "";
+  if (saved) {
+    var parts = saved.gps.split(",").map(Number);
+    coords = { lat: parts[0], lon: parts[1] };
+    source = "อ้างอิงพิกัดแปลงที่บันทึกไว้เมื่อ " + saved.date;
+  } else {
+    try {
+      var pos = await new Promise(function (resolve, reject) {
+        if (!navigator.geolocation) return reject(new Error("อุปกรณ์นี้ไม่รองรับการหาตำแหน่ง"));
+        navigator.geolocation.getCurrentPosition(resolve, function () {
+          reject(new Error("ไม่ได้รับอนุญาตให้เข้าถึงตำแหน่ง"));
+        }, { timeout: 12000 });
+      });
+      coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      source = "อ้างอิงตำแหน่งปัจจุบันของอุปกรณ์";
+    } catch (err) {
+      host.innerHTML = "";
+      host.appendChild(stateBlock("!", "ยังดูสภาพอากาศไม่ได้",
+        err.message + " — ทางแก้คือไปที่หน้าบันทึกสำรวจ กดดึงพิกัดปัจจุบันแล้วบันทึกไว้ 1 ครั้ง ระบบจะใช้พิกัดนั้นตลอดไป"));
+      return;
+    }
+  }
+
+  host.innerHTML = "";
+  host.appendChild(stateBlock("◌", "กำลังดึงข้อมูลอากาศ", null));
+
+  var w;
+  try {
+    w = await fetchWeather(coords.lat.toFixed(4), coords.lon.toFixed(4));
+  } catch (err) {
+    host.innerHTML = "";
+    host.appendChild(stateBlock("!", "ดึงข้อมูลอากาศไม่สำเร็จ", err.message + " — ลองรีเฟรชหน้าอีกครั้ง"));
+    return;
+  }
+
+  host.innerHTML = "";
+
+  // ── ค่าปัจจุบันจาก WeatherAPI (อัปเดตทุก 10-15 นาที) ──
+  var liveCard = plot(null);
+  var liveBody = el("div");
+  liveBody.appendChild(stateBlock("◌", "กำลังอ่านค่าปัจจุบัน", null));
+  liveCard.appendChild(liveBody);
+  host.appendChild(liveCard);
+
+  async function paintLive() {
+    try {
+      var live = await fetchLiveWeather(coords.lat.toFixed(4), coords.lon.toFixed(4));
+      liveBody.innerHTML = "";
+
+      var head = el("div");
+      head.style.cssText = "display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px";
+      var t = el("div", "plot-title", "ค่าปัจจุบัน" + (live.location ? " · " + live.location : ""));
+      head.appendChild(t);
+      var stamp = el("span", "read-foot", "อัปเดตล่าสุด " + (live.current.lastUpdated || "-"));
+      head.appendChild(stamp);
+      liveBody.appendChild(head);
+
+      var grid = el("div", "row-3");
+      [
+        ["ฝนวันนี้", live.current.precipMm + " มม.", live.current.condition || ""],
+        ["อุณหภูมิ", live.current.tempC + "°C", "ความชื้น " + live.current.humidity + "%"],
+        ["เมฆปกคลุม", live.current.cloud + "%",
+          live.current.cloud >= 80 ? "ครึ้มมาก แดดน้อย" : live.current.cloud <= 30 ? "ท้องฟ้าโปร่ง" : "มีเมฆบางส่วน"],
+        ["ดัชนี UV", String(live.current.uv), "ตัวชี้วัดความแรงของแสงแดด"]
+      ].forEach(function (c) {
+        var b = el("div");
+        b.appendChild(readOut(c[0], c[1], c[2]));
+        grid.appendChild(b);
+      });
+      liveBody.appendChild(grid);
+
+      var cite = el("p", "",
+        "แหล่งข้อมูล: " + live.source + " · ข้อมูลปัจจุบันอัปเดตทุก 10-15 นาที หน้านี้ดึงค่าใหม่อัตโนมัติทุก 1 ชั่วโมง");
+      cite.style.cssText = "font-size:.76rem;color:var(--ink-faint);margin:12px 0 0";
+      liveBody.appendChild(cite);
+    } catch (err) {
+      liveBody.innerHTML = "";
+      liveBody.appendChild(stateBlock("!", "อ่านค่าปัจจุบันไม่ได้",
+        err.message + " — ข้อมูลย้อนหลังและความเสี่ยงด้านล่างยังใช้งานได้ตามปกติ"));
+    }
+  }
+  paintLive();
+  // อัปเดตค่าปัจจุบันเองทุก 1 ชั่วโมง ไม่ต้องให้ผู้ใช้กดรีเฟรช
+  onPageTimer(paintLive, 60 * 60 * 1000);
+
+  // ── สรุปย้อนหลังจาก Open-Meteo ──
+  root.appendChild(bund("สรุปย้อนหลัง 7 วัน"));
+  var s = w.summary;
+  var stats = el("div", "row-3");
+  var cards = [
+    ["ฝนสะสม 7 วัน", s.rain7 + " มม.", s.rain7 >= 40 ? "ฝนชุก เสี่ยงเชื้อรา" : s.rain7 <= 5 ? "ฝนทิ้งช่วง" : "ปริมาณปานกลาง"],
+    ["แสงแดดเฉลี่ย", s.sunHours + " ชม./วัน", s.sunHours <= 4 ? "แดดน้อย เชื้อราเติบโตดี" : "แดดเพียงพอ"],
+    ["ความชื้นเฉลี่ย", s.humidity + "%", s.humidity >= 85 ? "ชื้นจัด ต้องเฝ้าระวัง" : "อยู่ในเกณฑ์ปกติ"],
+    ["อุณหภูมิสูงสุด", s.tempMax + "°C", "ต่ำสุด " + s.tempMin + "°C"]
+  ];
+  cards.forEach(function (c) {
+    var p = plot();
+    p.appendChild(readOut(c[0], c[1], c[2]));
+    stats.appendChild(p);
+  });
+  root.appendChild(stats);
+
+  var src = el("p", "",
+    source + " · แหล่งข้อมูลย้อนหลังและชั่วโมงแสงแดด: Open-Meteo (ค่าเฉลี่ย 3 วันล่าสุด) " +
+    "ใช้คนละแหล่งกับค่าปัจจุบันด้านบน เพื่อให้ตรวจสอบไขว้กันได้");
+  src.style.cssText = "font-size:.76rem;color:var(--ink-faint);margin:10px 0 0";
+  root.appendChild(src);
+
+  // ความเสี่ยงรายโรค
+  root.appendChild(bund("ความเสี่ยงโรคจากสภาพอากาศ"));
+  var riskCard = plot(null);
+
+  var ranked = RISK_RULES.map(function (r) {
+    var score = Math.min(100, r.score(s));
+    return { rule: r, score: score, band: riskBand(score) };
+  }).sort(function (a, b) { return b.score - a.score; });
+
+  ranked.forEach(function (r) {
+    var row = el("div");
+    row.style.cssText = "padding:14px 0;border-bottom:1px solid var(--rule-soft)";
+
+    var head = el("div");
+    head.style.cssText = "display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap";
+    var nm = el("div", "", r.rule.thai);
+    nm.style.cssText = "font-weight:600;font-size:.95rem";
+    head.appendChild(nm);
+    var tag = el("span", "rx-flag " + (r.band.key === "bad" ? "hi" : r.band.key === "warn" ? "mid" : "lo"),
+      "ความเสี่ยง " + r.band.word);
+    head.appendChild(tag);
+    row.appendChild(head);
+
+    var track = el("div", "bar-track");
+    track.style.margin = "9px 0 7px";
+    var fill = el("div", "bar-fill");
+    fill.style.width = r.score + "%";
+    fill.style.background = r.band.key === "bad" ? "var(--rust)"
+      : r.band.key === "warn" ? "var(--grain)" : "var(--blade)";
+    track.appendChild(fill);
+    row.appendChild(track);
+
+    var why = el("div", "read-foot", r.rule.why);
+    row.appendChild(why);
+
+    // ถ้าเสี่ยงสูงและมีแนวทางในฐานความรู้ ให้ลิงก์ความรู้มาแสดงเลย
+    if (r.band.key !== "ok") {
+      var g = getGuide(r.rule.label);
+      if (g && g.prevention && g.prevention.length) {
+        var tip = el("div", "read-foot", "ป้องกันล่วงหน้า: " + g.prevention[0]);
+        tip.style.marginTop = "5px";
+        tip.style.color = "var(--ink)";
+        row.appendChild(tip);
+      }
+    }
+    riskCard.appendChild(row);
+  });
+
+  var caveat = el("p", "",
+    "ดัชนีนี้ประเมินจากสภาพอากาศเท่านั้น ใช้เพื่อการเฝ้าระวังล่วงหน้า ไม่ใช่การพยากรณ์การระบาด " +
+    "ปัจจัยอื่นที่มีผลมากแต่ยังไม่ได้นำมาคำนวณ ได้แก่ พันธุ์ข้าวที่ปลูก ความหนาแน่นของการปลูก " +
+    "ปริมาณปุ๋ยไนโตรเจน และประวัติการระบาดในพื้นที่ ควรใช้ประกอบการสำรวจแปลงด้วยตาเสมอ");
+  caveat.style.cssText = "font-size:.78rem;color:var(--ink-soft);margin:14px 0 0";
+  riskCard.appendChild(caveat);
+  root.appendChild(riskCard);
+
+  // กราฟย้อนหลังและพยากรณ์
+  root.appendChild(bund("ฝนและแสงแดด ย้อนหลัง 7 วัน และล่วงหน้า 7 วัน"));
+  var chartCard = plot(null);
+  var cv = el("canvas");
+  cv.height = 230;
+  chartCard.appendChild(cv);
+  root.appendChild(chartCard);
+
+  var labels = w.days.map(function (d) { return d.date.slice(5).replace("-", "/"); });
+  new Chart(cv, {
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          type: "bar", label: "ฝน (มม.)",
+          data: w.days.map(function (d) { return d.rain; }),
+          backgroundColor: w.days.map(function (d, i) {
+            return i <= w.todayIndex ? "#4F7A3A" : "#8FB05C";
+          }),
+          borderRadius: 2, yAxisID: "y"
+        },
+        {
+          type: "line", label: "แสงแดด (ชม.)",
+          data: w.days.map(function (d) { return d.sunHours; }),
+          borderColor: "#C79A2E", backgroundColor: "rgba(199,154,46,.1)",
+          tension: .3, pointRadius: 3, borderWidth: 2, yAxisID: "y1"
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: "top", align: "start" },
+        tooltip: { callbacks: {
+          title: function (items) {
+            var i = items[0].dataIndex;
+            return labels[i] + (i > w.todayIndex ? " (พยากรณ์)" : " (ผ่านมาแล้ว)");
+          }
+        }}
+      },
+      scales: {
+        y:  { position: "left", beginAtZero: true, title: { display: true, text: "ฝน (มม.)" },
+              grid: { color: "#E8E1D2" }, ticks: { font: { family: "IBM Plex Mono" } } },
+        y1: { position: "right", beginAtZero: true, max: 14, title: { display: true, text: "แดด (ชม.)" },
+              grid: { display: false }, ticks: { font: { family: "IBM Plex Mono" } } },
+        x:  { grid: { display: false }, ticks: { font: { family: "IBM Plex Mono", size: 10 } } }
+      }
+    }
+  });
+
+  var legend = el("p", "", "แท่งสีเข้มคือข้อมูลที่ผ่านมาแล้ว แท่งสีอ่อนคือค่าพยากรณ์ล่วงหน้า");
+  legend.style.cssText = "font-size:.76rem;color:var(--ink-faint);margin:10px 0 0";
+  chartCard.appendChild(legend);
+
+  // ให้ AI อ่านสภาพอากาศพร้อมบันทึกแปลง แล้วแนะนำสิ่งที่ควรทำสัปดาห์นี้
+  root.appendChild(bund("คำแนะนำจาก AI"));
+  var aiCard = plot();
+  var aiBody = el("div");
+  aiBody.appendChild(stateBlock("◌", "กำลังให้ AI ประเมิน", "ใช้เวลาสักครู่"));
+  aiCard.appendChild(aiBody);
+  root.appendChild(aiCard);
+
+  var forecast = w.days.slice(w.todayIndex + 1);
+  var rainAhead = forecast.reduce(function (a, d) { return a + (d.rain || 0); }, 0).toFixed(1);
+
+  Store.askGemini(
+    "คุณเป็นผู้เชี่ยวชาญโรคข้าวไทย ประเมินสิ่งที่เกษตรกรควรทำในสัปดาห์นี้จากข้อมูลต่อไปนี้\n\n" +
+    "สภาพอากาศแปลง (ค่าเฉลี่ย 3 วันล่าสุด):\n" +
+    "- ฝนสะสม 7 วันที่ผ่านมา " + s.rain7 + " มม.\n" +
+    "- ฝนพยากรณ์อีก 7 วันข้างหน้า " + rainAhead + " มม.\n" +
+    "- แสงแดดเฉลี่ย " + s.sunHours + " ชั่วโมงต่อวัน\n" +
+    "- ความชื้นเฉลี่ย " + s.humidity + "%\n" +
+    "- อุณหภูมิ " + s.tempMin + " ถึง " + s.tempMax + " องศา\n\n" +
+    "ดัชนีความเสี่ยงที่ระบบคำนวณได้: " +
+    ranked.map(function (r) { return r.rule.thai + " " + r.band.word; }).join(", ") + "\n\n" +
+    buildFarmContext(logs) + "\n\n" +
+    "ตอบภาษาไทย 3-4 ประโยค บอกสิ่งที่ควรลงมือทำสัปดาห์นี้อย่างเป็นรูปธรรม ไม่ต้องใส่หัวข้อ " +
+    "ห้ามแต่งชื่อสารเคมีหรืออัตราการใช้ขึ้นเอง"
+  ).then(function (answer) {
+    aiBody.innerHTML = "";
+    var p = el("p", "", answer.text);
+    p.style.cssText = "margin:0;font-size:.89rem";
+    aiBody.appendChild(p);
+  }).catch(function (err) {
+    aiBody.innerHTML = "";
+    aiBody.appendChild(stateBlock("!", "เชื่อมต่อ AI ไม่ได้", err.message));
+  });
+};
+
 views.consult = async function (root) {
   root.appendChild(bund("ปรึกษาผู้เชี่ยวชาญ AI"));
   var card = plot(null);
@@ -1990,10 +2477,18 @@ views.map = async function (root) {
 views.profile = function (root) {
   var p = Store.profile();
   root.appendChild(bund("ข้อมูลผู้ใช้"));
-  var card = plot("โปรไฟล์", "ชื่อนี้จะถูกบันทึกไว้กับทุกรายการสำรวจ");
+  var card = plot("โปรไฟล์", "ข้อมูลนี้เก็บไว้กับบัญชีของคุณ เปิดจากเครื่องไหนก็เห็นเหมือนกัน");
   card.style.maxWidth = "520px";
 
-  var fields = [["ชื่อผู้ใช้", "pfName", p.name], ["ชื่อแปลงนา หรือฟาร์ม", "pfFarm", p.farm], ["เบอร์ติดต่อ", "pfPhone", p.phone]];
+  var acc = el("div");
+  acc.style.cssText = "display:flex;justify-content:space-between;padding:9px 0;margin-bottom:14px;border-bottom:1px solid var(--rule-soft);font-size:.86rem";
+  acc.appendChild(el("span", "", "ชื่อบัญชี"));
+  var accName = el("span", "num", p.username || "—");
+  accName.style.color = "var(--ink-soft)";
+  acc.appendChild(accName);
+  card.appendChild(acc);
+
+  var fields = [["ชื่อที่ใช้แสดง", "pfName", p.name], ["ชื่อแปลงนา หรือฟาร์ม", "pfFarm", p.farm], ["เบอร์ติดต่อ", "pfPhone", p.phone]];
   fields.forEach(function (f) {
     var d = el("div", "inp");
     d.style.marginBottom = "13px";
@@ -2010,17 +2505,146 @@ views.profile = function (root) {
   var msg = el("div");
   card.appendChild(msg);
 
-  save.onclick = function () {
-    Store.saveProfile({
-      name: document.getElementById("pfName").value.trim() || "เกษตรกร",
-      farm: document.getElementById("pfFarm").value.trim(),
-      phone: document.getElementById("pfPhone").value.trim()
-    });
-    paintWho();
+  save.onclick = async function () {
+    save.disabled = true;
+    save.textContent = "กำลังบันทึก";
     msg.innerHTML = "";
-    msg.appendChild(el("div", "flash flash-ok", "บันทึกข้อมูลแล้ว"));
+    try {
+      await Store.saveProfile({
+        name: document.getElementById("pfName").value.trim(),
+        farm: document.getElementById("pfFarm").value.trim(),
+        phone: document.getElementById("pfPhone").value.trim()
+      });
+      paintWho();
+      msg.appendChild(el("div", "flash flash-ok", "บันทึกข้อมูลแล้ว"));
+    } catch (err) {
+      msg.appendChild(el("div", "flash flash-bad", "บันทึกไม่สำเร็จ: " + err.message));
+    } finally {
+      save.disabled = false;
+      save.textContent = "บันทึกข้อมูล";
+    }
   };
   root.appendChild(card);
+};
+
+views.admin = async function (root) {
+  root.appendChild(bund("จัดการผู้ใช้"));
+
+  var card = plot("ผู้ใช้ทั้งหมดในระบบ",
+    "กดออกรหัสรีเซ็ตให้ผู้ใช้ที่ลืมรหัสผ่าน แล้วส่งรหัสให้เขาทางโทรศัพท์หรือ LINE ได้ทันที");
+  var host = el("div");
+  host.appendChild(stateBlock("◌", "กำลังโหลดรายชื่อผู้ใช้", null));
+  card.appendChild(host);
+  root.appendChild(card);
+
+  var data;
+  try {
+    data = await api("/admin/users");
+  } catch (err) {
+    host.innerHTML = "";
+    host.appendChild(stateBlock("!", "โหลดรายชื่อไม่สำเร็จ", err.message));
+    return;
+  }
+
+  host.innerHTML = "";
+  if (!data.users.length) {
+    host.appendChild(stateBlock("◇", "ยังไม่มีผู้ใช้ในระบบ", "รอให้มีคนสมัครบัญชีก่อน"));
+    return;
+  }
+
+  var wrap = el("div");
+  wrap.style.overflowX = "auto";
+  var t = el("table");
+  t.innerHTML = "<thead><tr><th>ชื่อผู้ใช้</th><th>ชื่อที่แสดง</th><th>อีเมล</th><th>เบอร์ติดต่อ</th><th>บันทึก</th><th></th></tr></thead>";
+  var tb = el("tbody");
+
+  data.users.forEach(function (u) {
+    var tr = el("tr");
+
+    var tdUser = el("td", "n");
+    tdUser.textContent = u.username;
+    if (u.isAdmin) {
+      var badge = el("span", "tag-yes", "ผู้ดูแล");
+      badge.style.marginLeft = "7px";
+      tdUser.appendChild(badge);
+    }
+    tr.appendChild(tdUser);
+
+    tr.appendChild(el("td", "", u.name));
+    tr.appendChild(el("td", "n", u.email));
+    tr.appendChild(el("td", "n", u.phone || "—"));
+    tr.appendChild(el("td", "n", String(u.logCount)));
+
+    var tdAct = el("td");
+    var issue = el("button", "act act-line act-sm", "ออกรหัสรีเซ็ต");
+    tdAct.appendChild(issue);
+    tr.appendChild(tdAct);
+    tb.appendChild(tr);
+
+    // แถวผลลัพธ์ แทรกใต้แถวผู้ใช้คนนั้น จะได้รู้ชัดว่ารหัสเป็นของใคร
+    var codeRow = el("tr");
+    codeRow.hidden = true;
+    var codeCell = el("td");
+    codeCell.colSpan = 6;
+    codeCell.style.background = "var(--husk)";
+    codeRow.appendChild(codeCell);
+    tb.appendChild(codeRow);
+
+    issue.onclick = async function () {
+      issue.disabled = true;
+      issue.textContent = "กำลังออกรหัส";
+      codeCell.innerHTML = "";
+      codeRow.hidden = false;
+      try {
+        var r = await api("/admin/reset", { method: "POST", body: { username: u.username } });
+
+        var box = el("div");
+        box.style.cssText = "padding:6px 2px";
+        box.appendChild(el("div", "read-label", "รหัสสำหรับ " + u.name + " (" + u.username + ")"));
+
+        var codeLine = el("div");
+        codeLine.style.cssText = "display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0";
+        var big = el("div", "num", r.code);
+        big.style.cssText = "font-size:1.9rem;letter-spacing:.28em;font-weight:500;color:var(--blade)";
+        codeLine.appendChild(big);
+        var copy = el("button", "act act-line act-sm", "คัดลอกรหัส");
+        copy.onclick = function () {
+          navigator.clipboard.writeText(r.code).then(function () {
+            copy.textContent = "คัดลอกแล้ว";
+            setTimeout(function () { copy.textContent = "คัดลอกรหัส"; }, 1600);
+          }).catch(function () { copy.textContent = "คัดลอกไม่ได้ ให้จดเอง"; });
+        };
+        codeLine.appendChild(copy);
+        box.appendChild(codeLine);
+
+        box.appendChild(el("div", "read-foot",
+          "ใช้ได้ภายใน " + r.expiresInMinutes + " นาที และใช้ได้ครั้งเดียว " +
+          "บอกผู้ใช้ให้ไปที่หน้าเข้าสู่ระบบ กดลืมรหัสผ่าน แล้วเลือก \"ไปกรอกรหัส\" " +
+          "จากนั้นกรอกอีเมล " + r.email + " พร้อมรหัสนี้"));
+
+        box.appendChild(el("div", "flash " + (r.mailed ? "flash-ok" : "flash-bad"),
+          r.mailed
+            ? "ส่งรหัสเข้าอีเมล " + r.email + " ให้อัตโนมัติแล้วด้วย"
+            : "ยังไม่ได้ส่งอีเมล" + (r.mailError ? " (" + r.mailError + ")" : " เพราะยังไม่ได้ตั้งค่าบริการอีเมล") +
+              " กรุณาส่งรหัสด้านบนให้ผู้ใช้ด้วยตนเอง"));
+
+        codeCell.appendChild(box);
+      } catch (err) {
+        codeCell.appendChild(el("div", "flash flash-bad", "ออกรหัสไม่สำเร็จ: " + err.message));
+      } finally {
+        issue.disabled = false;
+        issue.textContent = "ออกรหัสรีเซ็ต";
+      }
+    };
+  });
+
+  t.appendChild(tb);
+  wrap.appendChild(t);
+  host.appendChild(wrap);
+
+  var note = el("p", "", "หน้านี้แสดงเฉพาะบัญชีที่มีสิทธิ์ผู้ดูแลระบบ ผู้ใช้ทั่วไปจะไม่เห็นเมนูนี้และเรียกใช้ไม่ได้แม้พิมพ์ที่อยู่ตรงๆ");
+  note.style.cssText = "font-size:.78rem;color:var(--ink-soft);margin:16px 0 0";
+  host.appendChild(note);
 };
 
 views.system = function (root) {
@@ -2073,10 +2697,17 @@ views.system = function (root) {
 // ─── ตัวสลับหน้า ────────────────────────────────
 var here = "overview";
 
+// เมนูบางหน้าแสดงเฉพาะผู้ดูแลระบบ
+// นี่เป็นแค่การซ่อนเมนู ตัวกันจริงอยู่ที่ Worker ซึ่งตรวจสิทธิ์ทุกคำขอ
+function visiblePages() {
+  var admin = Session.user && Session.user.isAdmin;
+  return PAGES.filter(function (p) { return !p.adminOnly || admin; });
+}
+
 function paintNav() {
   var nav = document.getElementById("railNav");
   nav.innerHTML = "";
-  PAGES.forEach(function (p) {
+  visiblePages().forEach(function (p) {
     var b = el("button", "rail-item" + (p.id === here ? " on" : ""));
     b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + p.icon + '"/></svg>';
     b.appendChild(document.createTextNode(p.label));
@@ -2088,8 +2719,20 @@ function paintNav() {
   });
 }
 
+// ตัวจับเวลาของหน้าปัจจุบัน ต้องล้างทุกครั้งที่เปลี่ยนหน้า
+// ไม่งั้นหน้าที่ปิดไปแล้วยังยิงคำขอเบื้องหลังต่อไปเรื่อยๆ
+var pageTimers = [];
+function onPageTimer(fn, ms) {
+  pageTimers.push(setInterval(fn, ms));
+}
+function clearPageTimers() {
+  pageTimers.forEach(clearInterval);
+  pageTimers = [];
+}
+
 async function open(id) {
   here = id;
+  clearPageTimers();
   var page = PAGES.find(function (p) { return p.id === id; });
   document.getElementById("barTitle").textContent = page.label;
   document.getElementById("barKicker").textContent = page.kicker;
@@ -2107,10 +2750,221 @@ async function open(id) {
   }
 }
 
+// ─── หน้าจอเข้าสู่ระบบ ──────────────────────────
+function showAuthScreen(message) {
+  var existing = document.querySelector(".gate");
+  if (existing) existing.remove();
+
+  // login | register | forgot | reset
+  var mode = "login";
+  var resetEmail = "";   // จำอีเมลไว้ข้ามจากขั้นขอรหัสไปขั้นตั้งรหัสใหม่
+
+  var gate = el("div", "gate");
+  var card = el("div", "gate-card");
+
+  var mark = el("div", "gate-mark");
+  mark.innerHTML = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+    '<path d="M12 21c0-6 0-9 0-11" stroke="#4F7A3A" stroke-width="1.6" stroke-linecap="round"/>' +
+    '<path d="M12 10C12 6 9 3.5 5.5 3c-.4 3.8 2 7 6.5 7z" fill="#8FB05C"/>' +
+    '<path d="M12 13c0-3.6 2.8-6 6-6.4.4 3.5-1.9 6.4-6 6.4z" fill="#4F7A3A"/></svg>';
+  mark.appendChild(document.createTextNode("SmartRice AI"));
+  card.appendChild(mark);
+  card.appendChild(el("div", "gate-sub", "Field diagnostics"));
+
+  var title = el("h2", "gate-title");
+  var note = el("div", "gate-note");
+  card.appendChild(title);
+  card.appendChild(note);
+
+  var alertHost = el("div");
+  card.appendChild(alertHost);
+  if (message) alertHost.appendChild(el("div", "flash flash-bad", message));
+
+  function fieldBox(label, id, type, hint, autocomplete, inputMode) {
+    var d = el("div", "gate-field");
+    d.appendChild(el("label", "", label));
+    var i = el("input");
+    i.id = id;
+    i.type = type || "text";
+    if (autocomplete) i.autocomplete = autocomplete;
+    if (inputMode) i.inputMode = inputMode;
+    d.appendChild(i);
+    if (hint) d.appendChild(el("div", "gate-hint", hint));
+    return d;
+  }
+
+  var nameBox  = fieldBox("ชื่อที่ใช้แสดง", "gaName", "text", "เช่น สมชาย ใจดี", "name");
+  var idBox    = fieldBox("ชื่อผู้ใช้ หรืออีเมล", "gaId", "text", "", "username");
+  var userBox  = fieldBox("ชื่อผู้ใช้", "gaUser", "text", "อังกฤษพิมพ์เล็ก ตัวเลข หรือขีดล่าง 3-20 ตัว", "username");
+  var mailBox  = fieldBox("อีเมล", "gaMail", "email", "ใช้สำหรับกู้คืนรหัสผ่าน ต้องเป็นอีเมลที่เปิดอ่านได้จริง", "email");
+  var passBox  = fieldBox("รหัสผ่าน", "gaPass", "password", "อย่างน้อย 8 ตัวอักษร", "current-password");
+  var codeBox  = fieldBox("รหัส 6 หลักจากอีเมล", "gaCode", "text", "ตรวจโฟลเดอร์สแปมด้วยถ้าไม่เห็นในกล่องหลัก", "one-time-code", "numeric");
+  var newPass  = fieldBox("รหัสผ่านใหม่", "gaNew", "password", "อย่างน้อย 8 ตัวอักษร", "new-password");
+
+  [nameBox, idBox, userBox, mailBox, passBox, codeBox, newPass].forEach(function (b) { card.appendChild(b); });
+
+  var go = el("button", "act act-go act-wide");
+  go.style.marginTop = "6px";
+  card.appendChild(go);
+
+  var linkRow = el("div", "gate-swap");
+  card.appendChild(linkRow);
+
+  card.appendChild(el("div", "gate-foot",
+    "ภาพถ่ายทั้งหมดประมวลผลในเบราว์เซอร์ของคุณเอง ไม่ถูกส่งขึ้นเซิร์ฟเวอร์ " +
+    "ส่วนบันทึกสำรวจจะเก็บไว้ในบัญชีของคุณเพื่อให้เปิดดูข้ามเครื่องได้"));
+
+  function linkTo(label, target) {
+    var b = el("button", "", label);
+    b.onclick = function () { mode = target; paint(); };
+    return b;
+  }
+
+  var LABELS = {
+    login:    "เข้าสู่ระบบ",
+    register: "สร้างบัญชี",
+    forgot:   "ส่งรหัสไปที่อีเมล",
+    reset:    "ตั้งรหัสผ่านใหม่"
+  };
+
+  function paint() {
+    alertHost.innerHTML = "";
+    linkRow.innerHTML = "";
+
+    var show = {
+      login:    { idBox: 1, passBox: 1 },
+      register: { nameBox: 1, userBox: 1, mailBox: 1, passBox: 1 },
+      forgot:   { mailBox: 1 },
+      reset:    { mailBox: 1, codeBox: 1, newPass: 1 }
+    }[mode];
+
+    var boxes = { nameBox: nameBox, idBox: idBox, userBox: userBox,
+                  mailBox: mailBox, passBox: passBox, codeBox: codeBox, newPass: newPass };
+    Object.keys(boxes).forEach(function (k) { boxes[k].hidden = !show[k]; });
+
+    if (mode === "login") {
+      title.textContent = "เข้าสู่ระบบ";
+      note.textContent = "กรอกชื่อผู้ใช้หรืออีเมล พร้อมรหัสผ่าน เพื่อเปิดบันทึกแปลงของคุณ";
+      document.getElementById("gaPass").autocomplete = "current-password";
+      linkRow.appendChild(document.createTextNode("ยังไม่มีบัญชี "));
+      linkRow.appendChild(linkTo("สร้างบัญชีใหม่", "register"));
+      linkRow.appendChild(el("div", "", ""));
+      var fb = linkTo("ลืมรหัสผ่าน", "forgot");
+      fb.style.marginTop = "6px";
+      linkRow.appendChild(fb);
+    } else if (mode === "register") {
+      title.textContent = "สร้างบัญชีใหม่";
+      note.textContent = "บัญชีนี้ใช้เก็บบันทึกแปลงของคุณโดยเฉพาะ ผู้ใช้คนอื่นจะไม่เห็นข้อมูลของคุณ";
+      document.getElementById("gaPass").autocomplete = "new-password";
+      linkRow.appendChild(document.createTextNode("มีบัญชีอยู่แล้ว "));
+      linkRow.appendChild(linkTo("เข้าสู่ระบบ", "login"));
+    } else if (mode === "forgot") {
+      title.textContent = "ลืมรหัสผ่าน";
+      note.textContent = "กรอกอีเมลที่ใช้สมัคร ระบบจะส่งรหัส 6 หลักไปให้เพื่อตั้งรหัสผ่านใหม่";
+      linkRow.appendChild(document.createTextNode("ได้รหัสแล้ว "));
+      linkRow.appendChild(linkTo("ไปกรอกรหัส", "reset"));
+      linkRow.appendChild(el("div", "", ""));
+      var bk = linkTo("กลับไปเข้าสู่ระบบ", "login");
+      bk.style.marginTop = "6px";
+      linkRow.appendChild(bk);
+    } else {
+      title.textContent = "ตั้งรหัสผ่านใหม่";
+      note.textContent = "กรอกรหัส 6 หลักที่ได้รับทางอีเมล พร้อมรหัสผ่านใหม่ที่ต้องการ";
+      if (resetEmail) document.getElementById("gaMail").value = resetEmail;
+      linkRow.appendChild(document.createTextNode("ยังไม่ได้รับรหัส "));
+      linkRow.appendChild(linkTo("ขอรหัสใหม่", "forgot"));
+    }
+
+    go.textContent = LABELS[mode];
+    go.disabled = false;
+  }
+
+  async function callAuth(path, body) {
+    var res = await fetch(API_BASE + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.error || "ดำเนินการไม่สำเร็จ");
+    return data;
+  }
+
+  function enterApp(data) {
+    Session.save(data.token, data.user);
+    Store.reset();
+    gate.remove();
+    startApp();
+  }
+
+  async function submit() {
+    var val = function (id) { return (document.getElementById(id).value || "").trim(); };
+    alertHost.innerHTML = "";
+    go.disabled = true;
+    go.textContent = "กำลังดำเนินการ";
+
+    try {
+      if (mode === "login") {
+        if (!val("gaId") || !document.getElementById("gaPass").value) {
+          throw new Error("กรุณากรอกให้ครบทั้งสองช่อง");
+        }
+        enterApp(await callAuth("/auth/login", {
+          username: val("gaId"),
+          password: document.getElementById("gaPass").value
+        }));
+
+      } else if (mode === "register") {
+        enterApp(await callAuth("/auth/register", {
+          username: val("gaUser").toLowerCase(),
+          email: val("gaMail").toLowerCase(),
+          password: document.getElementById("gaPass").value,
+          name: val("gaName")
+        }));
+
+      } else if (mode === "forgot") {
+        if (!val("gaMail")) throw new Error("กรุณากรอกอีเมล");
+        var r = await callAuth("/auth/forgot", { email: val("gaMail").toLowerCase() });
+        resetEmail = val("gaMail").toLowerCase();
+        mode = "reset";
+        paint();
+        // แยกข้อความชัดเจนระหว่างส่งอีเมลได้กับส่งไม่ได้
+        // ถ้าส่งไม่ได้ต้องบอกทางออกทันที ไม่ปล่อยให้นั่งรอรหัสที่ไม่มีวันมา
+        alertHost.appendChild(el("div",
+          "flash " + (r.emailSent === false ? "flash-bad" : "flash-ok"),
+          r.message || "ส่งรหัสไปที่อีเมลแล้ว"));
+        document.getElementById("gaCode").focus();
+
+      } else {
+        enterApp(await callAuth("/auth/reset", {
+          email: val("gaMail").toLowerCase(),
+          code: val("gaCode"),
+          password: document.getElementById("gaNew").value
+        }));
+      }
+    } catch (err) {
+      alertHost.appendChild(el("div", "flash flash-bad", err.message));
+      go.disabled = false;
+      go.textContent = LABELS[mode];
+    }
+  }
+
+  go.onclick = submit;
+  card.querySelectorAll("input").forEach(function (i) {
+    i.onkeydown = function (e) { if (e.key === "Enter") submit(); };
+  });
+
+  gate.appendChild(card);
+  document.body.appendChild(gate);
+  paint();
+  document.getElementById("gaId").focus();
+}
+
+
+// ─── เริ่มระบบ ─────────────────────────────────
 function paintWho() {
   var p = Store.profile();
   document.getElementById("whoName").textContent = p.name;
-  document.getElementById("whoBadge").textContent = (p.name || "ก").charAt(0);
+  document.getElementById("whoBadge").textContent = (p.name || "ผ").charAt(0);
 }
 
 document.getElementById("railToggle").onclick = function () {
@@ -2119,10 +2973,35 @@ document.getElementById("railToggle").onclick = function () {
 document.getElementById("seekInput").oninput = function () {
   if (here === "ledger") open("ledger");
 };
+document.getElementById("signOut").onclick = async function () {
+  if (!confirm("ออกจากระบบตอนนี้ ยืนยันหรือไม่")) return;
+  try { await api("/auth/logout", { method: "POST" }); } catch (e) { /* ออกจากระบบฝั่งเครื่องได้อยู่ดี */ }
+  Session.clear();
+  Store.reset();
+  showAuthScreen(null);
+};
 
-paintWho();
-markBrain();
-open("overview");
+function startApp() {
+  paintWho();
+  markBrain();
+  open("overview");
+}
+
+// ตรวจ token ที่เก็บไว้ก่อน ถ้ายังใช้ได้ก็เข้าแอปเลย ไม่ต้องล็อกอินซ้ำ
+(async function boot() {
+  if (!Session.token) { showAuthScreen(null); return; }
+  try {
+    var data = await api("/auth/me");
+    Session.user = data.user;
+    startApp();
+  } catch (err) {
+    // token หมดอายุหรือใช้ไม่ได้ ฟังก์ชัน api จะเรียกหน้าล็อกอินให้เองแล้ว
+    // ที่เหลือคือกรณีเน็ตล่มตั้งแต่เปิดเว็บ ต้องบอกให้ชัดว่าเกิดอะไร
+    if (!document.querySelector(".gate")) {
+      showAuthScreen("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: " + err.message);
+    }
+  }
+})();
 
 })();
 </script>
