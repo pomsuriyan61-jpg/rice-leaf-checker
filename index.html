@@ -889,7 +889,7 @@ var PAGES = [
   { id: "survey",   label: "บันทึกสำรวจ",   kicker: "เก็บข้อมูล", icon: "M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zm2 5h4m-4 4h4m-4 4h2" },
   { id: "soil",     label: "เตรียมดิน",      kicker: "ก่อนปลูก",  icon: "M3 17h18M5 17V9m5 8V6m5 11v-7m5 7v-4" },
   { id: "fert",     label: "ปุ๋ยอินทรีย์",   kicker: "ก่อนปลูก",  icon: "M12 21c-4-3-6-6-6-9a6 6 0 0112 0c0 3-2 6-6 9zm0-12v3m-2-1h4" },
-  { id: "plots",    label: "แปลงของฉัน",    kicker: "แปลงนา",   icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
+  { id: "plots",    label: "โรคที่พบ",       kicker: "ตรวจโรค",  icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
   { id: "ledger",   label: "ทะเบียนบันทึก", kicker: "เก็บข้อมูล", icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
   { id: "weather",  label: "อากาศและความเสี่ยง", kicker: "วิเคราะห์", icon: "M7 17a4 4 0 010-8 5.5 5.5 0 0110.5 1.5A3.5 3.5 0 0117 17zm-1 2l-1 2m4-2l-1 2m4-2l-1 2" },
   { id: "consult",  label: "ปรึกษา AI",     kicker: "วิเคราะห์",  icon: "M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v13a2 2 0 01-2 2z" },
@@ -2815,11 +2815,11 @@ views.fert = async function (root) {
 
 views.plots = async function (root) {
   var logs = await Store.list();
-  root.appendChild(bund("แปลงที่บันทึกไว้"));
+  root.appendChild(bund("โรคที่พบจากการตรวจทั้งหมด"));
   var card = plot();
   if (!logs.length) {
-    card.appendChild(stateBlock("◇", "ยังไม่มีแปลงในระบบ",
-      "เริ่มจากหน้าวินิจฉัยใบข้าว หรือบันทึกสำรวจ แล้วรายการจะขึ้นที่นี่"));
+    card.appendChild(stateBlock("◇", "ยังไม่พบโรคในระบบ",
+      "เริ่มจากหน้าวินิจฉัยใบข้าว หรือบันทึกสำรวจ แล้วรายการโรคที่ตรวจพบจะขึ้นที่นี่"));
   } else {
     logs.forEach(function (l) {
       var item = el("div", "stack-item");
@@ -3613,7 +3613,7 @@ views.admin = async function (root) {
   var wrap = el("div");
   wrap.style.overflowX = "auto";
   var t = el("table");
-  t.innerHTML = "<thead><tr><th>ชื่อผู้ใช้</th><th>ชื่อที่แสดง</th><th>อีเมล</th><th>เบอร์ติดต่อ</th><th>บันทึก</th><th></th></tr></thead>";
+  t.innerHTML = "<thead><tr><th>ชื่อผู้ใช้</th><th>ชื่อที่แสดง</th><th>อีเมล</th><th>บันทึก</th><th>สถานะ</th><th>จัดการ</th></tr></thead>";
   var tb = el("tbody");
 
   data.users.forEach(function (u) {
@@ -3630,12 +3630,32 @@ views.admin = async function (root) {
 
     tr.appendChild(el("td", "", u.name));
     tr.appendChild(el("td", "n", u.email));
-    tr.appendChild(el("td", "n", u.phone || "—"));
     tr.appendChild(el("td", "n", String(u.logCount)));
 
+    // สถานะบัญชี ต้องเห็นได้ทันทีว่าใครถูกระงับอยู่
+    var tdState = el("td");
+    tdState.appendChild(el("span", u.blocked ? "tag-no" : "tag-yes",
+      u.blocked ? "ถูกระงับ" : "ใช้งานได้"));
+    tr.appendChild(tdState);
+
     var tdAct = el("td");
+    tdAct.style.whiteSpace = "nowrap";
     var issue = el("button", "act act-line act-sm", "ออกรหัสรีเซ็ต");
     tdAct.appendChild(issue);
+
+    // ผู้ดูแลระบบทั้งของตัวเองและคนอื่น ห้ามระงับหรือลบผ่านหน้านี้
+    // ตัวกันจริงอยู่ที่ Worker ส่วนตรงนี้แค่ซ่อนปุ่มไม่ให้กดพลาด
+    var isSelf = Session.user && Session.user.username === u.username;
+    var blockBtn = null, delBtn = null;
+    if (!u.isAdmin && !isSelf) {
+      blockBtn = el("button", "act act-line act-sm", u.blocked ? "ปลดระงับ" : "ระงับการใช้งาน");
+      blockBtn.style.marginLeft = "7px";
+      tdAct.appendChild(blockBtn);
+
+      delBtn = el("button", "act act-line act-sm", "ลบบัญชี");
+      delBtn.style.cssText = "margin-left:7px;border-color:var(--rust);color:var(--rust)";
+      tdAct.appendChild(delBtn);
+    }
     tr.appendChild(tdAct);
     tb.appendChild(tr);
 
@@ -3643,7 +3663,7 @@ views.admin = async function (root) {
     var codeRow = el("tr");
     codeRow.hidden = true;
     var codeCell = el("td");
-    codeCell.colSpan = 6;
+    codeCell.colSpan = 6;  // เท่ากับจำนวนคอลัมน์ในตาราง
     codeCell.style.background = "var(--canopy)";
     codeRow.appendChild(codeCell);
     tb.appendChild(codeRow);
@@ -3694,13 +3714,83 @@ views.admin = async function (root) {
         issue.textContent = "ออกรหัสรีเซ็ต";
       }
     };
+
+    // ── ระงับ / ปลดระงับ ──
+    // เลือกให้ระงับเป็นการกระทำที่ย้อนกลับได้ ต่างจากการลบ
+    // จึงยืนยันแค่ครั้งเดียวแบบธรรมดา ไม่ต้องพิมพ์ชื่อซ้ำ
+    if (blockBtn) {
+      blockBtn.onclick = async function () {
+        var toBlock = !u.blocked;
+        var q = toBlock
+          ? "ระงับการใช้งานของ " + u.name + " (" + u.username + ")\n\n" +
+            "ผู้ใช้จะเข้าระบบไม่ได้ทันที แต่ข้อมูลทั้งหมดยังอยู่ครบและปลดระงับคืนได้ทุกเมื่อ"
+          : "ปลดระงับ " + u.name + " ให้กลับมาใช้งานได้ตามปกติ";
+        if (!confirm(q)) return;
+
+        blockBtn.disabled = true;
+        blockBtn.textContent = "กำลังดำเนินการ";
+        codeCell.innerHTML = "";
+        codeRow.hidden = false;
+        try {
+          var r = await api("/admin/block", { method: "POST", body: { username: u.username, blocked: toBlock } });
+          codeCell.appendChild(el("div", "flash flash-ok", r.message));
+          u.blocked = r.blocked;
+          blockBtn.textContent = u.blocked ? "ปลดระงับ" : "ระงับการใช้งาน";
+          tdState.innerHTML = "";
+          tdState.appendChild(el("span", u.blocked ? "tag-no" : "tag-yes", u.blocked ? "ถูกระงับ" : "ใช้งานได้"));
+        } catch (err) {
+          codeCell.appendChild(el("div", "flash flash-bad", "ดำเนินการไม่สำเร็จ: " + err.message));
+          blockBtn.textContent = u.blocked ? "ปลดระงับ" : "ระงับการใช้งาน";
+        } finally {
+          blockBtn.disabled = false;
+        }
+      };
+    }
+
+    // ── ลบบัญชี ──
+    // การลบย้อนกลับไม่ได้และไม่มีถังขยะ จึงบังคับให้พิมพ์ชื่อผู้ใช้ยืนยัน
+    // การกด "ตกลง" อย่างเดียวกดพลาดได้ง่ายเกินไปสำหรับการกระทำระดับนี้
+    if (delBtn) {
+      delBtn.onclick = async function () {
+        var typed = prompt(
+          "ลบบัญชี " + u.name + " (" + u.username + ") ออกจากระบบถาวร\n\n" +
+          "จะลบบันทึกทั้งหมด " + u.logCount + " รายการและภาพทั้งหมดไปด้วย กู้คืนไม่ได้\n" +
+          "ถ้าแค่ต้องการห้ามเข้าใช้งานชั่วคราว ให้กดปุ่มระงับการใช้งานแทน\n\n" +
+          "พิมพ์ชื่อผู้ใช้ \"" + u.username + "\" เพื่อยืนยัน");
+        if (typed === null) return;
+        if (typed.trim().toLowerCase() !== u.username) {
+          alert("ชื่อผู้ใช้ที่พิมพ์ไม่ตรง ยกเลิกการลบแล้ว");
+          return;
+        }
+
+        delBtn.disabled = true;
+        delBtn.textContent = "กำลังลบ";
+        codeCell.innerHTML = "";
+        codeRow.hidden = false;
+        try {
+          var r = await api("/admin/delete", {
+            method: "POST",
+            body: { username: u.username, confirm: typed.trim().toLowerCase() }
+          });
+          // ลบแถวออกจากตารางเลย เพื่อไม่ให้เผลอกดปุ่มอื่นกับบัญชีที่ไม่มีอยู่แล้ว
+          tr.remove();
+          codeRow.hidden = false;
+          codeCell.innerHTML = "";
+          codeCell.appendChild(el("div", "flash flash-ok", r.message));
+        } catch (err) {
+          codeCell.appendChild(el("div", "flash flash-bad", "ลบไม่สำเร็จ: " + err.message));
+          delBtn.disabled = false;
+          delBtn.textContent = "ลบบัญชี";
+        }
+      };
+    }
   });
 
   t.appendChild(tb);
   wrap.appendChild(t);
   host.appendChild(wrap);
 
-  var note = el("p", "", "หน้านี้แสดงเฉพาะบัญชีที่มีสิทธิ์ผู้ดูแลระบบ ผู้ใช้ทั่วไปจะไม่เห็นเมนูนี้และเรียกใช้ไม่ได้แม้พิมพ์ที่อยู่ตรงๆ");
+  var note = el("p", "", "หน้านี้แสดงเฉพาะบัญชีที่มีสิทธิ์ผู้ดูแลระบบ ผู้ใช้ทั่วไปจะไม่เห็นเมนูนี้และเรียกใช้ไม่ได้แม้พิมพ์ที่อยู่ตรงๆ · การระงับย้อนกลับได้ทุกเมื่อและข้อมูลยังอยู่ครบ ส่วนการลบบัญชีจะลบบันทึกและภาพทั้งหมดถาวร กู้คืนไม่ได้ จึงควรใช้การระงับก่อนเสมอเมื่อยังไม่แน่ใจ · บัญชีผู้ดูแลระบบและบัญชีของตัวเองจะไม่มีปุ่มระงับและลบ");
   note.style.cssText = "font-size:.78rem;color:var(--ink-soft);margin:16px 0 0";
   host.appendChild(note);
 };
