@@ -946,6 +946,36 @@ async function api(path, options) {
   return data;
 }
 
+// แปลงข้อความผิดพลาดให้ผู้ใช้อ่านรู้เรื่อง
+//
+// ทำไมต้องมีทั้งที่ Worker ส่งข้อความไทยมาให้แล้ว: หน้าเว็บกับ Worker
+// อัปเดตคนละเวลา ถ้าผู้ใช้เปิดเว็บใหม่แต่ Worker ยังเป็นเวอร์ชันเก่า
+// จะได้ JSON ดิบจาก Google โผล่เต็มหน้าจอเหมือนเดิม ตัวนี้เป็นตาข่ายรองรับชั้นสุดท้าย
+//
+// หลักการ: ถ้าเจอร่องรอยของข้อความดิบจากระบบ ให้แทนที่ด้วยคำอธิบายที่ทำอะไรต่อได้
+// ไม่ใช่แค่ตัดให้สั้นลง เพราะข้อความสั้นที่อ่านไม่รู้เรื่องก็ยังไร้ประโยชน์เท่าเดิม
+function friendlyError(msg) {
+  var raw = String(msg || "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ");
+
+  // limit: 0 คือบัญชีไม่ได้รับโควตาตั้งแต่ต้น คนละเรื่องกับใช้จนหมด
+  if (/limit:\s*0\b/.test(raw)) {
+    return "บัญชี AI ที่ตั้งค่าไว้ยังไม่ได้รับโควตาใช้งาน กรุณาแจ้งผู้ดูแลระบบให้ตรวจสอบคีย์ " +
+           "ระหว่างนี้การตรวจโรคจากภาพยังใช้ได้ตามปกติ เพราะทำงานในเครื่องของคุณเอง";
+  }
+  if (/429|RESOURCE_EXHAUSTED|quota/i.test(raw)) {
+    var m = /retry in ([\d.]+)s/i.exec(raw);
+    return "ตอนนี้มีผู้ใช้ AI พร้อมกันจำนวนมาก" +
+           (m ? " กรุณาลองใหม่ในอีกประมาณ " + Math.ceil(parseFloat(m[1])) + " วินาที" : " กรุณาลองใหม่ในอีกสักครู่") +
+           " ส่วนการตรวจโรคจากภาพยังใช้ได้ตามปกติ";
+  }
+  // JSON ดิบหรือข้อความยาวผิดปกติ = ข้อความสำหรับนักพัฒนา ไม่ใช่สำหรับผู้ใช้
+  if (raw.indexOf("{") !== -1 || raw.length > 180) {
+    console.warn("[AI] ข้อความผิดพลาดดิบ:", raw);
+    return "ตอนนี้เชื่อมต่อบริการ AI ไม่ได้ กรุณาลองใหม่อีกครั้ง ถ้ายังไม่ได้ให้แจ้งผู้ดูแลระบบ";
+  }
+  return raw;
+}
+
 // ─── ชั้นข้อมูล ────────────────────────────────
 // รวมการอ่าน/เขียนไว้ที่เดียว หน้าอื่นเรียกผ่าน Store เท่านั้น
 // ย้ายไป backend อื่นภายหลังแก้แค่ในนี้ ไม่ต้องแตะโค้ดหน้าเว็บ
@@ -1940,7 +1970,7 @@ views.overview = async function (root) {
       aiBody.appendChild(p);
     }).catch(function (e) {
       aiBody.innerHTML = "";
-      aiBody.appendChild(stateBlock("!", "เชื่อมต่อ AI ไม่ได้", e.message + " — ลองรีเฟรชหน้าอีกครั้ง"));
+      aiBody.appendChild(stateBlock("!", "ยังให้ AI สรุปไม่ได้", friendlyError(e.message)));
     });
   }
 
@@ -2716,7 +2746,7 @@ views.weather = async function (root) {
     aiBody.appendChild(p);
   }).catch(function (err) {
     aiBody.innerHTML = "";
-    aiBody.appendChild(stateBlock("!", "เชื่อมต่อ AI ไม่ได้", err.message));
+    aiBody.appendChild(stateBlock("!", "ยังให้ AI ประเมินไม่ได้", friendlyError(err.message)));
   });
 };
 
@@ -2901,7 +2931,7 @@ views.consult = async function (root) {
         talk.appendChild(warn);
       }
     } catch (err) {
-      reply.textContent = "เชื่อมต่อ AI ไม่ได้: " + err.message;
+      reply.textContent = friendlyError(err.message);
     }
     talk.scrollTop = talk.scrollHeight;
   }
