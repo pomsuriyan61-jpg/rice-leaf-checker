@@ -10,31 +10,50 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root {
-    /* จานสีดึงจากนาข้าวจริง ไม่ใช่เขียว UI ทั่วไป */
-    --flood:    #14352C;  /* น้ำขังในนายามเย็น */
-    --flood-up: #1E4A3C;  /* ผิวน้ำสะท้อนแสง */
-    --blade:    #4F7A3A;  /* ใบข้าวเขียวสมบูรณ์ */
-    --sprout:   #8FB05C;  /* ต้นกล้าอ่อน */
-    --grain:    #C79A2E;  /* รวงข้าวสุก */
-    --rust:     #A4462E;  /* สีแผลโรคบนใบข้าว */
-    --husk:     #F2EBDD;  /* เปลือกข้าว พื้นหลังหน้า */
-    --paper:    #FBF8F1;  /* ข้าวสาร พื้นการ์ด */
-    --ink:      #21281F;
-    --ink-soft: #5E6B58;
-    --ink-faint:#8A9484;
-    --rule:     #DCD3C0;  /* เส้นคันนา */
-    --rule-soft:#E8E1D2;
+    /* ══ จานสี "นาข้าวยามหัวค่ำ" ══
+       ตั้งใจไม่ใช้เทาดำแบบ dark mode สำเร็จรูป เพราะพื้นเทากลางๆ
+       ทำให้ภาพใบข้าวที่ผู้ใช้อัปโหลดดูซีดและเพี้ยนจากสีจริง
+       พื้นหลังจึงอมเขียวน้ำเงินเข้ม เหมือนมองนาตอนพระอาทิตย์เพิ่งตก
+       ทำให้ภาพใบไม้สีเขียวลอยเด่นขึ้นมาแทนที่จะจมไปกับพื้น */
+    --night:    #050D09;  /* ท้องฟ้าเหนือนา — พื้นหลังหน้า */
+    --canopy:   #071410;  /* แถบเมนูซ้าย เข้มกว่าพื้นนิดเดียว */
+    --flood:    #0C1F17;  /* น้ำขังในนา — พื้นการ์ด */
+    --flood-up: #122C20;  /* ผิวน้ำสะท้อนแสง — การ์ดตอน hover */
 
-    --tint-ok:   #EDF2E2;
-    --tint-warn: #FAF0D9;
-    --tint-bad:  #F7E7E1;
+    /* สีสถานะ ใช้ความหมายเดียวกันทั้งระบบ ห้ามสลับ
+       เขียว = ปกติ | ทอง = เฝ้าระวัง | แดงอิฐ = ต้องจัดการ | ฟ้า = ข้อมูลกลาง */
+    --blade:    #3F8F58;  /* ใบข้าวเขียวสมบูรณ์ */
+    --sprout:   #74D98D;  /* ต้นกล้าอ่อน — สีเน้นหลักของระบบ */
+    --grain:    #E8BE55;  /* รวงข้าวสุก — เฝ้าระวัง */
+    --rust:     #E36B4E;  /* สีแผลโรคบนใบ — อันตราย */
+    --water:    #5CBFDC;  /* น้ำสะท้อนฟ้า — ข้อมูลกลาง */
+
+    --husk:     var(--night);  /* ชื่อเดิม คงไว้ให้กฎ CSS ชุดเก่าใช้ต่อได้ */
+    --paper:    var(--flood);
+
+    --ink:      #E8F2EA;
+    --ink-soft: #A0B8A7;
+    --ink-faint:#6E8779;
+
+    /* เส้นขอบใช้สีเขียวโปร่งแทนเทา เพื่อให้ขอบการ์ดเรืองอ่อนๆ
+       กลืนกับพื้นได้ทุกระดับความสว่าง ไม่เป็นกรอบแข็งทื่อ */
+    --rule:     rgba(116,217,141,.16);
+    --rule-soft:rgba(116,217,141,.08);
+
+    --tint-ok:   rgba(116,217,141,.13);
+    --tint-warn: rgba(232,190,85,.14);
+    --tint-bad:  rgba(227,107,78,.15);
 
     --f-display: 'Trirong', serif;
     --f-body: 'IBM Plex Sans Thai', sans-serif;
     --f-data: 'IBM Plex Mono', monospace;
 
-    --r: 3px;          /* มุมคม ให้ความรู้สึกเครื่องมือวัด */
-    --rail-w: 216px;
+    --r: 16px;         /* มุมมนขึ้นให้เข้ากับผิวกระจก */
+    --r-sm: 11px;
+    --rail-w: 236px;
+
+    /* เงาบนพื้นเข้มต้องเป็น "แสงขอบบน" ไม่ใช่เงาดำ ไม่งั้นมองไม่เห็นความลึก */
+    --lift: inset 0 1px 0 rgba(255,255,255,.05), 0 14px 38px rgba(0,0,0,.45);
   }
 
   * { box-sizing: border-box; }
@@ -416,6 +435,304 @@
     .gauge-wrap { flex-direction: column; }
     .gauge { width: 100%; min-height: 118px; }
   }
+
+  /* ══════════════════════════════════════════════════════════
+     ชั้นตกแต่ง — ธีม "นายามหัวค่ำ"
+     เขียนทับกฎเดิมโดยไม่แตะโครงสร้าง คลาสทั้งหมดของหน้าอื่นยังใช้ได้เหมือนเดิม
+     ══════════════════════════════════════════════════════════ */
+
+  /* ── ฉากหลัง: แสงสุดท้ายของวันตกกระทบผิวน้ำในนา ──
+     ใช้ gradient ซ้อนกันแทนภาพถ่าย เพราะภาพถ่ายจะทำให้หน้าเว็บหนักขึ้นหลาย MB
+     ซึ่งขัดกับสถานการณ์ใช้งานจริงคือเกษตรกรเปิดกลางนาด้วยสัญญาณอ่อน
+     จุดนี้คือ signature ของงาน มีที่เดียว ที่เหลือปล่อยให้เรียบ */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background:
+      radial-gradient(1100px 620px at 78% -8%,  rgba(232,190,85,.13), transparent 62%),
+      radial-gradient(900px  520px at 12% 4%,   rgba(92,191,220,.10), transparent 60%),
+      radial-gradient(1200px 700px at 50% 108%, rgba(63,143,88,.16),  transparent 66%);
+  }
+  /* ริ้วแนวนอนบางๆ จำลองร่องคันนาที่ทอดไปสุดขอบฟ้า
+     ความทึบต่ำมากโดยตั้งใจ ให้รู้สึกได้แต่ไม่รบกวนการอ่านตัวเลข */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      180deg, rgba(116,217,141,.028) 0 1px, transparent 1px 7px);
+    mask-image: linear-gradient(180deg, rgba(0,0,0,.85), transparent 55%);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0,0,0,.85), transparent 55%);
+  }
+
+  ::selection { background: rgba(116,217,141,.28); color: #fff; }
+
+  /* ── ผิวกระจก: การ์ดทุกใบลอยเหนือฉากหลัง ── */
+  .plot, .rx, .verdict, .state, .gate-card, .say, .talk, .clip {
+    border-radius: var(--r);
+  }
+  .plot {
+    background: linear-gradient(168deg, rgba(18,44,32,.82), rgba(12,31,23,.72));
+    border: 1px solid var(--rule);
+    box-shadow: var(--lift);
+    backdrop-filter: blur(14px) saturate(1.15);
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+    transition: border-color .22s ease, transform .22s ease;
+  }
+  .plot:hover { border-color: rgba(116,217,141,.3); }
+
+  /* ── แถบเมนูซ้าย ── */
+  .rail {
+    background: linear-gradient(180deg, rgba(7,20,16,.94), rgba(5,13,9,.97));
+    border-right: 1px solid var(--rule-soft);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  .mark-name { color: var(--ink); }
+  .mark-sub  { color: var(--ink-faint); letter-spacing: .16em; }
+
+  .rail-item {
+    border-radius: var(--r-sm);
+    color: var(--ink-soft);
+    position: relative;
+    transition: background .18s ease, color .18s ease;
+  }
+  .rail-item:hover { background: rgba(116,217,141,.07); color: var(--ink); }
+  .rail-item[aria-current="page"], .rail-item.on {
+    background: linear-gradient(90deg, rgba(116,217,141,.18), rgba(116,217,141,.03));
+    color: var(--sprout);
+  }
+  /* ขีดเรืองด้านซ้ายบอกหน้าที่เปิดอยู่ — อ่านได้เร็วกว่าสีพื้นอย่างเดียว */
+  .rail-item[aria-current="page"]::before, .rail-item.on::before {
+    content: "";
+    position: absolute; left: 0; top: 18%; bottom: 18%;
+    width: 3px; border-radius: 0 3px 3px 0;
+    background: var(--sprout);
+    box-shadow: 0 0 12px rgba(116,217,141,.75);
+  }
+  .rail-item svg path, .rail-item svg circle { stroke: currentColor; }
+  .rail-foot { color: var(--ink-faint); border-top: 1px solid var(--rule-soft); }
+  .rail-out {
+    border: 1px solid var(--rule);
+    background: transparent;
+    color: var(--ink-soft);
+    border-radius: var(--r-sm);
+  }
+  .rail-out:hover { border-color: var(--rust); color: var(--rust); }
+
+  /* ── แถบบน ── */
+  .bar {
+    background: linear-gradient(180deg, rgba(7,20,16,.9), rgba(7,20,16,.55));
+    border-bottom: 1px solid var(--rule-soft);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .bar-kicker { color: var(--ink-faint); }
+  .bar-title  { color: var(--ink); }
+  .seek {
+    background: rgba(116,217,141,.06);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+  }
+  .seek:focus-within { border-color: rgba(116,217,141,.42); background: rgba(116,217,141,.1); }
+  .seek input { background: transparent; color: var(--ink); }
+  .seek input::placeholder { color: var(--ink-faint); }
+  .who { color: var(--ink-soft); }
+  .who-badge {
+    background: linear-gradient(140deg, var(--blade), var(--sprout));
+    color: #06140D;
+    font-weight: 600;
+  }
+  .rail-toggle { background: transparent; border: 1px solid var(--rule); border-radius: var(--r-sm); }
+  .rail-toggle svg path { stroke: var(--ink); }
+
+  /* ── ฟอร์มและปุ่ม ── */
+  .inp, input[type="text"], input[type="password"], input[type="email"],
+  input[type="number"], input[type="date"], select, textarea {
+    background: rgba(5,13,9,.55);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    border-radius: var(--r-sm);
+  }
+  .inp:focus, input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: rgba(116,217,141,.5);
+    box-shadow: 0 0 0 3px rgba(116,217,141,.12);
+  }
+  .act { border-radius: var(--r-sm); font-weight: 500; }
+  .act-go {
+    background: linear-gradient(135deg, var(--blade), var(--sprout));
+    color: #06140D;
+    border: none;
+    box-shadow: 0 6px 20px rgba(63,143,88,.32);
+  }
+  .act-go:hover:not(:disabled) { filter: brightness(1.08); }
+  .act-go:disabled { background: rgba(116,217,141,.14); color: var(--ink-faint); box-shadow: none; }
+  .act-line { background: transparent; border: 1px solid var(--rule); color: var(--ink-soft); }
+  .act-line:hover { border-color: rgba(116,217,141,.42); color: var(--ink); }
+
+  /* โฟกัสด้วยคีย์บอร์ดต้องเห็นชัดบนพื้นเข้ม — จำเป็นสำหรับคนที่ใช้ปุ่ม Tab */
+  a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--sprout);
+    outline-offset: 2px;
+  }
+
+  .bund-label { color: var(--ink-faint); }
+  .bund-line  { background: var(--rule); }
+  .intake     { border-color: var(--rule); background: rgba(116,217,141,.04); }
+  .intake:hover, .intake.over { border-color: var(--sprout); background: rgba(116,217,141,.09); }
+  .say-ai { background: rgba(18,44,32,.8); }
+  .say-me { background: linear-gradient(135deg, rgba(63,143,88,.9), rgba(116,217,141,.75)); color: #06140D; }
+  .verdict { background: rgba(116,217,141,.09); }
+  .verdict-unsure { background: rgba(232,190,85,.1); }
+  .verdict-main { color: var(--ink); }
+  .flash-ok   { color: var(--sprout); border-color: rgba(116,217,141,.3); }
+  .flash-warn { color: var(--grain);  border-color: rgba(232,190,85,.3); }
+  .flash-bad  { color: var(--rust);   border-color: rgba(227,107,78,.32); }
+  .src-box   { background: rgba(232,190,85,.09) !important; border-color: rgba(232,190,85,.28) !important; }
+  .src-head, .src-foot { color: var(--grain); }
+  .src-link  { color: var(--sprout); }
+  .fx-cell   { background: rgba(5,13,9,.4); }
+  .fx-grid   { background: var(--rule-soft); border-radius: var(--r-sm); overflow: hidden; }
+
+  /* ── แถบเมนูล่างสำหรับมือถือ ──
+     บนจอเล็ก การกดเปิดเมนูซ้ายทุกครั้งเพื่อสลับหน้าเป็นภาระเกินจำเป็น
+     จึงยกปลายทางที่ใช้บ่อยที่สุด 5 อันมาไว้ในระยะนิ้วโป้ง */
+  .tabbar { display: none; }
+  @media (max-width: 860px) {
+    .tabbar {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+      background: rgba(7,20,16,.96);
+      border-top: 1px solid var(--rule);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    .tab {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 9px 2px 8px;
+      background: none; border: none; cursor: pointer;
+      color: var(--ink-faint); font-family: var(--f-body); font-size: 10.5px;
+    }
+    .tab svg { display: block; }
+    .tab svg path, .tab svg circle { stroke: currentColor; }
+    .tab.on { color: var(--sprout); }
+    .field { padding-bottom: 88px !important; }
+  }
+
+  /* ── ปรับตามขนาดจอ ── */
+  /* ── ปรับตามขนาดจอ ──
+     เปลี่ยนเฉพาะการจัดวาง ไม่ซ่อนหรือเพิ่มฟังก์ชันใดๆ */
+  @media (max-width: 860px) {
+    .row-2, .row-3 { grid-template-columns: 1fr !important; }
+    .bar-title { font-size: 19px; }
+    .seek { display: none; }   /* ช่องค้นหาซ่อนบนจอแคบ ใช้ที่หน้าทะเบียนบันทึกแทนได้ */
+  }
+  @media (max-width: 520px) {
+    .who span:not(.who-badge) { display: none; }  /* เหลือแค่วงกลมตัวอักษร ประหยัดที่ */
+    .gauge-wrap { grid-template-columns: 1fr !important; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     แสงและการเคลื่อนไหว
+     หลักที่ยึด: motion ต้องบอกอะไรบางอย่าง ไม่ใช่ใส่เพราะสวย
+     ทุกอย่างในนี้ถูกปิดทั้งหมดถ้าผู้ใช้ตั้งค่าลดการเคลื่อนไหวไว้
+     ══════════════════════════════════════════════════════════ */
+
+  /* ── แถบโหลดตอนเปลี่ยนหน้า ──
+     หลายหน้าต้องรอเครือข่าย (บันทึก อากาศ AI) ซึ่งบนเน็ตกลางนาอาจกินเวลาหลายวินาที
+     แถบนี้บอกว่า "ระบบรับคำสั่งแล้วกำลังทำอยู่" ทำให้ไม่มีช่วงที่หน้าจอนิ่งจนคนคิดว่าค้าง */
+  .loadbar {
+    height: 2px;
+    background: transparent;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity .2s ease;
+  }
+  .loadbar.on { opacity: 1; }
+  .loadbar.on::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, var(--sprout), var(--water), transparent);
+    animation: loadslide 1.05s cubic-bezier(.45,.05,.35,1) infinite;
+  }
+  @keyframes loadslide {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100%); }
+  }
+
+  /* ── การ์ดไล่กันขึ้นมาตอนเปิดหน้า ──
+     หน่วงทีละ 40ms ทำให้สายตาไล่จากบนลงล่างตามลำดับความสำคัญของเนื้อหา
+     ไม่หน่วงเกิน 8 ใบ เพราะถ้าไล่ยาวกว่านั้นจะกลายเป็นรอ ไม่ใช่ลื่น */
+  @keyframes riseIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .field.enter > * {
+    animation: riseIn .42s cubic-bezier(.2,.75,.3,1) both;
+  }
+  .field.enter > *:nth-child(1) { animation-delay: 0ms; }
+  .field.enter > *:nth-child(2) { animation-delay: 40ms; }
+  .field.enter > *:nth-child(3) { animation-delay: 80ms; }
+  .field.enter > *:nth-child(4) { animation-delay: 120ms; }
+  .field.enter > *:nth-child(5) { animation-delay: 160ms; }
+  .field.enter > *:nth-child(6) { animation-delay: 200ms; }
+  .field.enter > *:nth-child(7) { animation-delay: 240ms; }
+  .field.enter > *:nth-child(n+8) { animation-delay: 280ms; }
+
+  /* ── ชื่อหน้าบนแถบบนเลื่อนตาม ──
+     ช่วยยืนยันว่าหน้าเปลี่ยนแล้วจริง ไม่ใช่แค่เนื้อหาข้างล่างขยับ */
+  @keyframes titleIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .bar-title.swap, .bar-kicker.swap { animation: titleIn .34s ease both; }
+
+  /* ── ไฟวิ่งบนขอบการ์ดตอนชี้ ──
+     ใช้เฉพาะการ์ดที่กดได้ เพื่อให้ "เรืองแสง = กดได้" มีความหมายเดียวทั้งระบบ */
+  .plot { position: relative; }
+  .quick-btn:hover, .intake:hover {
+    box-shadow: 0 0 0 1px rgba(116,217,141,.28), 0 0 26px rgba(116,217,141,.14);
+  }
+
+  /* ── เมนูซ้าย: ขีดเรืองเลื่อนตามหน้าที่เปิด ── */
+  .rail-item::before { transition: opacity .24s ease, transform .24s ease; }
+  .rail-item[aria-current="page"]::before, .rail-item.on::before {
+    animation: markGlow 2.6s ease-in-out infinite;
+  }
+  @keyframes markGlow {
+    0%, 100% { box-shadow: 0 0 10px rgba(116,217,141,.55); }
+    50%      { box-shadow: 0 0 18px rgba(116,217,141,.95); }
+  }
+
+  /* ── จุดสถานะการเชื่อมต่อเต้นเบาๆ ตอนออนไลน์ ──
+     หายใจ = ระบบยังติดต่อเซิร์ฟเวอร์อยู่ นิ่ง = หลุด ต่างกันชัดโดยไม่ต้องอ่านตัวหนังสือ */
+  @keyframes breathe {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(116,217,141,.5); }
+    70%      { box-shadow: 0 0 0 6px rgba(116,217,141,0); }
+  }
+  .dot.live { animation: breathe 2.4s ease-out infinite; }
+
+  /* ── ปุ่มแถบล่างเด้งรับเมื่อกด ── */
+  .tab { transition: color .18s ease, transform .18s ease; }
+  .tab:active { transform: scale(.92); }
+  .tab.on svg { filter: drop-shadow(0 0 7px rgba(116,217,141,.6)); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .field.enter > *, .bar-title.swap, .bar-kicker.swap { animation: none !important; }
+    .loadbar.on::after, .dot.live, .rail-item.on::before { animation: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -425,9 +742,9 @@
     <div class="mark">
       <div class="mark-name">
         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 21c0-6 0-9 0-11" stroke="#8FB05C" stroke-width="1.6" stroke-linecap="round"/>
-          <path d="M12 10C12 6 9 3.5 5.5 3c-.4 3.8 2 7 6.5 7z" fill="#8FB05C"/>
-          <path d="M12 13c0-3.6 2.8-6 6-6.4.4 3.5-1.9 6.4-6 6.4z" fill="#4F7A3A"/>
+          <path d="M12 21c0-6 0-9 0-11" stroke="#74D98D" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M12 10C12 6 9 3.5 5.5 3c-.4 3.8 2 7 6.5 7z" fill="#74D98D"/>
+          <path d="M12 13c0-3.6 2.8-6 6-6.4.4 3.5-1.9 6.4-6 6.4z" fill="#3F8F58"/>
         </svg>
         SmartRice AI
       </div>
@@ -445,7 +762,7 @@
     <header class="bar">
       <div style="display:flex;align-items:center;gap:11px;min-width:0">
         <button class="rail-toggle" id="railToggle" aria-label="เปิดเมนู">
-          <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="#21281F" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="#E8F2EA" stroke-width="1.8" stroke-linecap="round"/></svg>
         </button>
         <div style="min-width:0">
           <div class="bar-kicker" id="barKicker">แปลงนา</div>
@@ -454,13 +771,15 @@
       </div>
       <div class="bar-tools">
         <div class="seek">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#8A9484" stroke-width="1.8"/><path d="M20 20l-3.6-3.6" stroke="#8A9484" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#6E8779" stroke-width="1.8"/><path d="M20 20l-3.6-3.6" stroke="#6E8779" stroke-width="1.8" stroke-linecap="round"/></svg>
           <input type="text" id="seekInput" placeholder="ค้นหาบันทึกแปลง">
         </div>
         <div class="who"><span class="who-badge" id="whoBadge">ก</span><span id="whoName">เกษตรกร</span></div>
       </div>
     </header>
+    <div class="loadbar" id="loadbar" aria-hidden="true"></div>
     <main class="field" id="field"></main>
+    <nav class="tabbar" id="tabbar" aria-label="เมนูลัด"></nav>
   </div>
 </div>
 
@@ -1602,22 +1921,26 @@ views.overview = async function (root) {
 
   if (phValues.length >= 2) {
     var series = logs.filter(function (l) { return typeof l.ph === "number"; }).slice(0, 8).reverse();
+    // สีเส้นและกริดปรับตามธีมมืด ส่วนตรรกะกราฟเหมือนเดิมทุกอย่าง
     new Chart(cv, {
       type: "line",
       data: {
         labels: series.map(function (l) { return l.date; }),
         datasets: [{
           label: "pH ดิน", data: series.map(function (l) { return l.ph; }),
-          borderColor: "#4F7A3A", backgroundColor: "rgba(79,122,58,.09)",
-          fill: true, tension: .32, pointRadius: 3, pointBackgroundColor: "#4F7A3A", borderWidth: 2
+          borderColor: "#74D98D", backgroundColor: "rgba(116,217,141,.13)",
+          fill: true, tension: .32, pointRadius: 3, pointBackgroundColor: "#74D98D", borderWidth: 2
         }]
       },
       options: {
         responsive: true,
         plugins: { legend: { display: false } },
         scales: {
-          y: { beginAtZero: false, grid: { color: "#E8E1D2" }, ticks: { font: { family: "IBM Plex Mono" } } },
-          x: { grid: { display: false }, ticks: { font: { family: "IBM Plex Mono", size: 10 } } }
+          y: { beginAtZero: false,
+               grid: { color: "rgba(116,217,141,.1)" },
+               ticks: { color: "#6E8779", font: { family: "IBM Plex Mono" } } },
+          x: { grid: { display: false },
+               ticks: { color: "#6E8779", font: { family: "IBM Plex Mono", size: 10 } } }
         }
       }
     });
@@ -2524,7 +2847,7 @@ views.consult = async function (root) {
   var camBtn = el("button", "act act-line");
   camBtn.title = "แนบภาพใบข้าว";
   camBtn.setAttribute("aria-label", "แนบภาพใบข้าว");
-  camBtn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="display:block"><path d="M4 7h3l2-2h6l2 2h3v12H4z" stroke="#21281F" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="#21281F" stroke-width="1.6"/></svg>';
+  camBtn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="display:block"><path d="M4 7h3l2-2h6l2 2h3v12H4z" stroke="#E8F2EA" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.4" stroke="#E8F2EA" stroke-width="1.6"/></svg>';
   var fileIn = el("input", "hidden-file");
   fileIn.type = "file";
   fileIn.accept = "image/*";
@@ -2975,6 +3298,29 @@ function paintNav() {
     };
     nav.appendChild(b);
   });
+  paintTabs();
+}
+
+// ปลายทางที่ใช้บ่อยที่สุดตอนอยู่หน้างานจริง
+// เลือกจากลำดับงานของเกษตรกร: ดูภาพรวม → ถ่ายใบไปตรวจ → จดบันทึก → ดูอากาศ → ถาม AI
+// ไม่ใส่หน้าตั้งค่ากับผู้ดูแลระบบ เพราะไม่ได้ใช้ตอนยืนอยู่กลางแปลง
+var TAB_IDS = ["overview", "diagnose", "survey", "weather", "consult"];
+
+function paintTabs() {
+  var bar = document.getElementById("tabbar");
+  if (!bar) return;
+  bar.innerHTML = "";
+  TAB_IDS.forEach(function (id) {
+    var p = PAGES.find(function (x) { return x.id === id; });
+    if (!p) return;
+    var b = el("button", "tab" + (p.id === here ? " on" : ""));
+    b.setAttribute("aria-label", p.label);
+    if (p.id === here) b.setAttribute("aria-current", "page");
+    b.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + p.icon + '"/></svg>';
+    b.appendChild(el("span", "", p.label));
+    b.onclick = function () { open(p.id); };
+    bar.appendChild(b);
+  });
 }
 
 // ตัวจับเวลาของหน้าปัจจุบัน ต้องล้างทุกครั้งที่เปลี่ยนหน้า
@@ -2988,23 +3334,45 @@ function clearPageTimers() {
   pageTimers = [];
 }
 
+// เริ่มอนิเมชันใหม่ทุกครั้ง ต้องถอดคลาสออกแล้วบังคับให้เบราว์เซอร์คำนวณ layout ก่อน
+// ไม่งั้นการใส่คลาสกลับทันทีจะถูกมองว่า "ไม่มีอะไรเปลี่ยน" แล้วอนิเมชันจะไม่เล่นซ้ำ
+function replay(node, cls) {
+  if (!node) return;
+  node.classList.remove(cls);
+  void node.offsetWidth;
+  node.classList.add(cls);
+}
+
 async function open(id) {
   here = id;
   clearPageTimers();
   var page = PAGES.find(function (p) { return p.id === id; });
-  document.getElementById("barTitle").textContent = page.label;
-  document.getElementById("barKicker").textContent = page.kicker;
+
+  var title = document.getElementById("barTitle");
+  var kicker = document.getElementById("barKicker");
+  title.textContent = page.label;
+  kicker.textContent = page.kicker;
+  replay(title, "swap");
+  replay(kicker, "swap");
   paintNav();
 
+  var bar = document.getElementById("loadbar");
+  if (bar) bar.classList.add("on");
+
   var root = document.getElementById("field");
+  root.classList.remove("enter");
   root.innerHTML = "";
-  root.appendChild(stateBlock("◌", "กำลังเปิดหน้า", null));
   try {
-    root.innerHTML = "";
     await views[id](root);
+    replay(root, "enter");
   } catch (err) {
     root.innerHTML = "";
     root.appendChild(stateBlock("!", "เปิดหน้านี้ไม่ได้", err.message + " — ลองรีเฟรชหน้าอีกครั้ง"));
+    replay(root, "enter");
+  } finally {
+    // ปิดแถบเสมอ ไม่ว่าหน้าจะเปิดสำเร็จหรือพัง
+    // ถ้าลืมปิดตอน error แถบจะวิ่งค้างตลอดไปจนผู้ใช้คิดว่าระบบแฮงก์
+    if (bar) bar.classList.remove("on");
   }
 }
 
@@ -3022,9 +3390,9 @@ function showAuthScreen(message) {
 
   var mark = el("div", "gate-mark");
   mark.innerHTML = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
-    '<path d="M12 21c0-6 0-9 0-11" stroke="#4F7A3A" stroke-width="1.6" stroke-linecap="round"/>' +
-    '<path d="M12 10C12 6 9 3.5 5.5 3c-.4 3.8 2 7 6.5 7z" fill="#8FB05C"/>' +
-    '<path d="M12 13c0-3.6 2.8-6 6-6.4.4 3.5-1.9 6.4-6 6.4z" fill="#4F7A3A"/></svg>';
+    '<path d="M12 21c0-6 0-9 0-11" stroke="#3F8F58" stroke-width="1.6" stroke-linecap="round"/>' +
+    '<path d="M12 10C12 6 9 3.5 5.5 3c-.4 3.8 2 7 6.5 7z" fill="#74D98D"/>' +
+    '<path d="M12 13c0-3.6 2.8-6 6-6.4.4 3.5-1.9 6.4-6 6.4z" fill="#3F8F58"/></svg>';
   mark.appendChild(document.createTextNode("SmartRice AI"));
   card.appendChild(mark);
   card.appendChild(el("div", "gate-sub", "Field diagnostics"));
