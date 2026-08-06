@@ -1403,6 +1403,52 @@ function guideForPrompt(label) {
     "\nการป้องกัน: " + (g.prevention || []).join(" / ");
 }
 
+// ส่งฐานความรู้ดินและปุ๋ยให้ AI อ้างอิง
+//
+// ทำไมต้องย่อก่อนส่ง ไม่ส่งทั้งไฟล์: ไฟล์เต็มยาวหลายพันคำ ถ้าส่งไปทั้งก้อน
+// จะกินโควตาเร็วมาก (ซึ่งตอนนี้ก็ตึงอยู่แล้ว) และ AI มักตอบคลุมเครือลง
+// เมื่อได้ข้อมูลเยอะเกินจำเป็น ตรงนี้จึงส่งเฉพาะ "ตัวเลขและจังหวะเวลา"
+// ที่ AI แต่งเองไม่ได้ ส่วนคำอธิบายทั่วไปปล่อยให้ AI เรียบเรียงเอง
+//
+// สิ่งที่ต้องอยู่ในนี้เสมอคือตัวเลขจากเอกสารทางการ เพราะเป็นจุดที่ AI
+// มักเดาแล้วผิด เช่น อัตราเมล็ดปอเทืองหรือสัดส่วนกองปุ๋ยหมัก
+function soilFertForPrompt() {
+  var out = [];
+  var F = window.FERT_GUIDE, S = window.SOIL_GUIDE;
+
+  if (F) {
+    out.push("[ข้อมูลปุ๋ยอินทรีย์ อ้างอิงกรมพัฒนาที่ดิน ให้ยึดตัวเลขเหล่านี้เป็นหลัก ห้ามแต่งตัวเลขใหม่]");
+    Object.keys(F.types).forEach(function (k) {
+      var t = F.types[k];
+      var line = "- " + t.thai + " (" + t.short + ") ใช้เวลา " + t.duration;
+      if (t.recipe) line += " | สูตรกอง 1 ตัน: " + t.recipe.items.join(", ");
+      line += " | วิธีใช้: " + t.use.join(" ");
+      out.push(line);
+    });
+    out.push("หลักการสำคัญ: " + F.overview.key);
+  }
+
+  if (S) {
+    out.push("");
+    out.push("[ข้อมูลการเตรียมดิน]");
+    Object.keys(S.methods).forEach(function (k) {
+      var m = S.methods[k];
+      out.push("- " + m.thai + ": " + m.steps.map(function (x) {
+        return x.title + " (" + x.when + ")";
+      }).join(" → "));
+    });
+    Object.keys(S.soils).forEach(function (k) {
+      out.push("- ข้อควรระวังของ" + S.soils[k].thai + ": " + S.soils[k].tips[0]);
+    });
+  }
+
+  if (!out.length) return "";
+  return "\n\n" + out.join("\n") +
+    "\n[ถ้าผู้ใช้ถามเรื่องปุ๋ยหรือการเตรียมดินที่ไม่มีในข้อมูลด้านบน ให้บอกตรงๆ ว่าไม่มีข้อมูล " +
+    "และแนะนำให้ปรึกษาหมอดินอาสาประจำตำบลหรือสถานีพัฒนาที่ดินจังหวัด " +
+    "ห้ามแนะนำสูตรปุ๋ยเคมี N-P-K หรืออัตราปูนขาวเด็ดขาด เพราะต้องใช้ผลวิเคราะห์ดินที่ระบบไม่มี]";
+}
+
 // รวบรวมข้อมูลจากทุกหน้าให้ AI ใช้ประกอบการตอบ
 // สรุปเป็นตัวเลขก่อนส่ง แทนที่จะโยนรายการดิบทั้งหมด เพราะ AI ตอบแม่นกว่า
 // เมื่อได้ข้อมูลที่ย่อยมาแล้ว และประหยัด token ด้วย
@@ -2605,6 +2651,148 @@ views.fert = async function (root) {
 
     if (t.warn) body.appendChild(el("div", "flash flash-bad", "ข้อควรระวัง: " + t.warn));
 
+    // ── ตัวคำนวณปริมาณ ──
+    // คำนวณจากอัตราทางการเท่านั้น ไม่มีการประมาณค่าใดๆ เพิ่มเอง
+    // ชนิดที่ไม่มีอัตราอ้างอิงจะไม่แสดงช่องคำนวณ แต่บอกเหตุผลว่าทำไมไม่มี
+    body.appendChild(bund("คำนวณปริมาณที่ต้องเตรียม"));
+    var calcCard = plot(null);
+    if (!t.calc) {
+      calcCard.appendChild(stateBlock("◇", "ยังไม่มีอัตราอ้างอิงสำหรับปุ๋ยชนิดนี้", t.calcNote));
+    } else {
+      var inRow = el("div");
+      inRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px";
+
+      var f1 = el("div", "inp");
+      f1.style.cssText = "flex:1;min-width:150px";
+      f1.appendChild(el("label", "", "ขนาดแปลง (ไร่)"));
+      var raiIn = el("input");
+      raiIn.className = "num-in";
+      raiIn.inputMode = "decimal";
+      raiIn.placeholder = "เช่น 12.5";
+      raiIn.value = "1";
+      f1.appendChild(raiIn);
+      inRow.appendChild(f1);
+
+      var dateIn = null;
+      if (t.calc.timeline) {
+        var f2 = el("div", "inp");
+        f2.style.cssText = "flex:1;min-width:150px";
+        f2.appendChild(el("label", "", "วันที่จะปลูกข้าว"));
+        dateIn = el("input");
+        dateIn.type = "date";
+        f2.appendChild(dateIn);
+        inRow.appendChild(f2);
+      }
+      calcCard.appendChild(inRow);
+
+      var outHost = el("div");
+      calcCard.appendChild(outHost);
+
+      function fmt(n) {
+        // ตัดทศนิยมที่ไม่จำเป็นออก 2.0 อ่านแล้วสับสนกว่า 2
+        return (Math.round(n * 100) / 100).toLocaleString("th-TH");
+      }
+
+      function recalc() {
+        outHost.innerHTML = "";
+        var rai = parseFloat(raiIn.value);
+        if (!rai || rai <= 0) {
+          outHost.appendChild(el("div", "read-foot", "กรอกขนาดแปลงเป็นตัวเลขมากกว่า 0"));
+          return;
+        }
+
+        var grid = el("div");
+        grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px";
+
+        if (t.calc.perRai != null) {
+          var total = rai * t.calc.perRai;
+          grid.appendChild(readOut("ปุ๋ยหมักที่ต้องใช้", fmt(total) + " " + t.calc.unit, t.calc.perRaiText));
+          var piles = Math.ceil(total);
+          grid.appendChild(readOut("จำนวนกองที่ต้องทำ", String(piles) + " กอง", "กองละ 1 ตัน"));
+          outHost.appendChild(grid);
+
+          var mat = el("div");
+          mat.style.marginTop = "16px";
+          mat.appendChild(el("div", "rx-sect", "วัตถุดิบรวมทั้งหมดที่ต้องเตรียม"));
+          t.calc.inputs.forEach(function (x) {
+            var line = el("div");
+            line.style.cssText = "display:flex;justify-content:space-between;gap:12px;padding:8px 0;" +
+              "border-bottom:1px solid var(--rule-soft);font-size:.88rem";
+            line.appendChild(el("span", "", x.name));
+            line.appendChild(el("span", "num", fmt(x.per * total) + " " + x.unit));
+            mat.appendChild(line);
+          });
+          outHost.appendChild(mat);
+
+        } else {
+          var lo = rai * t.calc.perRaiMin, hi = rai * t.calc.perRaiMax;
+          grid.appendChild(readOut("เมล็ดที่ต้องซื้อ", fmt(lo) + "-" + fmt(hi) + " " + t.calc.unit, t.calc.perRaiText));
+          outHost.appendChild(grid);
+        }
+
+        // ── ปฏิทินนับถอยหลัง ──
+        if (t.calc.timeline && dateIn && dateIn.value) {
+          var plantDay = new Date(dateIn.value + "T00:00:00");
+          var tl = t.calc.timeline;
+          var plowDay = new Date(plantDay); plowDay.setDate(plowDay.getDate() - tl.wait);
+          var sowDay  = new Date(plowDay);  sowDay.setDate(sowDay.getDate() - tl.grow);
+
+          function thDate(d) {
+            return d.toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" });
+          }
+
+          var cal = el("div");
+          cal.style.marginTop = "18px";
+          cal.appendChild(el("div", "rx-sect", "ปฏิทินนับถอยหลัง"));
+          [["หว่านเมล็ดปอเทือง", sowDay, "เริ่มต้นที่นี่"],
+           ["ไถกลบตอนออกดอก", plowDay, "หลังหว่าน " + tl.grow + " วัน"],
+           ["เริ่มปลูกข้าวได้", plantDay, "หลังไถกลบ " + tl.wait + " วัน"]].forEach(function (x, i) {
+            var line = el("div");
+            line.style.cssText = "display:flex;gap:12px;align-items:baseline;padding:9px 0;" +
+              "border-bottom:1px solid var(--rule-soft)";
+            var n = el("span", "num", String(i + 1));
+            n.style.cssText = "flex:none;width:22px;height:22px;border-radius:50%;display:inline-flex;" +
+              "align-items:center;justify-content:center;background:var(--tint-ok);color:var(--deep);font-size:.75rem";
+            line.appendChild(n);
+            var mid = el("div");
+            mid.style.flex = "1";
+            mid.appendChild(el("div", "", x[0]));
+            mid.appendChild(el("div", "read-foot", x[2]));
+            line.appendChild(mid);
+            var dt = el("span", "num", thDate(x[1]));
+            dt.style.cssText = "font-size:.85rem;color:var(--deep);font-weight:500;text-align:right";
+            line.appendChild(dt);
+            cal.appendChild(line);
+          });
+
+          // เตือนถ้าวันหว่านผ่านไปแล้ว — เป็นข้อผิดพลาดที่พบบ่อยที่สุดของปุ๋ยพืชสด
+          // เพราะต้องเริ่มก่อนปลูกข้าวถึง 70 วัน ซึ่งคนมักนึกไม่ถึง
+          var daysLeft = Math.ceil((sowDay - new Date()) / 86400000);
+          if (daysLeft < 0) {
+            cal.appendChild(el("div", "flash flash-bad",
+              "วันที่ควรหว่านปอเทืองผ่านมาแล้ว " + Math.abs(daysLeft) + " วัน " +
+              "ถ้ายังยืนยันจะปลูกข้าวตามวันที่กำหนด อาจไม่ทันรอบนี้ ควรเลื่อนวันปลูกข้าวออกไป " +
+              "หรือเปลี่ยนไปใช้ปุ๋ยหมักกับปุ๋ยคอกซึ่งเตรียมได้เร็วกว่า"));
+          } else if (daysLeft <= 7) {
+            cal.appendChild(el("div", "flash flash-warn",
+              "เหลืออีก " + daysLeft + " วันก่อนถึงวันที่ควรหว่าน ควรเตรียมเมล็ดพันธุ์ไว้ให้พร้อม"));
+          } else {
+            cal.appendChild(el("div", "flash flash-ok",
+              "ยังมีเวลาอีก " + daysLeft + " วันก่อนถึงวันที่ควรหว่านเมล็ด"));
+          }
+          outHost.appendChild(cal);
+        } else if (t.calc.timeline) {
+          outHost.appendChild(el("div", "read-foot",
+            "เลือกวันที่จะปลูกข้าวด้านบน ระบบจะคำนวณให้ว่าต้องหว่านปอเทืองวันไหนถึงจะทัน"));
+        }
+      }
+
+      raiIn.oninput = recalc;
+      if (dateIn) dateIn.onchange = recalc;
+      recalc();
+    }
+    body.appendChild(calcCard);
+
     // ── วิธีนำไปใช้ ──
     body.appendChild(bund("วิธีนำไปใช้ในนาข้าว"));
     var uc = plot(null);
@@ -3116,7 +3304,7 @@ views.consult = async function (root) {
   var talk = el("div", "talk");
   talk.appendChild(el("div", "say say-ai",
     "สวัสดีครับ ผมใช้ผลจากโมเดลตรวจภาพ ค่า pH ดิน และบันทึกแปลงของคุณประกอบการตอบ " +
-    "ถามเรื่องโรคข้าว วิธีจัดการ หรือแนบภาพใบข้าวมาให้ดูได้เลยครับ"));
+    "ถามเรื่องโรคข้าว การเตรียมดิน หรือการทำปุ๋ยอินทรีย์ได้เลยครับ จะแนบภาพใบข้าวมาด้วยก็ได้"));
   card.appendChild(talk);
 
   var clip = el("div", "clip");
@@ -3232,11 +3420,16 @@ views.consult = async function (root) {
         ? "\n\nบทสนทนาก่อนหน้า:\n" + history.join("\n") + "\n"
         : "";
 
-      var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าวและการเกษตรไทย ตอบภาษาไทยแบบเข้าใจง่าย กระชับ\n" +
+      // ส่งข้อมูลดินและปุ๋ยเฉพาะตอนที่คำถามเกี่ยวข้อง เพื่อไม่ให้พรอมต์ยาวเกินจำเป็น
+      // คำถามเรื่องโรคไม่ต้องใช้ข้อมูลปุ๋ย และโควตา AI ตอนนี้ก็ตึงอยู่แล้ว
+      var wantsSoil = /ปุ๋ย|หมัก|คอก|พืชสด|ปอเทือง|เตรียมดิน|ไถ|ตอซัง|ดิน|pH|กรด|ด่าง|ปูน|อินทรีย/i.test(text || "");
+      var soilRef = wantsSoil ? soilFertForPrompt() : "";
+
+      var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าว การเตรียมดิน และปุ๋ยอินทรีย์ของไทย ตอบภาษาไทยแบบเข้าใจง่าย กระชับ\n" +
         "ตอบจากข้อมูลที่ให้มาด้านล่างเท่านั้น ถ้าไม่มีข้อมูลให้บอกตรงๆ ว่าไม่ทราบ " +
-        "และห้ามแต่งชื่อสารเคมีหรืออัตราการใช้ขึ้นเองเด็ดขาด\n\n" +
+        "และห้ามแต่งชื่อสารเคมี อัตราการใช้ หรือสูตรปุ๋ยขึ้นเองเด็ดขาด\n\n" +
         focus +
-        "ข้อมูลแปลงนาของผู้ถาม (จากบันทึกในระบบ):\n" + farmContext + "\n" +
+        "ข้อมูลแปลงนาของผู้ถาม (จากบันทึกในระบบ):\n" + farmContext + soilRef + "\n" +
         convo + carry + "\n" +
         "คำถาม: " + (text || "ช่วยดูภาพใบข้าวที่แนบมาว่าเป็นโรคอะไร และควรจัดการอย่างไร") + cvNote;
 
