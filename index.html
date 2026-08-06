@@ -384,6 +384,13 @@
   .fx-big2 { font-size: 18px; font-weight: 600; color: var(--grain); line-height: 1.2; margin-top: 10px; }
   .fx-cap  { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
   @media (max-width: 420px) { .fx-grid { grid-template-columns: 1fr; } }
+
+  /* กล่องแหล่งอ้างอิงจากการค้นเว็บ */
+  .src-box { background: var(--tint-warn) !important; border-color: #E4CE94 !important; }
+  .src-head { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: #7A5A11; margin-bottom: 7px; }
+  .src-link { display: block; font-size: 13px; color: #14352C; text-decoration: underline;
+              margin-bottom: 4px; overflow-wrap: anywhere; }
+  .src-foot { margin-top: 8px; font-size: 11.5px; color: #7A5A11; line-height: 1.55; }
   .flash-ok  { background: var(--tint-ok); border: 1px solid #CBD9AF; color: #3B5A28; }
 
   .stack-item { display: flex; gap: 14px; align-items: center; padding: 13px 2px; border-bottom: 1px solid var(--rule-soft); }
@@ -647,12 +654,21 @@ var Store = {
     return await api("/images/" + id);
   },
 
-  async askGemini(prompt, image) {
+  // opts.search = true เพื่อให้ AI ค้นข้อมูลจากเว็บประกอบการตอบ
+  // ไม่เปิดตลอดเพราะตอนวิเคราะห์ภาพเราต้องการให้ยึดผลจากโมเดลกับฐานความรู้ในระบบ
+  // ถ้าเปิดค้นเว็บด้วย AI มักไปหยิบบทความทั่วไปที่อาจมีชื่อสารเคมีไม่ตรงกับกรมการข้าว
+  async askGemini(prompt, image, opts) {
     var body = { prompt: prompt };
     if (image) body.image = image;
+    if (opts && opts.search) body.search = true;
     var data = await api("/gemini", { method: "POST", body: body });
     // Worker เวอร์ชันเก่าไม่ส่ง imageReceived กลับมา ถือว่าภาพไม่ถึง Gemini
-    return { text: data.text, sawImage: data.imageReceived === true };
+    return {
+      text: data.text,
+      sawImage: data.imageReceived === true,
+      searchUsed: data.searchUsed === true,
+      sources: data.sources || []
+    };
   },
 
   // โปรไฟล์มาจากบัญชีที่ล็อกอิน ไม่ใช่ localStorage แล้ว
@@ -2617,10 +2633,31 @@ views.consult = async function (root) {
         convo + carry + "\n" +
         "คำถาม: " + (text || "ช่วยดูภาพใบข้าวที่แนบมาว่าเป็นโรคอะไร และควรจัดการอย่างไร") + cvNote;
 
-      var answer = await Store.askGemini(prompt, payload);
+      // แนบภาพ = ให้ยึดผลจากโมเดลของระบบ ไม่ต้องค้นเว็บ
+      // ไม่แนบภาพ = เป็นคำถามความรู้ทั่วไป เปิดค้นเว็บให้ข้อมูลทันสมัยขึ้น
+      var answer = await Store.askGemini(prompt, payload, { search: !shot });
       reply.textContent = answer.text;
       remember("ผู้ใช้", (text || "(แนบภาพใบข้าวมาให้ดู)"));
       remember("ผู้เชี่ยวชาญ", answer.text.slice(0, 400));
+
+      // แสดงแหล่งอ้างอิงเมื่อ AI ค้นเว็บมาตอบ
+      // จำเป็นมากสำหรับงานนี้ เพราะคำแนะนำเรื่องสารเคมีที่ผิดทำให้เสียหายจริง
+      // ผู้ใช้ต้องตามไปตรวจสอบต้นทางได้ ไม่ใช่เชื่อ AI ลอยๆ
+      if (answer.searchUsed && answer.sources.length) {
+        var srcBox = el("div", "say say-ai src-box");
+        srcBox.appendChild(el("div", "src-head", "แหล่งข้อมูลที่ AI ค้นมาประกอบ"));
+        answer.sources.slice(0, 4).forEach(function (sx) {
+          var a = el("a", "src-link");
+          a.href = sx.url;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.textContent = sx.title;
+          srcBox.appendChild(a);
+        });
+        srcBox.appendChild(el("div", "src-foot",
+          "AI อาจสรุปคลาดเคลื่อนจากต้นทาง ควรตรวจสอบก่อนนำไปใช้ โดยเฉพาะชื่อสารเคมีและอัตราการใช้"));
+        talk.appendChild(srcBox);
+      }
 
       // ถ้าแนบรูปแต่ Worker ไม่ได้ส่งรูปไปถึง Gemini ต้องบอกตรงๆ
       // ไม่ปล่อยให้ผู้ใช้เข้าใจผิดว่า AI ดูรูปแล้ว
