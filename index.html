@@ -842,6 +842,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="disease-guide.js"></script>
+<script src="soil-guide.js"></script>
 <script>
 (function () {
 "use strict";
@@ -885,6 +886,7 @@ var PAGES = [
   { id: "overview", label: "ภาพรวมแปลง",   kicker: "แปลงนา",   icon: "M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z" },
   { id: "diagnose", label: "วินิจฉัยใบข้าว", kicker: "ตรวจโรค",  icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
   { id: "survey",   label: "บันทึกสำรวจ",   kicker: "เก็บข้อมูล", icon: "M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zm2 5h4m-4 4h4m-4 4h2" },
+  { id: "soil",     label: "เตรียมดิน",      kicker: "ก่อนปลูก",  icon: "M3 17h18M5 17V9m5 8V6m5 11v-7m5 7v-4" },
   { id: "plots",    label: "แปลงของฉัน",    kicker: "แปลงนา",   icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
   { id: "ledger",   label: "ทะเบียนบันทึก", kicker: "เก็บข้อมูล", icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
   { id: "weather",  label: "อากาศและความเสี่ยง", kicker: "วิเคราะห์", icon: "M7 17a4 4 0 010-8 5.5 5.5 0 0110.5 1.5A3.5 3.5 0 0117 17zm-1 2l-1 2m4-2l-1 2m4-2l-1 2" },
@@ -2277,6 +2279,179 @@ views.survey = async function (root) {
   }
   wrap.appendChild(recent);
   root.appendChild(wrap);
+};
+
+// ─── หน้าเตรียมดิน ─────────────────────────────
+//
+// เป็นคู่มืออ่าน ไม่ใช่เครื่องคำนวณ โดยตั้งใจ
+// เหตุผล: อัตราปูนขาวที่ถูกต้องต้องมาจากค่าความต้องการปูนที่ได้จากการวิเคราะห์ดิน
+// ไม่ใช่คำนวณจาก pH อย่างเดียว การใส่ปูนเกินทำให้ดินเป็นด่างถาวรซึ่งแก้ยากกว่าเดิมมาก
+// ระบบจึงบอกได้แค่ว่าดินอยู่ในสภาพไหนและควรไปปรึกษาใคร
+//
+// สิ่งที่ระบบทำได้จริงคือ "ปรับคู่มือให้ตรงกับบริบทของแปลงนี้"
+// เพราะขั้นตอนของนาหว่านน้ำตมกับนาหว่านข้าวแห้งต่างกันคนละทิศ
+// การให้อ่านคู่มือกลางที่รวมทุกแบบไว้ด้วยกันจะทำให้ทำผิดขั้นตอนได้ง่ายกว่า
+views.soil = async function (root) {
+  var G = window.SOIL_GUIDE;
+  if (!G) {
+    root.appendChild(stateBlock("!", "ไม่พบไฟล์ฐานความรู้",
+      "ไฟล์ soil-guide.js ยังไม่ได้อัปโหลดขึ้นเซิร์ฟเวอร์ กรุณาวางไว้ในโฟลเดอร์เดียวกับ index.html"));
+    return;
+  }
+
+  var logs = await Store.list();
+  var phs = logs.filter(function (l) { return typeof l.ph === "number"; });
+
+  // จำค่าที่เลือกไว้ในเครื่อง เพราะวิธีทำนากับชนิดดินของแปลงหนึ่งไม่เปลี่ยนบ่อย
+  // ให้ตั้งค่าใหม่ทุกครั้งที่เข้าหน้าเป็นการเสียเวลาโดยไม่จำเป็น
+  var KEY = "smartrice-soil:" + (Session.user ? Session.user.username : "guest");
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { saved = {}; }
+  var pick = {
+    method: G.methods[saved.method] ? saved.method : "wet",
+    soil:   G.soils[saved.soil]     ? saved.soil   : "clay"
+  };
+  function remember() {
+    try { localStorage.setItem(KEY, JSON.stringify(pick)); } catch (e) { /* พื้นที่เต็ม ข้ามไป */ }
+  }
+
+  // ══ สภาพดินจากค่าที่บันทึกไว้ ══
+  root.appendChild(bund("สภาพดินของแปลงคุณ"));
+  var phCard = plot(null);
+  if (!phs.length) {
+    phCard.appendChild(stateBlock("◇", "ยังไม่เคยวัดค่า pH ดิน",
+      "ไปที่หน้าบันทึกสำรวจ วัด pH 5 จุดในแปลงแล้วบันทึกไว้ ระบบจะแปลผลให้ที่นี่"));
+  } else {
+    var latest = phs[0];
+    var band = window.readSoilPh(latest.ph);
+    var color = band.key === "bad" ? "var(--rust)" : band.key === "warn" ? "var(--grain)" : "var(--blade)";
+
+    var head = el("div");
+    head.style.cssText = "display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:12px";
+    var big = el("div", "num", String(latest.ph));
+    big.style.cssText = "font-size:2.4rem;font-weight:500;line-height:1;color:" + color;
+    head.appendChild(big);
+    var side = el("div");
+    var nm = el("div", "", band.title);
+    nm.style.cssText = "font-weight:600;font-size:1.05rem;color:" + color;
+    side.appendChild(nm);
+    side.appendChild(el("div", "read-foot", "วัดเมื่อ " + latest.date + " · เฉลี่ยจาก 5 จุดในแปลง"));
+    head.appendChild(side);
+    phCard.appendChild(head);
+
+    phCard.appendChild(el("div", "rx-sect", "หมายความว่าอย่างไร"));
+    phCard.appendChild(el("p", "", band.say));
+    phCard.appendChild(el("div", "rx-sect", "ควรทำอย่างไรต่อ"));
+    phCard.appendChild(el("p", "", band.todo));
+
+    // เตือนเมื่อค่าเก่าเกินไป — ดินเปลี่ยนตามการใส่ปุ๋ยและการชะล้าง
+    // ค่าเมื่อ 8 เดือนก่อนอาจไม่ตรงกับสภาพวันนี้แล้ว
+    var age = (Date.now() - new Date(phs[0].created_at || Date.now()).getTime()) / 86400000;
+    if (age > 120) {
+      phCard.appendChild(el("div", "flash flash-warn",
+        "ค่านี้วัดไว้นานกว่า 4 เดือนแล้ว ดินเปลี่ยนสภาพได้ตามการใส่ปุ๋ยและการชะล้างของน้ำ ควรวัดใหม่ก่อนเตรียมดินรอบนี้"));
+    }
+  }
+  root.appendChild(phCard);
+
+  // ══ ตัวเลือกบริบทแปลง ══
+  root.appendChild(bund("เลือกให้ตรงกับแปลงของคุณ"));
+  var pickCard = plot(null, "ขั้นตอนด้านล่างจะเปลี่ยนตามที่เลือก เพราะการเตรียมดินแต่ละแบบต่างกันจริง");
+
+  function chooser(label, dict, current, onPick) {
+    var box = el("div");
+    box.style.marginBottom = "14px";
+    box.appendChild(el("div", "read-label", label));
+    var row = el("div");
+    row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap";
+    Object.keys(dict).forEach(function (k) {
+      var b = el("button", "act act-sm " + (k === current ? "act-go" : "act-line"), dict[k].thai);
+      b.onclick = function () { onPick(k); };
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+    return box;
+  }
+
+  var stepsHost = el("div");
+
+  function repaint() {
+    pickCard.innerHTML = "";
+    pickCard.appendChild(el("div", "plot-note",
+      "ขั้นตอนด้านล่างจะเปลี่ยนตามที่เลือก เพราะการเตรียมดินแต่ละแบบต่างกันจริง"));
+    pickCard.appendChild(chooser("วิธีทำนา", G.methods, pick.method, function (k) {
+      pick.method = k; remember(); repaint();
+    }));
+    pickCard.appendChild(chooser("ชนิดดินในแปลง", G.soils, pick.soil, function (k) {
+      pick.soil = k; remember(); repaint();
+    }));
+
+    var m = G.methods[pick.method], sl = G.soils[pick.soil];
+
+    stepsHost.innerHTML = "";
+
+    // ── ขั้นตอนหลักตามวิธีทำนา ──
+    stepsHost.appendChild(bund("ขั้นตอนเตรียมดิน · " + m.thai));
+    var intro = plot(null);
+    intro.appendChild(el("p", "", m.note));
+    intro.querySelector("p").style.cssText = "margin:0;font-size:.89rem;color:var(--ink-soft)";
+    stepsHost.appendChild(intro);
+
+    m.steps.forEach(function (st, i) {
+      var c = plot(null);
+      c.style.marginTop = "13px";
+
+      var top = el("div");
+      top.style.cssText = "display:flex;gap:13px;align-items:flex-start;margin-bottom:11px";
+      var badge = el("div", "num", String(i + 1));
+      badge.style.cssText = "flex:none;width:30px;height:30px;border-radius:50%;display:flex;" +
+        "align-items:center;justify-content:center;background:var(--tint-ok);color:var(--deep);font-weight:600;font-size:.9rem";
+      top.appendChild(badge);
+      var titleWrap = el("div");
+      var t = el("div", "", st.title);
+      t.style.cssText = "font-family:var(--f-display);font-weight:600;font-size:1.02rem;line-height:1.3";
+      titleWrap.appendChild(t);
+      titleWrap.appendChild(el("div", "read-foot", "ช่วงเวลา: " + st.when));
+      top.appendChild(titleWrap);
+      c.appendChild(top);
+
+      var d = el("p", "", st.detail);
+      d.style.cssText = "margin:0;font-size:.88rem";
+      c.appendChild(d);
+
+      if (st.watch) {
+        var wbox = el("div", "flash flash-warn", "จุดที่พลาดบ่อย: " + st.watch);
+        c.appendChild(wbox);
+      }
+      stepsHost.appendChild(c);
+    });
+
+    // ── ข้อควรระวังตามชนิดดิน ──
+    stepsHost.appendChild(bund("ข้อควรระวังสำหรับ" + sl.thai));
+    var sc = plot(null);
+    var tr = el("p", "", sl.trait);
+    tr.style.cssText = "margin:0 0 11px;font-size:.88rem;color:var(--ink-soft)";
+    sc.appendChild(tr);
+    var ul = el("ul");
+    ul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
+    sl.tips.forEach(function (x) {
+      var li = el("li", "", x);
+      li.style.marginBottom = "7px";
+      ul.appendChild(li);
+    });
+    sc.appendChild(ul);
+    stepsHost.appendChild(sc);
+
+    var cite = el("p", "",
+      "คู่มือนี้อ้างอิงหลักการทั่วไปของการเตรียมดินนาข้าว แต่ละพื้นที่มีเงื่อนไขดินและน้ำต่างกัน " +
+      "ก่อนลงมือจริงควรปรึกษาเกษตรอำเภอ หมอดินอาสาประจำตำบล หรือศูนย์วิจัยข้าวในพื้นที่");
+    cite.style.cssText = "font-size:.78rem;color:var(--ink-soft);margin:14px 0 0";
+    stepsHost.appendChild(cite);
+  }
+
+  root.appendChild(pickCard);
+  root.appendChild(stepsHost);
+  repaint();
 };
 
 views.plots = async function (root) {
