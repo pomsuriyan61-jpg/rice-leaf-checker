@@ -363,6 +363,27 @@
   .state-note { font-size: .83rem; color: var(--ink-soft); max-width: 300px; margin: 0 auto; }
   .flash { padding: 11px 15px; border-radius: var(--r); font-size: .85rem; margin-top: 12px; }
   .flash-bad { background: var(--tint-bad); border: 1px solid #E0BDB2; color: var(--rust); }
+  .flash-warn { background: var(--tint-warn); border: 1px solid #E4CE94; color: #7A5A11; }
+
+  /* กล่องสรุปผลวินิจฉัย — เน้นชื่อโรคให้อ่านได้จากระยะแขน ไม่ต้องเพ่ง */
+  .verdict { border: 1px solid var(--rule); border-left: 3px solid var(--blade);
+             background: var(--tint-ok); padding: 16px 18px; }
+  .verdict-unsure { border-left-color: var(--grain); background: var(--tint-warn); }
+  .verdict-kicker { font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+                    color: var(--ink-faint); margin-bottom: 6px; }
+  .verdict-main { font-size: 25px; line-height: 1.25; font-weight: 600; color: var(--ink); }
+  .verdict-sub { margin-top: 3px; font-size: 12px; color: var(--ink-faint); font-family: ui-monospace, monospace; }
+  .verdict-alt { margin-top: 10px; font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+  .verdict-src { margin-top: 8px; font-size: 11.5px; color: var(--ink-faint); }
+
+  /* ฝน/แสง วันนี้–พรุ่งนี้ */
+  .fx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--rule); margin-top: 14px; }
+  .fx-cell { background: var(--paper); padding: 14px 16px; }
+  .fx-when { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 8px; }
+  .fx-big  { font-size: 22px; font-weight: 600; color: var(--ink); line-height: 1.2; }
+  .fx-big2 { font-size: 18px; font-weight: 600; color: var(--grain); line-height: 1.2; margin-top: 10px; }
+  .fx-cap  { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+  @media (max-width: 420px) { .fx-grid { grid-template-columns: 1fr; } }
   .flash-ok  { background: var(--tint-ok); border: 1px solid #CBD9AF; color: #3B5A28; }
 
   .stack-item { display: flex; gap: 14px; align-items: center; padding: 13px 2px; border-bottom: 1px solid var(--rule-soft); }
@@ -712,6 +733,17 @@ function classify(which, features) {
 
 function brainReady() { return models.rice.ready && models.disease.ready; }
 
+// ไฟล์โมเดลมีขนาดหลายสิบเมกะไบต์ ครั้งแรกที่เปิดเว็บบนเน็ตมือถือจึงอาจใช้เวลานาน
+// ถ้าไม่บอกอะไรเลยผู้ใช้จะคิดว่าเว็บค้างแล้วปิดทิ้ง ทั้งที่กำลังโหลดอยู่
+// ตัวจับเวลานี้จึงเปลี่ยนข้อความหลังผ่านไประยะหนึ่ง เพื่ออธิบายว่าเกิดอะไรขึ้น
+var brainStart = Date.now();
+function loadPhase() {
+  var sec = (Date.now() - brainStart) / 1000;
+  if (sec < 12) return "กำลังโหลดโมเดล";
+  if (sec < 45) return "กำลังดาวน์โหลดโมเดล (ครั้งแรกใช้เวลาสักครู่)";
+  return "เน็ตช้า ยังดาวน์โหลดโมเดลอยู่ ครั้งต่อไปจะเร็วขึ้นเพราะเบราว์เซอร์เก็บไว้แล้ว";
+}
+
 function markBrain() {
   var dot = document.getElementById("brainDot"), txt = document.getElementById("brainText");
   if (dot) {
@@ -720,7 +752,7 @@ function markBrain() {
     } else if (brainReady()) {
       dot.className = "dot live"; txt.textContent = "โมเดล 2 ตัวพร้อมใช้";
     } else {
-      dot.className = "dot"; txt.textContent = "กำลังโหลดโมเดล";
+      dot.className = "dot"; txt.textContent = loadPhase();
     }
   }
   document.querySelectorAll("[data-needs-brain]").forEach(function (btn) {
@@ -733,6 +765,15 @@ function markBrain() {
       btn.textContent = "กำลังโหลดโมเดล AI"; btn.disabled = true;
     }
   });
+
+  // ระหว่างที่ยังโหลดไม่เสร็จ ให้อัปเดตข้อความเองทุก 5 วินาที
+  // เพราะไม่มีอีเวนต์อะไรมากระตุ้น markBrain ในช่วงนี้
+  if (!brainReady() && !models.rice.error && !models.disease.error) {
+    clearTimeout(markBrain._t);
+    markBrain._t = setTimeout(markBrain, 5000);
+  } else {
+    clearTimeout(markBrain._t);
+  }
 }
 
 function inputSize(props) {
@@ -1042,13 +1083,14 @@ function exportCsv(logs) {
 }
 
 // ─── ความเสี่ยงโรคจากสภาพอากาศ ──────────────────
-// ปรับให้ตรงกับ 4 โรคที่โมเดลรุ่นปัจจุบันแยกได้ (Healthy ไม่มีกฎ เพราะไม่ใช่โรค)
+// ปรับให้ตรงกับ 4 โรคที่โมเดล v13 แยกได้ (Healthy ไม่มีกฎ เพราะไม่ใช่โรค)
 //
 // เหตุผลที่ต้องตรงกัน: ถ้าหน้านี้เตือน "โรคกาบใบแห้งเสี่ยงสูง" แต่กล้องแยกโรคนั้นไม่ได้
 // ผู้ใช้จะไม่มีทางยืนยันคำเตือนด้วยระบบเดียวกัน กลายเป็นคำเตือนที่ทำอะไรต่อไม่ได้
 //
 // หลักการให้คะแนน: แต่ละโรคมีสภาพอากาศที่เอื้อต่างกัน ไม่ใช่ "ชื้นมาก = เสี่ยงทุกโรค"
 // จุดที่ควรสังเกตคือโรคใบจุดสีน้ำตาลเสี่ยงตอน "ฝนทิ้งช่วง" ซึ่งสวนทางกับอีก 3 โรค
+// ถ้าเทรนโมเดลใหม่แล้วชื่อคลาสเปลี่ยน ต้องแก้ label ในนี้ให้ตรงด้วย ไม่งั้นการ์ดแนวทางแก้ไขจะไม่ขึ้น
 //
 // สำคัญ: ค่านี้เป็นดัชนีบ่งชี้เบื้องต้นเพื่อการเฝ้าระวัง ไม่ใช่การพยากรณ์การระบาด
 // เกณฑ์ตัวเลขยังไม่ได้สอบเทียบกับข้อมูลระบาดจริงในพื้นที่
@@ -1068,18 +1110,18 @@ var RISK_RULES = [
     }
   },
   {
-    label: "Bacterialblight",
-    thai: "โรคขอบใบแห้ง",
-    why: "แบคทีเรียแพร่ไปกับน้ำและเข้าทางบาดแผลบนใบ จึงเสี่ยงสูงหลังฝนตกหนักติดต่อกันหรือน้ำท่วมขัง โดยเฉพาะเมื่ออากาศร้อนชื้นและกลางคืนยังอุ่น",
+    label: "Sheath blight",
+    thai: "โรคกาบใบแห้ง",
+    why: "เชื้อราอาศัยในดินและเข้าทำลายกาบใบบริเวณใกล้ผิวน้ำก่อน จึงเสี่ยงสูงเมื่อความชื้นสูงต่อเนื่องและอากาศอบอุ่น โดยเฉพาะนาที่ปลูกแน่นจนทรงพุ่มอับลม",
     score: function (w) {
       var s = 0;
-      // ฝนสะสมคือตัวขับหลัก เพราะเชื้อไหลไปกับน้ำจากต้นที่เป็นโรคสู่ต้นข้างเคียง
-      if (w.rain7 >= 60) s += 35; else if (w.rain7 >= 25) s += 20; else if (w.rain7 >= 10) s += 8;
-      if (w.humidity >= 85) s += 28; else if (w.humidity >= 78) s += 15;
-      // ช่วง 25-34°C คือช่วงที่แบคทีเรียเพิ่มจำนวนได้เร็วที่สุด
-      if (w.tempMax >= 25 && w.tempMax <= 34) s += 22; else if (w.tempMax <= 36) s += 9;
-      // กลางคืนอุ่นแปลว่าเชื้อไม่ได้พักตัว ต่างจากเชื้อราที่พึ่งน้ำค้างเย็น
-      if (w.tempMin >= 24) s += 15; else if (w.tempMin >= 21) s += 8;
+      // ความชื้นคือตัวขับหลัก เชื้อต้องการฟิล์มน้ำบนผิวกาบใบเพื่อเข้าทำลาย
+      if (w.humidity >= 88) s += 38; else if (w.humidity >= 80) s += 22; else if (w.humidity >= 72) s += 10;
+      // ช่วง 28-32°C คือช่วงที่เส้นใยเชื้อลุกลามเร็วที่สุด
+      if (w.tempMax >= 28 && w.tempMax <= 32) s += 25; else if (w.tempMax >= 25) s += 12;
+      if (w.rain7 >= 40) s += 22; else if (w.rain7 >= 15) s += 12;
+      // แดดน้อยแปลว่าทรงพุ่มแห้งช้า ความชื้นค้างอยู่ในกอนานขึ้น
+      if (w.sunHours <= 5) s += 15; else if (w.sunHours <= 7) s += 7;
       return s;
     }
   },
@@ -1097,7 +1139,7 @@ var RISK_RULES = [
     }
   },
   {
-    label: "Tungro",
+    label: "Rice Tungro",
     thai: "โรคใบสีส้ม (ทุงโร)",
     // ข้อจำกัดที่ต้องบอกผู้ใช้ตรงๆ: โรคนี้มาจากแมลงพาหะ ไม่ใช่สภาพอากาศโดยตรง
     // ดัชนีนี้จึงบอกได้แค่ "อากาศเอื้อให้เพลี้ยจักจั่นเพิ่มจำนวน" ไม่ใช่ "โรคกำลังจะระบาด"
@@ -1191,6 +1233,14 @@ async function fetchWeather(lat, lon) {
   return {
     days: days,
     todayIndex: todayIndex,
+    // พิกัดจุดตรวจอากาศที่ผู้ให้บริการเลือกให้ ซึ่งมักไม่ตรงกับพิกัดแปลงเป๊ะๆ
+    // เก็บไว้เพื่อแสดงให้ผู้ใช้เห็นว่าค่าที่อ่านอยู่มาจากจุดไหน ไม่ใช่วัดที่แปลงโดยตรง
+    station: {
+      lat: d.latitude,
+      lon: d.longitude,
+      elevation: d.elevation,
+      timezone: d.timezone_abbreviation || d.timezone || "Asia/Bangkok"
+    },
     summary: {
       rain7: +rain7.toFixed(1),
       humidity: Math.round(avg("humidity")),
@@ -1279,23 +1329,54 @@ function readOut(label, value, foot, small) {
   return b;
 }
 
-function renderRanking(host, results, gated) {
+// แสดงผลเป็น "ชื่อโรค" ไม่ใช่ตัวเลขเปอร์เซ็นต์
+//
+// เหตุผลที่เอาเปอร์เซ็นต์ออก: ค่าความมั่นใจของโมเดลจำแนกภาพไม่ใช่ความน่าจะเป็นจริง
+// โมเดลถูกบังคับให้เลือกคำตอบเสมอและให้คะแนนรวมกันได้ 100% ทุกครั้ง
+// การโชว์ "88%" จึงทำให้เกษตรกรเข้าใจผิดว่าแม่นยำ 88% ทั้งที่โมเดลให้ค่าสูงพอกัน
+// กับภาพที่ไม่ใช่ใบข้าวด้วยซ้ำ ตัวเลขนี้เลยหลอกมากกว่าช่วย
+//
+// สิ่งที่แทนที่: บอกชื่อโรคตรงๆ และถ้าความมั่นใจต่ำกว่าเกณฑ์ให้บอกว่า
+// "ระบุไม่ชัดเจน" แทนที่จะเอ่ยชื่อโรค — ความไม่แน่นอนยังสื่อถึงผู้ใช้อยู่
+// เพียงแต่สื่อเป็นคำพูดที่ตีความถูก แทนตัวเลขที่ตีความผิด
+function renderVerdict(host, results, opts) {
+  opts = opts || {};
   host.innerHTML = "";
-  host.appendChild(el("div", "verdict-src", gated
+
+  var sorted = results.slice().sort(function (a, b) { return b.value - a.value; });
+  var top = sorted[0];
+  if (!top) return;
+
+  var unsure = opts.threshold != null && top.value < opts.threshold;
+
+  var card = el("div", "verdict" + (unsure ? " verdict-unsure" : ""));
+  card.appendChild(el("div", "verdict-kicker", opts.kicker || "ผลการจำแนก"));
+  card.appendChild(el("div", "verdict-main", unsure ? "ระบุไม่ชัดเจน" : th(top.label)));
+
+  // ชื่อคลาสภาษาอังกฤษไว้ให้ตรวจสอบย้อนกลับได้ว่าโมเดลตอบอะไรจริงๆ
+  if (!unsure && th(top.label) !== top.label) {
+    card.appendChild(el("div", "verdict-sub", top.label));
+  }
+
+  host.appendChild(card);
+
+  if (unsure) {
+    host.appendChild(el("div", "verdict-alt",
+      "ภาพนี้ยังไม่ชัดพอให้ระบุโรคได้ ลองถ่ายใหม่ให้ใบเต็มเฟรม แสงสม่ำเสมอ ไม่ย้อนแสง"));
+  } else if (sorted.length > 1 && sorted[1].value > 0.05) {
+    // บอกตัวเลือกรองเป็น "ชื่อ" อย่างเดียว ไม่มีตัวเลข
+    // มีประโยชน์เวลาผู้ใช้เห็นอาการแล้วรู้สึกว่าน่าจะเป็นอีกโรค จะได้รู้ว่าโมเดลก็ลังเลระหว่างสองตัวนี้
+    var alts = sorted.slice(1, 3)
+      .filter(function (r) { return r.value > 0.05; })
+      .map(function (r) { return th(r.label); });
+    if (alts.length) {
+      host.appendChild(el("div", "verdict-alt", "โรคที่มีลักษณะใกล้เคียง: " + alts.join(", ")));
+    }
+  }
+
+  host.appendChild(el("div", "verdict-src", opts.gated
     ? "ตัดสินจากด่านตรวจสี/พื้นผิว ไม่ได้ส่งภาพเข้าโมเดล AI"
-    : "ผลจากโมเดลที่เทรนไว้ เรียงตามความมั่นใจ"));
-  results.slice().sort(function (a,b) { return b.value - a.value; }).forEach(function (r, i) {
-    var pct = Math.round(r.value * 100);
-    var row = el("div", "bar-row" + (i === 0 ? " lead" : ""));
-    row.appendChild(el("div", "bar-name", th(r.label)));
-    var track = el("div", "bar-track");
-    var fill = el("div", "bar-fill");
-    fill.style.width = pct + "%";
-    track.appendChild(fill);
-    row.appendChild(track);
-    row.appendChild(el("div", "bar-pct", pct + "%"));
-    host.appendChild(row);
-  });
+    : "ผลจากโมเดลที่เทรนไว้"));
 }
 
 function renderMix(host, pre) {
@@ -1605,15 +1686,20 @@ views.diagnose = function (root) {
       resultHost.appendChild(bund("ขั้นที่ 1 · เป็นใบข้าวหรือไม่"));
       var r1 = el("div");
       resultHost.appendChild(r1);
-      renderRanking(r1, res.rice.results, res.gated);
+      renderVerdict(r1, res.rice.results, { kicker: "ภาพนี้คือ", gated: res.gated });
 
       if (res.disease) {
         resultHost.appendChild(bund("ขั้นที่ 2 · ชนิดของโรค"));
         var r2 = el("div");
         resultHost.appendChild(r2);
-        renderRanking(r2, res.disease.results, false);
 
-        if (res.topDisease) {
+        // ใช้เกณฑ์ที่โมเดลกำหนดมาเอง (classification_threshold จาก Edge Impulse)
+        // ต่ำกว่านี้จะไม่เอ่ยชื่อโรคเลย เพราะการเอ่ยชื่อผิดแล้วเกษตรกรไปพ่นยาตาม
+        // เสียหายมากกว่าการบอกว่า "ยังระบุไม่ได้ ถ่ายใหม่"
+        var thr = (models.disease.props && models.disease.props.classification_threshold) || 0.6;
+        renderVerdict(r2, res.disease.results, { kicker: "โรคที่พบ", threshold: thr });
+
+        if (res.topDisease && res.topDisease.value >= thr) {
           var rx = buildRx(res.topDisease.label);
           if (rx) resultHost.appendChild(rx);
           else resultHost.appendChild(el("div", "flash flash-bad",
@@ -1623,6 +1709,11 @@ views.diagnose = function (root) {
         resultHost.appendChild(el("div", "flash flash-bad",
           res.gated ? res.pre.why : "ภาพนี้ไม่ใช่ใบข้าว ระบบจึงไม่ตรวจโรคต่อ"));
       }
+
+      // คำเตือนถาวร — ขึ้นทุกครั้งที่มีผล ไม่ว่าผลจะออกมาแบบไหน
+      // วางไว้หลังแนวทางแก้ไข เพื่อให้เป็นสิ่งสุดท้ายที่ผู้ใช้อ่านก่อนลงมือทำ
+      resultHost.appendChild(el("div", "flash flash-warn",
+        "การวิเคราะห์นี้อาจผิดพลาดได้ กรุณาปรึกษาเจ้าหน้าที่เกษตรหรือผู้เชี่ยวชาญเพื่อยืนยันโรคก่อนใช้สารเคมีทุกครั้ง"));
 
       resultHost.appendChild(bund("หลักฐานเชิงสี"));
       var mixHost = el("div");
@@ -2119,6 +2210,53 @@ views.weather = async function (root) {
 
   host.innerHTML = "";
 
+  // ── ฝนและแสงแดด วันนี้กับพรุ่งนี้ ──
+  // สองค่านี้คือสิ่งที่เกษตรกรใช้ตัดสินใจจริงในแต่ละวัน
+  // (จะพ่นยาไหม จะระบายน้ำไหม) จึงยกขึ้นมาไว้บนสุดแยกจากกราฟย้อนหลัง
+  (function () {
+    var d = w.days || [];
+    var i = w.todayIndex;
+    var today = d[i], tomorrow = d[i + 1];
+    if (!today) return;
+
+    var card = plot("ฝนและแสงแดด");
+    var st = w.station || {};
+
+    // บอกให้ชัดว่าค่านี้มาจากจุดพยากรณ์ใกล้แปลง ไม่ใช่เครื่องวัดที่ตั้งอยู่ในแปลง
+    // ถ้าไม่บอก ผู้ใช้จะเข้าใจว่าเป็นค่าที่วัดจากนาตัวเองแล้วไปโทษระบบเมื่อคลาดเคลื่อน
+    if (st.lat != null) {
+      card.appendChild(el("div", "read-foot",
+        "อ่านจากจุดพยากรณ์ใกล้แปลงที่สุด " + st.lat.toFixed(3) + ", " + st.lon.toFixed(3) +
+        (st.elevation != null ? " · สูงจากระดับน้ำทะเล " + Math.round(st.elevation) + " ม." : "") +
+        " — เป็นค่าจากแบบจำลอง ไม่ใช่เครื่องวัดที่ติดตั้งในแปลง"));
+    }
+
+    var grid = el("div", "fx-grid");
+    function cell(when, day) {
+      var c = el("div", "fx-cell");
+      c.appendChild(el("div", "fx-when", when));
+
+      var rain = day.rain == null ? null : day.rain;
+      c.appendChild(el("div", "fx-big", rain == null ? "–" : rain.toFixed(1) + " มม."));
+      c.appendChild(el("div", "fx-cap", rain == null ? "ไม่มีข้อมูลฝน"
+        : rain < 0.5 ? "แทบไม่มีฝน"
+        : rain < 10  ? "ฝนเล็กน้อย"
+        : rain < 35  ? "ฝนปานกลาง"
+        : rain < 90  ? "ฝนหนัก" : "ฝนหนักมาก"));
+
+      var sun = day.sunHours;
+      c.appendChild(el("div", "fx-big2", sun == null ? "–" : sun.toFixed(1) + " ชม."));
+      c.appendChild(el("div", "fx-cap", sun == null ? "ไม่มีข้อมูลแสง"
+        : sun < 3 ? "แดดน้อย ใบแห้งช้า"
+        : sun < 6 ? "แดดปานกลาง" : "แดดจัด"));
+      return c;
+    }
+    grid.appendChild(cell("วันนี้", today));
+    if (tomorrow) grid.appendChild(cell("พรุ่งนี้", tomorrow));
+    card.appendChild(grid);
+    host.appendChild(card);
+  })();
+
   // ── ค่าปัจจุบันจาก WeatherAPI (อัปเดตทุก 10-15 นาที) ──
   var liveCard = plot(null);
   var liveBody = el("div");
@@ -2339,6 +2477,19 @@ views.consult = async function (root) {
   root.appendChild(bund("ปรึกษาผู้เชี่ยวชาญ AI"));
   var card = plot(null);
 
+  // ความจำบทสนทนา — Gemini ไม่จำอะไรข้ามคำถาม ต้องส่งประวัติไปเองทุกครั้ง
+  // ถ้าไม่ทำ ผู้ใช้แนบรูปแล้วถามต่อว่า "แล้วต้องใช้ยาอะไร" AI จะไม่รู้ว่าพูดถึงรูปไหน
+  // เก็บแค่ 6 ตาล่าสุดเพื่อไม่ให้ prompt ยาวจนเปลือง token และช้า
+  var history = [];
+  function remember(who, text) {
+    history.push(who + ": " + text);
+    if (history.length > 12) history = history.slice(-12);
+  }
+
+  // ผลตรวจภาพล่าสุด เก็บแยกจาก history เพราะเป็นข้อมูลจากระบบเอง ไม่ใช่คำพูด
+  // คำถามต่อเนื่องทุกคำถามจะได้อ้างอิงผลตรวจนี้ได้ แม้ผู้ใช้ไม่แนบรูปซ้ำ
+  var lastVision = null;
+
   var talk = el("div", "talk");
   talk.appendChild(el("div", "say say-ai",
     "สวัสดีครับ ผมใช้ผลจากโมเดลตรวจภาพ ค่า pH ดิน และบันทึกแปลงของคุณประกอบการตอบ " +
@@ -2419,12 +2570,20 @@ views.consult = async function (root) {
         // Gemini จะอธิบายต่อยอดจากผลตรวจจริง ไม่ใช่เดาจากภาพอย่างเดียว
         try {
           var res = await runFullAnalysis(shot);
+          var thrC = (models.disease.props && models.disease.props.classification_threshold) || 0.6;
           if (!res.isRice) {
             cvNote = "\n\n[ผลตรวจภาพที่แนบมา: ไม่ใช่ใบข้าว หรือภาพไม่ชัดพอให้จำแนกโรค]";
+            lastVision = cvNote;
+          } else if (res.topDisease && res.topDisease.value >= thrC) {
+            // ไม่ส่งตัวเลขความมั่นใจให้ AI แล้ว เพราะ AI มักเอาไปพูดต่อว่า "มั่นใจ 88%"
+            // ซึ่งเป็นตัวเลขที่ตีความผิดได้ และเราเอาออกจากหน้าจอไปแล้วด้วย
+            cvNote = "\n\n[ผลตรวจภาพที่แนบมาจากโมเดลของระบบ: เป็นใบข้าว โรคที่พบคือ " +
+                     th(res.topDisease.label) + "]" + guideForPrompt(res.topDisease.label);
+            lastVision = cvNote;
           } else if (res.topDisease) {
-            cvNote = "\n\n[ผลตรวจภาพที่แนบมา: เป็นใบข้าว โรคที่พบคือ " + th(res.topDisease.label) +
-                     " ความมั่นใจ " + Math.round(res.topDisease.value * 100) + "%]" +
-                     guideForPrompt(res.topDisease.label);
+            cvNote = "\n\n[ผลตรวจภาพที่แนบมา: เป็นใบข้าว แต่โมเดลยังระบุโรคไม่ชัดเจน " +
+                     "ห้ามฟันธงชื่อโรค ให้แนะนำให้ถ่ายภาพใหม่หรือปรึกษาเจ้าหน้าที่เกษตร]";
+            lastVision = cvNote;
           }
         } catch (e) {
           cvNote = "\n\n[โมเดลตรวจภาพทำงานไม่สำเร็จ ให้วิเคราะห์จากภาพที่แนบมาโดยตรง]";
@@ -2440,13 +2599,28 @@ views.consult = async function (root) {
           "ใช้บันทึกแปลงด้านล่างเป็นข้อมูลประกอบเท่านั้น ห้ามตอบจากบันทึกเก่าแทนภาพที่แนบมา\n\n"
         : "";
 
-      var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าวและการเกษตรไทย ตอบภาษาไทยแบบเข้าใจง่าย กระชับ\n\n" +
+      // คำถามต่อเนื่องที่ไม่ได้แนบรูปใหม่ ให้ยึดผลตรวจของรูปเดิมไว้
+      // ไม่งั้น AI จะลืมว่าเพิ่งดูรูปอะไรไป แล้วตอบกว้างๆ จนไม่มีประโยชน์
+      var carry = (!shot && lastVision)
+        ? "\n\nผลตรวจภาพล่าสุดในบทสนทนานี้ (ผู้ใช้ยังพูดถึงภาพนี้อยู่):" + lastVision
+        : "";
+
+      var convo = history.length
+        ? "\n\nบทสนทนาก่อนหน้า:\n" + history.join("\n") + "\n"
+        : "";
+
+      var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าวและการเกษตรไทย ตอบภาษาไทยแบบเข้าใจง่าย กระชับ\n" +
+        "ตอบจากข้อมูลที่ให้มาด้านล่างเท่านั้น ถ้าไม่มีข้อมูลให้บอกตรงๆ ว่าไม่ทราบ " +
+        "และห้ามแต่งชื่อสารเคมีหรืออัตราการใช้ขึ้นเองเด็ดขาด\n\n" +
         focus +
-        "ข้อมูลแปลงนาของผู้ถาม (จากบันทึกในระบบ):\n" + farmContext + "\n\n" +
+        "ข้อมูลแปลงนาของผู้ถาม (จากบันทึกในระบบ):\n" + farmContext + "\n" +
+        convo + carry + "\n" +
         "คำถาม: " + (text || "ช่วยดูภาพใบข้าวที่แนบมาว่าเป็นโรคอะไร และควรจัดการอย่างไร") + cvNote;
 
       var answer = await Store.askGemini(prompt, payload);
       reply.textContent = answer.text;
+      remember("ผู้ใช้", (text || "(แนบภาพใบข้าวมาให้ดู)"));
+      remember("ผู้เชี่ยวชาญ", answer.text.slice(0, 400));
 
       // ถ้าแนบรูปแต่ Worker ไม่ได้ส่งรูปไปถึง Gemini ต้องบอกตรงๆ
       // ไม่ปล่อยให้ผู้ใช้เข้าใจผิดว่า AI ดูรูปแล้ว
