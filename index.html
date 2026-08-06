@@ -843,6 +843,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="disease-guide.js"></script>
 <script src="soil-guide.js"></script>
+<script src="fertilizer-guide.js"></script>
 <script>
 (function () {
 "use strict";
@@ -887,6 +888,7 @@ var PAGES = [
   { id: "diagnose", label: "วินิจฉัยใบข้าว", kicker: "ตรวจโรค",  icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
   { id: "survey",   label: "บันทึกสำรวจ",   kicker: "เก็บข้อมูล", icon: "M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zm2 5h4m-4 4h4m-4 4h2" },
   { id: "soil",     label: "เตรียมดิน",      kicker: "ก่อนปลูก",  icon: "M3 17h18M5 17V9m5 8V6m5 11v-7m5 7v-4" },
+  { id: "fert",     label: "ปุ๋ยอินทรีย์",   kicker: "ก่อนปลูก",  icon: "M12 21c-4-3-6-6-6-9a6 6 0 0112 0c0 3-2 6-6 9zm0-12v3m-2-1h4" },
   { id: "plots",    label: "แปลงของฉัน",    kicker: "แปลงนา",   icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
   { id: "ledger",   label: "ทะเบียนบันทึก", kicker: "เก็บข้อมูล", icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
   { id: "weather",  label: "อากาศและความเสี่ยง", kicker: "วิเคราะห์", icon: "M7 17a4 4 0 010-8 5.5 5.5 0 0110.5 1.5A3.5 3.5 0 0117 17zm-1 2l-1 2m4-2l-1 2m4-2l-1 2" },
@@ -2451,6 +2453,175 @@ views.soil = async function (root) {
 
   root.appendChild(pickCard);
   root.appendChild(stepsHost);
+  repaint();
+};
+
+// ─── หน้าปุ๋ยอินทรีย์ ───────────────────────────
+//
+// เป็นคู่มืออ่าน ไม่ใช่เครื่องคำนวณ เหมือนหน้าเตรียมดิน
+// แต่ต่างกันตรงที่หน้านี้มี "ตัวเลขจากเอกสารทางการ" ให้ใช้ได้เลย
+// เช่น สูตรกอง 1 ตัน และอัตราใส่นาข้าว 2 ตันต่อไร่ ซึ่งเป็นค่าที่กรมพัฒนาที่ดินกำหนด
+// ไม่ใช่ค่าที่ระบบคำนวณเอง จึงปลอดภัยพอที่จะแสดงเป็นตัวเลขตรงๆ ได้
+views.fert = async function (root) {
+  var G = window.FERT_GUIDE;
+  if (!G) {
+    root.appendChild(stateBlock("!", "ไม่พบไฟล์ฐานความรู้",
+      "ไฟล์ fertilizer-guide.js ยังไม่ได้อัปโหลดขึ้นเซิร์ฟเวอร์ กรุณาวางไว้ในโฟลเดอร์เดียวกับ index.html"));
+    return;
+  }
+
+  // จำชนิดที่ดูล่าสุด เพราะเกษตรกรมักทำปุ๋ยชนิดเดิมซ้ำทุกฤดู
+  var KEY = "smartrice-fert:" + (Session.user ? Session.user.username : "guest");
+  var current = "compost";
+  try {
+    var saved = localStorage.getItem(KEY);
+    if (saved && G.types[saved]) current = saved;
+  } catch (e) { /* อ่านไม่ได้ก็ใช้ค่าเริ่มต้น */ }
+
+  // ══ ความรู้พื้นฐาน ══
+  root.appendChild(bund("ปุ๋ยอินทรีย์คืออะไร"));
+  var over = plot(null);
+  var w = el("p", "", G.overview.what);
+  w.style.cssText = "margin:0 0 14px;font-size:.89rem";
+  over.appendChild(w);
+
+  var cols = el("div", "row-3");
+  function listCard(title, items, tone) {
+    var c = el("div");
+    c.appendChild(el("div", "rx-sect", title));
+    var ul = el("ul");
+    ul.style.cssText = "margin:0;padding-left:18px;font-size:.85rem";
+    items.forEach(function (x) {
+      var li = el("li", "", x);
+      li.style.marginBottom = "5px";
+      ul.appendChild(li);
+    });
+    c.appendChild(ul);
+    return c;
+  }
+  cols.appendChild(listCard("ข้อดี", G.overview.pros));
+  cols.appendChild(listCard("ข้อจำกัด", G.overview.cons));
+  over.appendChild(cols);
+
+  // ข้อความนี้คือใจความสำคัญที่สุดของทั้งหน้า จึงให้เด่นกว่ารายการข้อดีข้อเสีย
+  over.appendChild(el("div", "flash flash-warn", G.overview.key));
+  root.appendChild(over);
+
+  // ══ เลือกชนิดปุ๋ย ══
+  root.appendChild(bund("เลือกชนิดปุ๋ยที่ต้องการทำ"));
+  var pickCard = plot(null);
+  var body = el("div");
+
+  function repaint() {
+    pickCard.innerHTML = "";
+    var row = el("div");
+    row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap";
+    Object.keys(G.types).forEach(function (k) {
+      var t = G.types[k];
+      var b = el("button", "act act-sm " + (k === current ? "act-go" : "act-line"));
+      b.appendChild(document.createTextNode(t.thai));
+      var sub = el("span", "", " · " + t.short);
+      sub.style.opacity = ".72";
+      b.appendChild(sub);
+      b.onclick = function () {
+        current = k;
+        try { localStorage.setItem(KEY, k); } catch (e) { /* พื้นที่เต็ม ข้ามไป */ }
+        repaint();
+      };
+      row.appendChild(b);
+    });
+    pickCard.appendChild(row);
+
+    var t = G.types[current];
+    body.innerHTML = "";
+
+    // ── หัวเรื่องและข้อมูลสรุป ──
+    body.appendChild(bund(t.thai));
+    var head = plot(null);
+    var wt = el("p", "", t.what);
+    wt.style.cssText = "margin:0 0 13px;font-size:.89rem";
+    head.appendChild(wt);
+
+    var meta = el("div");
+    meta.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px";
+    meta.appendChild(readOut("ความยาก", t.difficulty, null, true));
+    meta.appendChild(readOut("ระยะเวลา", t.duration, null, true));
+    head.appendChild(meta);
+    body.appendChild(head);
+
+    // ── สูตรส่วนผสม (มีเฉพาะปุ๋ยหมัก) ──
+    if (t.recipe) {
+      var rc = plot(null);
+      rc.style.marginTop = "13px";
+      rc.appendChild(el("div", "rx-sect", t.recipe.title));
+      var rul = el("ul");
+      rul.style.cssText = "margin:0;padding-left:19px;font-size:.92rem;font-weight:500";
+      t.recipe.items.forEach(function (x) {
+        var li = el("li", "", x);
+        li.style.marginBottom = "5px";
+        rul.appendChild(li);
+      });
+      rc.appendChild(rul);
+      rc.appendChild(el("div", "read-foot", t.recipe.note));
+      body.appendChild(rc);
+    }
+
+    // ── วัตถุดิบที่ต้องเตรียม ──
+    if (t.materials) {
+      var mc = plot(null);
+      mc.style.marginTop = "13px";
+      mc.appendChild(el("div", "rx-sect", "สิ่งที่ต้องเตรียม"));
+      var mul = el("ul");
+      mul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
+      t.materials.forEach(function (x) {
+        var li = el("li", "", x);
+        li.style.marginBottom = "5px";
+        mul.appendChild(li);
+      });
+      mc.appendChild(mul);
+      body.appendChild(mc);
+    }
+
+    // ── ขั้นตอนการทำ ──
+    body.appendChild(bund("ขั้นตอนการทำ"));
+    t.steps.forEach(function (st, i) {
+      var c = plot(null);
+      c.style.marginTop = i ? "13px" : "0";
+      var top = el("div");
+      top.style.cssText = "display:flex;gap:13px;align-items:flex-start;margin-bottom:9px";
+      var badge = el("div", "num", String(i + 1));
+      badge.style.cssText = "flex:none;width:30px;height:30px;border-radius:50%;display:flex;" +
+        "align-items:center;justify-content:center;background:var(--tint-ok);color:var(--deep);font-weight:600;font-size:.9rem";
+      top.appendChild(badge);
+      var tt = el("div", "", st.title);
+      tt.style.cssText = "font-family:var(--f-display);font-weight:600;font-size:1.02rem;line-height:1.35;padding-top:3px";
+      top.appendChild(tt);
+      c.appendChild(top);
+      var d = el("p", "", st.detail);
+      d.style.cssText = "margin:0;font-size:.88rem";
+      c.appendChild(d);
+      body.appendChild(c);
+    });
+
+    if (t.warn) body.appendChild(el("div", "flash flash-bad", "ข้อควรระวัง: " + t.warn));
+
+    // ── วิธีนำไปใช้ ──
+    body.appendChild(bund("วิธีนำไปใช้ในนาข้าว"));
+    var uc = plot(null);
+    var uul = el("ul");
+    uul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
+    t.use.forEach(function (x) {
+      var li = el("li", "", x);
+      li.style.marginBottom = "6px";
+      uul.appendChild(li);
+    });
+    uc.appendChild(uul);
+    uc.appendChild(el("div", "rx-src", "อ้างอิง: " + t.source));
+    body.appendChild(uc);
+  }
+
+  root.appendChild(pickCard);
+  root.appendChild(body);
   repaint();
 };
 
