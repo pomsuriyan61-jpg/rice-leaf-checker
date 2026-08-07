@@ -695,6 +695,75 @@
   }
 
   /* ══════════════════════════════════════════════════════════
+     การอ่านออก
+     ปัญหาเดิม: ทุกขั้นตอนกางออกหมดพร้อมกัน หน้าหนึ่งมีข้อความ 20 ย่อหน้าเรียงต่อกัน
+     ผู้ใช้เลื่อนหาสิ่งที่ต้องการไม่เจอ และไม่รู้ว่าทั้งหมดมีกี่ขั้น
+     แก้โดยให้เห็นหัวข้อทั้งหมดก่อน แล้วกดขยายเฉพาะอันที่สนใจ
+     ══════════════════════════════════════════════════════════ */
+
+  /* จำกัดความกว้างบรรทัด ยาวเกิน 75 ตัวอักษรสายตาจะหาบรรทัดถัดไปไม่เจอ */
+  .plot p, .plot li, .state-note, .verdict-alt { max-width: 68ch; }
+  .plot p, .plot li { line-height: 1.75; }
+  .plot li { margin-bottom: 7px; }
+
+  /* ── รายการพับได้ ── */
+  .fold {
+    border: 1px solid var(--rule);
+    border-radius: var(--r-sm);
+    background: #FFFFFF;
+    margin-bottom: 9px;
+    overflow: hidden;
+  }
+  .fold-head {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 13px 15px; background: none; border: none; cursor: pointer;
+    text-align: left; font-family: var(--f-body); color: var(--ink);
+    transition: background .16s ease;
+  }
+  .fold-head:hover { background: var(--tint-ok); }
+  .fold.on .fold-head { background: var(--tint-ok); }
+  .fold-num {
+    flex: none; width: 27px; height: 27px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--canopy); color: var(--deep);
+    font-family: var(--f-data); font-size: .8rem; font-weight: 600;
+  }
+  .fold.on .fold-num { background: var(--deep); color: #FFFFFF; }
+  .fold-text { flex: 1; min-width: 0; }
+  .fold-title { font-weight: 600; font-size: .95rem; line-height: 1.4; }
+  .fold-sub { font-size: .76rem; color: var(--ink-faint); margin-top: 2px; }
+  /* ลูกศรหมุนบอกสถานะเปิดปิด ชัดกว่าเครื่องหมายบวกลบ */
+  .fold-arrow {
+    flex: none; width: 9px; height: 9px; margin-right: 3px;
+    border-right: 2px solid var(--ink-faint); border-bottom: 2px solid var(--ink-faint);
+    transform: rotate(45deg); transition: transform .2s ease;
+  }
+  .fold.on .fold-arrow { transform: rotate(-135deg); border-color: var(--deep); }
+  .fold-body { padding: 0 15px 15px 54px; font-size: .88rem; }
+  .fold-body p { margin: 0 0 9px; }
+  .fold-body p:last-child { margin-bottom: 0; }
+  @media (max-width: 520px) { .fold-body { padding-left: 15px; } }
+
+  /* กล่องเตือนในรายการพับ ให้เบากว่ากล่องเตือนระดับหน้า */
+  .fold-note {
+    margin-top: 10px; padding: 9px 12px; border-radius: 8px;
+    font-size: .83rem; line-height: 1.6;
+    background: var(--tint-warn); color: #7A5A11;
+  }
+
+  /* ── ข้อความประกอบที่ยาว ยุบไว้ก่อน ── */
+  .more { margin-top: 12px; }
+  .more-btn {
+    background: none; border: none; padding: 0; cursor: pointer;
+    font-family: var(--f-body); font-size: .82rem; color: var(--deep);
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+  .more-body { margin-top: 9px; font-size: .82rem; color: var(--ink-soft); line-height: 1.7; }
+
+  /* การ์ดซ้อนในการ์ดไม่ต้องมีเงา ไม่งั้นหน้าดูรกเป็นชั้นๆ */
+  .plot .plot { box-shadow: none; }
+
+  /* ══════════════════════════════════════════════════════════
      แสงและการเคลื่อนไหว
      หลักที่ยึด: motion ต้องบอกอะไรบางอย่าง ไม่ใช่ใส่เพราะสวย
      ทุกอย่างในนี้ถูกปิดทั้งหมดถ้าผู้ใช้ตั้งค่าลดการเคลื่อนไหวไว้
@@ -1764,6 +1833,54 @@ function plot(title, note) {
   return p;
 }
 
+// รายการพับได้ ใช้ทุกหน้าที่มีขั้นตอนยาว
+//
+// เปิดอันแรกไว้เสมอ เพื่อให้ผู้ใช้เห็นทันทีว่าข้างในหน้าตาเป็นอย่างไร
+// ถ้าพับหมดทุกอันผู้ใช้จะไม่รู้ว่าควรกดหรือไม่ และอาจคิดว่าหน้ายังโหลดไม่เสร็จ
+function fold(num, title, sub, fill, open) {
+  var box = el("div", "fold" + (open ? " on" : ""));
+
+  var head = el("button", "fold-head");
+  head.setAttribute("aria-expanded", open ? "true" : "false");
+  if (num != null) head.appendChild(el("div", "fold-num", String(num)));
+  var txt = el("div", "fold-text");
+  txt.appendChild(el("div", "fold-title", title));
+  if (sub) txt.appendChild(el("div", "fold-sub", sub));
+  head.appendChild(txt);
+  head.appendChild(el("div", "fold-arrow"));
+  box.appendChild(head);
+
+  var body = el("div", "fold-body");
+  body.hidden = !open;
+  fill(body);
+  box.appendChild(body);
+
+  head.onclick = function () {
+    var nowOpen = body.hidden;
+    body.hidden = !nowOpen;
+    box.classList.toggle("on", nowOpen);
+    head.setAttribute("aria-expanded", nowOpen ? "true" : "false");
+  };
+  return box;
+}
+
+// ข้อความประกอบที่ยาวแต่ไม่ใช่ใจความหลัก ยุบไว้ก่อน
+// เช่น ที่มาของข้อมูล ข้อจำกัด คำอธิบายเชิงเทคนิค
+// ข้อมูลพวกนี้จำเป็นต้องมีเพื่อความโปร่งใส แต่ไม่ควรแย่งที่กับสิ่งที่ต้องลงมือทำ
+function more(label, text) {
+  var wrap = el("div", "more");
+  var btn = el("button", "more-btn", label);
+  var body = el("div", "more-body", text);
+  body.hidden = true;
+  btn.onclick = function () {
+    body.hidden = !body.hidden;
+    btn.textContent = body.hidden ? label : "ย่อกลับ";
+  };
+  wrap.appendChild(btn);
+  wrap.appendChild(body);
+  return wrap;
+}
+
 // สถานะว่าง/กำลังโหลด/ผิดพลาด ต้องบอกเสมอว่าเกิดอะไรและทำอะไรต่อ
 function stateBlock(mark, lead, note) {
   var s = el("div", "state");
@@ -2497,42 +2614,22 @@ views.soil = async function (root) {
       var pr = G.problems[openKey];
       probBody.innerHTML = "";
 
-      var info = plot(null);
+      var info = plot("อาการที่สังเกตได้", "มักพบเมื่อ " + pr.when);
       info.style.marginTop = "13px";
-      info.appendChild(el("div", "rx-sect", "สังเกตอย่างไรว่าเป็นปัญหานี้"));
-      var s1 = el("p", "", pr.sign);
-      s1.style.cssText = "margin:0 0 11px;font-size:.88rem";
-      info.appendChild(s1);
-      info.appendChild(el("div", "rx-sect", "ทำไมถึงกระทบผลผลิต"));
-      var s2 = el("p", "", pr.why);
-      s2.style.cssText = "margin:0;font-size:.88rem";
-      info.appendChild(s2);
-      info.appendChild(el("div", "read-foot", "มักพบเมื่อ: " + pr.when));
+      info.appendChild(el("p", "", pr.sign));
+      info.appendChild(more("ทำไมถึงกระทบผลผลิต", pr.why));
       probBody.appendChild(info);
 
+      var fixBox = plot("วิธีแก้ เรียงจากต้นทุนต่ำไปสูง");
+      fixBox.style.marginTop = "13px";
       pr.fixes.forEach(function (fx, i) {
-        var c = plot(null);
-        c.style.marginTop = "13px";
-        var top = el("div");
-        top.style.cssText = "display:flex;gap:13px;align-items:flex-start;margin-bottom:9px";
-        var badge = el("div", "num", String(i + 1));
-        badge.style.cssText = "flex:none;width:30px;height:30px;border-radius:50%;display:flex;" +
-          "align-items:center;justify-content:center;background:var(--tint-ok);color:var(--deep);font-weight:600;font-size:.9rem";
-        top.appendChild(badge);
-        var tt = el("div", "", fx.title);
-        tt.style.cssText = "font-family:var(--f-display);font-weight:600;font-size:1.02rem;line-height:1.35;padding-top:3px";
-        top.appendChild(tt);
-        c.appendChild(top);
-        var d = el("p", "", fx.detail);
-        d.style.cssText = "margin:0 0 8px;font-size:.88rem";
-        c.appendChild(d);
-        // ต้นทุนคือสิ่งที่ตัดสินว่าเกษตรกรจะทำหรือไม่ทำ จึงต้องบอกทุกวิธี
-        c.appendChild(el("div", "read-foot", "ต้นทุนและข้อจำกัด: " + fx.cost));
-        probBody.appendChild(c);
+        fixBox.appendChild(fold(i + 1, fx.title, fx.cost, function (body) {
+          body.appendChild(el("p", "", fx.detail));
+        }, i === 0));
       });
-
-      if (pr.warn) probBody.appendChild(el("div", "flash flash-bad", "ข้อควรระวัง: " + pr.warn));
-      probBody.appendChild(el("div", "rx-src", "อ้างอิง: " + pr.source));
+      if (pr.warn) fixBox.appendChild(el("div", "flash flash-bad", "ข้อควรระวัง: " + pr.warn));
+      fixBox.appendChild(el("div", "rx-src", "อ้างอิง: " + pr.source));
+      probBody.appendChild(fixBox);
     }
 
     root.appendChild(probCard);
@@ -2583,34 +2680,15 @@ views.soil = async function (root) {
     intro.querySelector("p").style.cssText = "margin:0;font-size:.89rem;color:var(--ink-soft)";
     stepsHost.appendChild(intro);
 
+    var stepBox = plot(null);
+    stepBox.style.marginTop = "13px";
     m.steps.forEach(function (st, i) {
-      var c = plot(null);
-      c.style.marginTop = "13px";
-
-      var top = el("div");
-      top.style.cssText = "display:flex;gap:13px;align-items:flex-start;margin-bottom:11px";
-      var badge = el("div", "num", String(i + 1));
-      badge.style.cssText = "flex:none;width:30px;height:30px;border-radius:50%;display:flex;" +
-        "align-items:center;justify-content:center;background:var(--tint-ok);color:var(--deep);font-weight:600;font-size:.9rem";
-      top.appendChild(badge);
-      var titleWrap = el("div");
-      var t = el("div", "", st.title);
-      t.style.cssText = "font-family:var(--f-display);font-weight:600;font-size:1.02rem;line-height:1.3";
-      titleWrap.appendChild(t);
-      titleWrap.appendChild(el("div", "read-foot", "ช่วงเวลา: " + st.when));
-      top.appendChild(titleWrap);
-      c.appendChild(top);
-
-      var d = el("p", "", st.detail);
-      d.style.cssText = "margin:0;font-size:.88rem";
-      c.appendChild(d);
-
-      if (st.watch) {
-        var wbox = el("div", "flash flash-warn", "จุดที่พลาดบ่อย: " + st.watch);
-        c.appendChild(wbox);
-      }
-      stepsHost.appendChild(c);
+      stepBox.appendChild(fold(i + 1, st.title, st.when, function (body) {
+        body.appendChild(el("p", "", st.detail));
+        if (st.watch) body.appendChild(el("div", "fold-note", "จุดที่พลาดบ่อย: " + st.watch));
+      }, i === 0));
     });
+    stepsHost.appendChild(stepBox);
 
     // ── การเตรียมต้นกล้า แสดงเฉพาะนาดำ ──
     // เป็นงานคู่ขนานกับการเตรียมแปลงใหญ่ ไม่ใช่ขั้นตอนที่ทำต่อกัน
@@ -2625,29 +2703,15 @@ views.soil = async function (root) {
       nIntro.appendChild(ni);
       stepsHost.appendChild(nIntro);
 
+      var nBox = plot(null);
+      nBox.style.marginTop = "13px";
       N.steps.forEach(function (st, i) {
-        var c = plot(null);
-        c.style.marginTop = "13px";
-        var top = el("div");
-        top.style.cssText = "display:flex;gap:13px;align-items:flex-start;margin-bottom:11px";
-        var badge = el("div", "num", "ก" + (i + 1));
-        badge.style.cssText = "flex:none;min-width:30px;height:30px;padding:0 6px;border-radius:15px;display:flex;" +
-          "align-items:center;justify-content:center;background:var(--tint-warn);color:#7A5A11;font-weight:600;font-size:.82rem";
-        top.appendChild(badge);
-        var tw = el("div");
-        var t2 = el("div", "", st.title);
-        t2.style.cssText = "font-family:var(--f-display);font-weight:600;font-size:1.02rem;line-height:1.3";
-        tw.appendChild(t2);
-        tw.appendChild(el("div", "read-foot", "ช่วงเวลา: " + st.when));
-        top.appendChild(tw);
-        c.appendChild(top);
-
-        var d2 = el("p", "", st.detail);
-        d2.style.cssText = "margin:0;font-size:.88rem";
-        c.appendChild(d2);
-        if (st.watch) c.appendChild(el("div", "flash flash-warn", "จุดที่พลาดบ่อย: " + st.watch));
-        stepsHost.appendChild(c);
+        nBox.appendChild(fold("ก" + (i + 1), st.title, st.when, function (body) {
+          body.appendChild(el("p", "", st.detail));
+          if (st.watch) body.appendChild(el("div", "fold-note", "จุดที่พลาดบ่อย: " + st.watch));
+        }, i === 0));
       });
+      stepsHost.appendChild(nBox);
 
       if (N.tip) stepsHost.appendChild(el("div", "flash flash-bad", N.tip));
     }
@@ -2668,11 +2732,9 @@ views.soil = async function (root) {
     sc.appendChild(ul);
     stepsHost.appendChild(sc);
 
-    var cite = el("p", "",
+    stepsHost.appendChild(more("ที่มาและข้อจำกัดของคู่มือนี้",
       "คู่มือนี้อ้างอิงหลักการทั่วไปของการเตรียมดินนาข้าว แต่ละพื้นที่มีเงื่อนไขดินและน้ำต่างกัน " +
-      "ก่อนลงมือจริงควรปรึกษาเกษตรอำเภอ หมอดินอาสาประจำตำบล หรือศูนย์วิจัยข้าวในพื้นที่");
-    cite.style.cssText = "font-size:.78rem;color:var(--ink-soft);margin:14px 0 0";
-    stepsHost.appendChild(cite);
+      "ก่อนลงมือจริงควรปรึกษาเกษตรอำเภอ หมอดินอาสาประจำตำบล หรือศูนย์วิจัยข้าวในพื้นที่"));
   }
 
   root.appendChild(pickCard);
@@ -2726,6 +2788,7 @@ views.fert = async function (root) {
   cols.appendChild(listCard("ข้อดี", G.overview.pros));
   cols.appendChild(listCard("ข้อจำกัด", G.overview.cons));
   over.appendChild(cols);
+  cols.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:22px";
 
   // ข้อความนี้คือใจความสำคัญที่สุดของทั้งหน้า จึงให้เด่นกว่ารายการข้อดีข้อเสีย
   over.appendChild(el("div", "flash flash-warn", G.overview.key));
@@ -2808,24 +2871,13 @@ views.fert = async function (root) {
 
     // ── ขั้นตอนการทำ ──
     body.appendChild(bund("ขั้นตอนการทำ"));
+    var fBox = plot(null);
     t.steps.forEach(function (st, i) {
-      var c = plot(null);
-      c.style.marginTop = i ? "13px" : "0";
-      var top = el("div");
-      top.style.cssText = "display:flex;gap:13px;align-items:flex-start;margin-bottom:9px";
-      var badge = el("div", "num", String(i + 1));
-      badge.style.cssText = "flex:none;width:30px;height:30px;border-radius:50%;display:flex;" +
-        "align-items:center;justify-content:center;background:var(--tint-ok);color:var(--deep);font-weight:600;font-size:.9rem";
-      top.appendChild(badge);
-      var tt = el("div", "", st.title);
-      tt.style.cssText = "font-family:var(--f-display);font-weight:600;font-size:1.02rem;line-height:1.35;padding-top:3px";
-      top.appendChild(tt);
-      c.appendChild(top);
-      var d = el("p", "", st.detail);
-      d.style.cssText = "margin:0;font-size:.88rem";
-      c.appendChild(d);
-      body.appendChild(c);
+      fBox.appendChild(fold(i + 1, st.title, null, function (bd) {
+        bd.appendChild(el("p", "", st.detail));
+      }, i === 0));
     });
+    body.appendChild(fBox);
 
     if (t.warn) body.appendChild(el("div", "flash flash-bad", "ข้อควรระวัง: " + t.warn));
 
@@ -2982,7 +3034,7 @@ views.fert = async function (root) {
       uul.appendChild(li);
     });
     uc.appendChild(uul);
-    uc.appendChild(el("div", "rx-src", "อ้างอิง: " + t.source));
+    uc.appendChild(more("ที่มาของข้อมูล", t.source));
     body.appendChild(uc);
   }
 
@@ -3243,15 +3295,7 @@ views.cost = async function (root) {
     // ── ที่มาของตัวเลข ──
     var srcBox = plot(null);
     srcBox.style.marginTop = "13px";
-    srcBox.appendChild(el("div", "rx-sect", "ที่มาของค่าตั้งต้น"));
-    var sul = el("ul");
-    sul.style.cssText = "margin:0;padding-left:19px;font-size:.8rem;color:var(--ink-soft)";
-    C.sources.forEach(function (x) {
-      var li = el("li", "", x);
-      li.style.marginBottom = "4px";
-      sul.appendChild(li);
-    });
-    srcBox.appendChild(sul);
+    srcBox.appendChild(more("ที่มาของค่าตั้งต้นทั้งหมด", C.sources.join(" · ")));
     srcBox.appendChild(el("div", "flash flash-warn",
       "ตัวเลขค่าตั้งต้นเป็นข้อมูล " + C.asOf + " ราคาข้าวเปลี่ยนแปลงตลอดเวลา " +
       "ผลการคำนวณนี้เป็นเพียงการประมาณเพื่อวางแผน ไม่ใช่การรับประกันรายได้ " +
@@ -3912,12 +3956,10 @@ views.weather = async function (root) {
     riskCard.appendChild(row);
   });
 
-  var caveat = el("p", "",
+  riskCard.appendChild(more("ดัชนีนี้บอกอะไรได้และบอกไม่ได้",
     "ดัชนีนี้ประเมินจากสภาพอากาศเท่านั้น ใช้เพื่อการเฝ้าระวังล่วงหน้า ไม่ใช่การพยากรณ์การระบาด " +
     "ปัจจัยอื่นที่มีผลมากแต่ยังไม่ได้นำมาคำนวณ ได้แก่ พันธุ์ข้าวที่ปลูก ความหนาแน่นของการปลูก " +
-    "ปริมาณปุ๋ยไนโตรเจน และประวัติการระบาดในพื้นที่ ควรใช้ประกอบการสำรวจแปลงด้วยตาเสมอ");
-  caveat.style.cssText = "font-size:.78rem;color:var(--ink-soft);margin:14px 0 0";
-  riskCard.appendChild(caveat);
+    "ปริมาณปุ๋ยไนโตรเจน และประวัติการระบาดในพื้นที่ ควรใช้ประกอบการสำรวจแปลงด้วยตาเสมอ"));
   root.appendChild(riskCard);
 
   // กราฟย้อนหลังและพยากรณ์
