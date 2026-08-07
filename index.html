@@ -889,6 +889,7 @@ var PAGES = [
   { id: "diagnose", label: "วินิจฉัยใบข้าว", kicker: "ตรวจโรค",  icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
   { id: "survey",   label: "บันทึกสำรวจ",   kicker: "เก็บข้อมูล", icon: "M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zm2 5h4m-4 4h4m-4 4h2" },
   { id: "soil",     label: "เตรียมดิน",      kicker: "ก่อนปลูก",  icon: "M3 17h18M5 17V9m5 8V6m5 11v-7m5 7v-4" },
+  { id: "soildata", label: "ข้อมูลดิน",       kicker: "ก่อนปลูก",  icon: "M4 19h16M4 15h16M6 11h12M8 7h8m-4-4v4" },
   { id: "fert",     label: "ปุ๋ยและการบำรุง", kicker: "ก่อนปลูก",  icon: "M12 21c-4-3-6-6-6-9a6 6 0 0112 0c0 3-2 6-6 9zm0-12v3m-2-1h4" },
   { id: "cost",     label: "ต้นทุนและกำไร",  kicker: "วางแผน",   icon: "M12 3v18M8 7h6a2.5 2.5 0 010 5H9a2.5 2.5 0 000 5h7" },
   { id: "plots",    label: "โรคที่พบ",       kicker: "ตรวจโรค",  icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
@@ -1512,6 +1513,24 @@ function buildFarmContext(logs) {
 
   var withGps = logs.filter(function (l) { return l.gps; });
   if (withGps.length) lines.push("พิกัดแปลงล่าสุด: " + withGps[0].gps);
+
+  // ผลวิเคราะห์ดินคือข้อมูลที่ทำให้ AI แนะนำปุ๋ยเฉพาะแปลงได้จริง
+  // ต่างจากค่า pH อย่างเดียวซึ่งบอกไม่ได้ว่าดินขาดธาตุอะไร
+  var soil = logs.filter(function (l) { return l.kind === "soil"; })[0];
+  if (soil && window.readNutrient) {
+    var parts = [];
+    ["om", "p", "k", "n"].forEach(function (k) {
+      if (soil[k] == null) return;
+      var r = window.readNutrient(k, soil[k]);
+      if (r) parts.push(r.nutrient.thai + " " + soil[k] + " " + r.nutrient.unit + " (ระดับ" + r.band.word + ")");
+    });
+    if (parts.length) {
+      lines.push("ผลวิเคราะห์ดินล่าสุด เมื่อ " + soil.date + ": " + parts.join(", "));
+      lines.push("[มีผลวิเคราะห์ดินแล้ว ให้แนะนำสูตรปุ๋ยโดยพิจารณาจากค่าเหล่านี้ " +
+                 "ธาตุที่อยู่ในระดับสูงไม่ต้องใส่เพิ่ม ธาตุที่ต่ำให้เสริม " +
+                 "และบอกด้วยว่าประหยัดค่าปุ๋ยได้อย่างไรเมื่อเทียบกับการใส่สูตรรวมแบบเหมา]");
+    }
+  }
 
   lines.push("บันทึก 5 ครั้งล่าสุด:");
   logs.slice(0, 5).forEach(function (l) {
@@ -3273,6 +3292,252 @@ views.cost = async function (root) {
   recalc();
 };
 
+// ─── หน้าข้อมูลดิน (ผลวิเคราะห์ธาตุอาหาร) ──────
+//
+// หน้านี้คือกุญแจที่ปลดล็อกข้อจำกัดใหญ่ที่สุดของระบบ
+//
+// ที่ผ่านมาเรามีแค่ค่า pH ซึ่งบอกไม่ได้เลยว่าดินขาดธาตุอะไร
+// จึงห้าม AI แนะนำสูตรปุ๋ยเฉพาะแปลงมาตลอด ทำได้แค่ให้อัตรามาตรฐานกลางๆ
+// เมื่อผู้ใช้กรอกผลวิเคราะห์ดินเข้ามา ข้อจำกัดนั้นหายไป
+// ระบบจะบอกได้ว่า "ดินคุณโพแทสเซียมสูงอยู่แล้ว ไม่ต้องซื้อ 0-0-60"
+// ซึ่งประหยัดเงินจริงและเป็นคำแนะนำที่มีฐานรองรับ
+views.soildata = async function (root) {
+  var G = window.SOIL_GUIDE;
+  if (!G || !G.nutrients) {
+    root.appendChild(stateBlock("!", "ไม่พบไฟล์ฐานความรู้",
+      "ไฟล์ soil-guide.js เป็นเวอร์ชันเก่าที่ยังไม่มีเกณฑ์แปลผลธาตุอาหาร กรุณาอัปโหลดตัวล่าสุด"));
+    return;
+  }
+
+  var logs = await Store.list();
+  var lastSoil = logs.filter(function (l) { return l.kind === "soil"; })[0];
+
+  // ══ ฟอร์มกรอก ══
+  root.appendChild(bund("กรอกผลวิเคราะห์ดิน"));
+  var form = plot(null,
+    "กรอกค่าจากใบผลวิเคราะห์ดินของสถานีพัฒนาที่ดิน หรือจากชุดตรวจสอบดินภาคสนาม กรอกเท่าที่มีก็ได้");
+
+  var grid = el("div", "inputs");
+  function field(label, id, hint, value) {
+    var d = el("div", "inp");
+    d.appendChild(el("label", "", label));
+    var i = el("input");
+    i.id = id;
+    i.className = "num-in";
+    i.inputMode = "decimal";
+    if (value != null) i.value = String(value);
+    d.appendChild(i);
+    if (hint) d.appendChild(el("div", "read-foot", hint));
+    return d;
+  }
+
+  var dBox = el("div", "inp");
+  dBox.appendChild(el("label", "", "วันที่ตรวจวิเคราะห์"));
+  var dIn = el("input");
+  dIn.type = "date";
+  dIn.value = new Date().toISOString().slice(0, 10);
+  dBox.appendChild(dIn);
+  grid.appendChild(dBox);
+
+  grid.appendChild(field("ค่าความเป็นกรด-ด่าง (pH)", "sdPh",
+    "ค่าเหมาะสมกับข้าวคือ 5.5-7.0", lastSoil ? lastSoil.ph : null));
+
+  G.nutrients.forEach(function (n) {
+    grid.appendChild(field(
+      n.thai + " (" + n.abbr + ") — " + n.unit,
+      "sd_" + n.key,
+      n.optional ? "ไม่บังคับ ถ้าใบผลวิเคราะห์ไม่มีให้เว้นว่าง" : null,
+      lastSoil ? lastSoil[n.key] : null));
+  });
+  form.appendChild(grid);
+
+  // อธิบายจุดที่ผู้ใช้มักหาไม่เจอในใบผลวิเคราะห์
+  form.appendChild(el("div", "flash flash-warn",
+    "หาไนโตรเจนในใบผลวิเคราะห์ไม่เจอเป็นเรื่องปกติ ห้องแล็บส่วนใหญ่ไม่รายงานค่านี้ " +
+    "ให้ใช้อินทรียวัตถุแทนได้เลย เพราะไนโตรเจนในดินเกือบทั้งหมดอยู่ในรูปอินทรีย์ " +
+    "และหลักการปุ๋ยสั่งตัดก็ใช้อินทรียวัตถุเป็นตัวประเมินไนโตรเจนเช่นกัน"));
+
+  var acts = el("div");
+  acts.style.cssText = "display:flex;gap:9px;margin-top:14px;flex-wrap:wrap";
+  var runBtn = el("button", "act act-go", "วิเคราะห์ดิน");
+  var saveBtn = el("button", "act act-line", "บันทึกผลการวิเคราะห์");
+  saveBtn.disabled = true;
+  acts.appendChild(runBtn);
+  acts.appendChild(saveBtn);
+  form.appendChild(acts);
+  var msgHost = el("div");
+  form.appendChild(msgHost);
+  root.appendChild(form);
+
+  // ══ ผลการวิเคราะห์ ══
+  root.appendChild(bund("ผลการวิเคราะห์ดิน"));
+  var outHost = el("div");
+  root.appendChild(outHost);
+
+  function readForm() {
+    function num(id) {
+      var v = parseFloat(document.getElementById(id).value);
+      return isNaN(v) ? null : v;
+    }
+    var out = { date: dIn.value, ph: num("sdPh") };
+    G.nutrients.forEach(function (n) { out[n.key] = num("sd_" + n.key); });
+    return out;
+  }
+
+  function analyse() {
+    var v = readForm();
+    outHost.innerHTML = "";
+
+    var rows = [];
+    if (v.ph != null) {
+      var pb = window.readSoilPh(v.ph);
+      rows.push({ name: "ความเป็นกรด-ด่าง (pH)", value: v.ph, unit: "",
+                  band: pb, key: pb.key, word: pb.title, todo: pb.todo, role: null });
+    }
+    G.nutrients.forEach(function (n) {
+      if (v[n.key] == null) return;
+      var r = window.readNutrient(n.key, v[n.key]);
+      if (!r) return;
+      rows.push({ name: n.thai + " (" + n.abbr + ")", value: v[n.key], unit: n.unit,
+                  key: r.band.key, word: r.band.word, say: r.band.say, todo: r.band.todo, role: n.role });
+    });
+
+    if (!rows.length) {
+      outHost.appendChild(stateBlock("◇", "ยังไม่มีค่าให้วิเคราะห์",
+        "กรอกอย่างน้อย 1 ค่าแล้วกดวิเคราะห์ดิน"));
+      saveBtn.disabled = true;
+      return null;
+    }
+
+    // ตารางผลรวม
+    var card = plot(null);
+    var wrap = el("div");
+    wrap.style.overflowX = "auto";
+    var t = el("table");
+    t.innerHTML = "<thead><tr><th>รายการ</th><th>ค่าที่ตรวจวัด</th><th>ระดับ</th><th>สิ่งที่ควรทำ</th></tr></thead>";
+    var tb = el("tbody");
+    rows.forEach(function (r) {
+      var tr = el("tr");
+      tr.appendChild(el("td", "", r.name));
+      tr.appendChild(el("td", "n", r.value + (r.unit ? " " + r.unit : "")));
+      var tdL = el("td");
+      tdL.appendChild(el("span",
+        r.key === "ok" ? "tag-yes" : r.key === "warn" ? "tag-wait" : "tag-no", r.word));
+      tr.appendChild(tdL);
+      var tdT = el("td");
+      tdT.style.cssText = "font-size:.83rem;line-height:1.55";
+      tdT.textContent = r.todo;
+      tr.appendChild(tdT);
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    wrap.appendChild(t);
+    card.appendChild(wrap);
+    outHost.appendChild(card);
+
+    // ══ สรุปสูตรปุ๋ยที่เหมาะกับดินแปลงนี้ ══
+    //
+    // นี่คือสิ่งที่ทำไม่ได้เลยตอนมีแค่ pH
+    // ตรรกะง่ายมาก: ธาตุไหนสูงแล้วก็ไม่ต้องซื้อเพิ่ม ธาตุไหนต่ำก็ต้องเสริม
+    // ซึ่งตรงกับหลักปุ๋ยสั่งตัด และประหยัดเงินได้จริงเพราะไม่ซื้อสิ่งที่ดินมีอยู่แล้ว
+    var pR = v.p != null ? window.readNutrient("p", v.p) : null;
+    var kR = v.k != null ? window.readNutrient("k", v.k) : null;
+    var oR = v.om != null ? window.readNutrient("om", v.om) : null;
+
+    if (pR || kR || oR) {
+      var rec = plot(null);
+      rec.style.marginTop = "13px";
+      rec.appendChild(el("div", "rx-sect", "สูตรปุ๋ยที่เหมาะกับดินแปลงนี้"));
+
+      var lines = [];
+      var needP = pR ? (pR.band.key !== "ok") : true;
+      var needK = kR ? (kR.band.key !== "ok") : true;
+
+      if (needP && needK) {
+        lines.push("ดินขาดทั้งฟอสฟอรัสและโพแทสเซียม ควรใช้สูตร 16-16-8 ซึ่งมีครบทั้งสามธาตุ");
+      } else if (needP && !needK) {
+        lines.push("ดินมีโพแทสเซียมเพียงพออยู่แล้ว ใช้สูตร 16-20-0 ที่ไม่มีโพแทสเซียมได้ ประหยัดกว่าการซื้อสูตรที่มีครบ");
+      } else if (!needP && needK) {
+        lines.push("ดินมีฟอสฟอรัสเพียงพอแล้ว แต่ยังขาดโพแทสเซียม ควรเน้นสูตรที่มีโพแทสเซียม เช่น 16-16-8 หรือเสริม 0-0-60 อัตรา 5-10 กก./ไร่");
+      } else {
+        lines.push("ดินมีทั้งฟอสฟอรัสและโพแทสเซียมเพียงพอแล้ว รอบนี้เน้นเฉพาะปุ๋ยไนโตรเจนก็พอ ประหยัดค่าปุ๋ยได้มาก");
+      }
+
+      if (oR) {
+        if (oR.band.key === "ok") {
+          lines.push("อินทรียวัตถุอยู่ในเกณฑ์ดี ลดปุ๋ยไนโตรเจนลงจากอัตราแนะนำได้ แล้วสังเกตว่าข้าวเหลืองซีดหรือไม่");
+        } else {
+          lines.push("อินทรียวัตถุยังไม่พอ ใส่ปุ๋ยไนโตรเจนตามอัตราแนะนำเต็มที่ และเพิ่มอินทรียวัตถุระยะยาวด้วยการไถกลบตอซังและปุ๋ยอินทรีย์");
+        }
+      }
+
+      var ul = el("ul");
+      ul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
+      lines.forEach(function (x) {
+        var li = el("li", "", x);
+        li.style.marginBottom = "6px";
+        ul.appendChild(li);
+      });
+      rec.appendChild(ul);
+
+      rec.appendChild(el("div", "flash flash-warn",
+        "คำแนะนำนี้พิจารณาจากผลวิเคราะห์ดินของคุณ ซึ่งแม่นกว่าการใช้อัตรามาตรฐานกลาง " +
+        "แต่ยังไม่ใช่ปุ๋ยสั่งตัดเต็มรูปแบบซึ่งต้องใช้ชุดดินและเป้าผลผลิตประกอบด้วย " +
+        "ถ้าต้องการความแม่นสูงสุด ให้นำใบผลวิเคราะห์ไปปรึกษาหมอดินอาสาประจำตำบล"));
+      rec.appendChild(el("div", "rx-src",
+        "เกณฑ์แปลผลอ้างอิงสำนักวิทยาศาสตร์เพื่อการพัฒนาที่ดิน กรมพัฒนาที่ดิน · อัตราปุ๋ยอ้างอิง Rice Knowledge Bank กรมการข้าว"));
+      outHost.appendChild(rec);
+    }
+
+    saveBtn.disabled = false;
+    return v;
+  }
+
+  runBtn.onclick = function () { msgHost.innerHTML = ""; analyse(); };
+
+  saveBtn.onclick = async function () {
+    var v = analyse();
+    if (!v) return;
+    saveBtn.disabled = true;
+    saveBtn.textContent = "กำลังบันทึก";
+    msgHost.innerHTML = "";
+    try {
+      // เก็บเป็นบันทึกชนิด soil เพื่อให้แยกจากบันทึกตรวจโรคได้
+      // ใช้โครงสร้างเดิมของ field-logs จึงไม่ต้องแก้ฝั่งเซิร์ฟเวอร์เลย
+      var d = new Date(v.date + "T00:00:00");
+      await Store.add({
+        kind: "soil",
+        date: String(d.getDate()).padStart(2, "0") + "/" +
+              String(d.getMonth() + 1).padStart(2, "0") + "/" +
+              String(d.getFullYear() + 543).slice(-2),
+        owner: Store.profile().name,
+        gps: "",
+        ph: v.ph,
+        om: v.om, p: v.p, k: v.k, n: v.n,
+        disease: "บันทึกผลวิเคราะห์ดิน",
+        score: 90
+      });
+      msgHost.appendChild(el("div", "flash flash-ok", Store.isOffline()
+        ? "บันทึกลงเครื่องแล้ว จะซิงก์เมื่อเชื่อมต่อได้"
+        : "บันทึกผลวิเคราะห์ดินแล้ว ระบบจะนำค่านี้ไปใช้ในหน้าอื่นและให้ AI อ้างอิงด้วย"));
+    } catch (err) {
+      msgHost.appendChild(el("div", "flash flash-bad", "บันทึกไม่สำเร็จ: " + err.message));
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = "บันทึกผลการวิเคราะห์";
+    }
+  };
+
+  if (lastSoil) {
+    outHost.appendChild(el("div", "read-foot",
+      "แสดงค่าจากผลวิเคราะห์ล่าสุดเมื่อ " + lastSoil.date + " กดวิเคราะห์ดินเพื่อดูผล หรือแก้ค่าแล้วบันทึกใหม่"));
+    analyse();
+  } else {
+    outHost.appendChild(stateBlock("◇", "ยังไม่มีผลวิเคราะห์ดิน",
+      "กรอกค่าด้านบนแล้วกดวิเคราะห์ดิน ถ้ายังไม่เคยส่งดินไปวิเคราะห์ ติดต่อขอรับบริการฟรีได้ที่สถานีพัฒนาที่ดินจังหวัด"));
+  }
+};
+
 views.plots = async function (root) {
   var logs = await Store.list();
   root.appendChild(bund("โรคที่พบจากการตรวจทั้งหมด"));
@@ -3362,7 +3627,7 @@ views.ledger = async function (root) {
       }
       tr.appendChild(tdImg);
 
-      var wellClass = l.disease === "ไม่พบโรค" ? " well" : l.disease.indexOf("โรค") === 0 ? " ill" : "";
+      var wellClass = l.kind === "soil" ? "" : l.disease === "ไม่พบโรค" ? " well" : l.disease.indexOf("โรค") === 0 ? " ill" : "";
       var rest = el("td", "n", l.date);
       tr.appendChild(rest);
       var tdDx = el("td", "dx" + wellClass, l.disease);
