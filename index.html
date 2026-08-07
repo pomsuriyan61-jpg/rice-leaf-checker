@@ -6,7 +6,7 @@
 <title>SmartRice AI — ระบบวินิจฉัยโรคข้าวและติดตามแปลงนา</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Trirong:wght@500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root {
@@ -47,7 +47,7 @@
     --tint-warn: #FDF6E3;
     --tint-bad:  #FBEAE5;
 
-    --f-display: 'Trirong', serif;
+    --f-display: 'IBM Plex Sans Thai', sans-serif;
     --f-body: 'IBM Plex Sans Thai', sans-serif;
     --f-data: 'IBM Plex Mono', monospace;
 
@@ -695,6 +695,153 @@
   }
 
   /* ══════════════════════════════════════════════════════════
+     ปรับให้ตรงกับต้นแบบ — เมนูขาว การ์ดสะอาด ปุ่มเขียวชัด
+     ══════════════════════════════════════════════════════════ */
+
+  /* ── เมนูซ้ายเปลี่ยนเป็นพื้นขาว ──
+     เดิมพื้นเขียวเข้มทำให้เมนูดูหนักและแย่งความสนใจจากเนื้อหา
+     พื้นขาวทำให้สายตาไปอยู่ที่เนื้อหาตรงกลางซึ่งเป็นสิ่งที่ผู้ใช้มาหา
+     ส่วนสีเขียวเก็บไว้ใช้เฉพาะ "หน้าที่เปิดอยู่" จึงเด่นขึ้นกว่าเดิม */
+  .rail {
+    background: #FFFFFF;
+    border-right: 1px solid var(--rule);
+    box-shadow: none;
+  }
+  .mark { border-bottom: 1px solid var(--rule); }
+  .mark-name { color: var(--deep); }
+  .mark-sub  { color: var(--ink-faint); }
+
+  .rail-item {
+    color: var(--ink-soft);
+    font-size: .9rem;
+    padding: 11px 13px;
+    margin-bottom: 2px;
+  }
+  .rail-item:hover { background: var(--tint-ok); color: var(--deep); }
+  .rail-item[aria-current="page"], .rail-item.on {
+    background: var(--tint-ok);
+    color: var(--deep);
+    font-weight: 600;
+  }
+  /* เอาขีดเรืองด้านซ้ายออก พื้นสีอ่อนบอกสถานะได้ชัดพอแล้วบนพื้นขาว */
+  .rail-item[aria-current="page"]::before, .rail-item.on::before { display: none; }
+  .rail-foot { color: var(--ink-faint); border-top: 1px solid var(--rule); }
+  .rail-foot .dot { background: var(--ink-faint); }
+  .rail-foot .dot.live { background: var(--blade); }
+  .rail-foot .dot.down { background: var(--rust); }
+  .rail-out {
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+    background: #FFFFFF;
+  }
+  .rail-out:hover { border-color: var(--rust); color: var(--rust); background: var(--tint-bad); }
+
+  /* ── แถบบนขาวสะอาด ── */
+  .bar { background: #FFFFFF; border-bottom: 1px solid var(--rule); backdrop-filter: none; }
+  .bar-title { font-size: 1.42rem; font-weight: 700; letter-spacing: -.015em; }
+  .seek { background: var(--mist); }
+
+  /* ── พื้นหลังหน้าอ่อนลง ให้การ์ดขาวลอยขึ้นมา ── */
+  body::before { opacity: .55; }
+  body::after { display: none; }   /* ริ้วคันนาทำให้ดูรกบนธีมสว่าง */
+
+  /* ── การ์ดเรียบขึ้น เงาบางลง ── */
+  .plot {
+    box-shadow: 0 1px 3px rgba(27,94,58,.05);
+    padding: 20px 22px;
+  }
+  .plot:hover { box-shadow: 0 1px 3px rgba(27,94,58,.05); border-color: var(--rule); }
+  .plot-title { font-size: 1.05rem; font-weight: 600; }
+
+  /* ── หัวข้อคั่น: เอาเส้นประออก ใช้ตัวหนาสีเขียวแทน ──
+     เส้นประยาวทั้งบรรทัดดึงสายตาไปตามเส้นแทนที่จะอ่านหัวข้อ */
+  .bund { margin: 26px 0 13px; }
+  .bund-label {
+    font-size: .95rem; font-weight: 600; letter-spacing: 0;
+    text-transform: none; color: var(--deep);
+  }
+  .bund-line { display: none; }
+
+  /* ── ปุ่ม ── */
+  .act { padding: 11px 22px; font-size: .9rem; border-radius: 8px; }
+  .act-sm { padding: 7px 15px; font-size: .82rem; border-radius: 7px; }
+  .act-go { background: var(--blade); box-shadow: none; font-weight: 600; }
+  .act-go:hover:not(:disabled) { background: var(--deep); filter: none; }
+
+  /* ── ตาราง ── */
+  thead th {
+    background: var(--tint-ok); color: var(--deep); font-weight: 600;
+    font-size: .78rem; letter-spacing: 0; text-transform: none;
+    padding: 11px 12px; border-bottom: none;
+  }
+  tbody td { padding: 12px; }
+  tbody tr:hover { background: var(--mist); }
+
+  /* ── ค่าตัวเลขในการ์ด ── */
+  .read-label { font-size: .78rem; letter-spacing: 0; text-transform: none; color: var(--ink-faint); }
+  .read-value { font-size: 1.5rem; color: var(--deep); }
+
+  /* ── รายการพับให้เข้าชุด ── */
+  .fold { border-color: var(--rule); }
+  .fold-title { font-size: .92rem; }
+
+  /* ── ป้ายสถานะ ── */
+  .tag-yes, .tag-no, .tag-wait { font-weight: 600; padding: 3px 10px; }
+
+  /* ── แถบเลือกระยะการเจริญเติบโต ── */
+  .stage-tabs {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  }
+  .stage-tab {
+    display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+    padding: 11px 13px; border-radius: 9px;
+    background: var(--mist); border: 1px solid var(--rule);
+    cursor: pointer; font-family: var(--f-body); text-align: left;
+    transition: background .16s ease, border-color .16s ease;
+  }
+  .stage-tab:hover { border-color: var(--blade); }
+  .stage-tab.on { background: var(--blade); border-color: var(--blade); }
+  .stage-name { font-size: .87rem; font-weight: 600; color: var(--ink); }
+  .stage-age  { font-size: .74rem; color: var(--ink-faint); font-family: var(--f-data); }
+  .stage-tab.on .stage-name, .stage-tab.on .stage-age { color: #FFFFFF; }
+  @media (max-width: 700px) {
+    .stage-tabs { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ── การ์ดคำแนะนำ ── */
+  .care {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: #FFFFFF; border: 1px solid var(--rule); border-radius: var(--r);
+    padding: 16px 18px; margin-top: 11px;
+    box-shadow: 0 1px 3px rgba(27,94,58,.05);
+  }
+  .care-icon {
+    flex: none; width: 38px; height: 38px; border-radius: 10px;
+    display: grid; place-items: center;
+  }
+  .care-mid { flex: 1; min-width: 0; }
+  .care-title { font-weight: 600; font-size: .96rem; line-height: 1.4; }
+  .care-sum { font-size: .85rem; color: var(--ink-soft); margin-top: 3px; line-height: 1.6; max-width: 62ch; }
+  .care-detail {
+    margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--rule-soft);
+    font-size: .86rem; line-height: 1.75; color: var(--ink); max-width: 66ch;
+  }
+  .care .act { flex: none; align-self: center; white-space: nowrap; }
+  @media (max-width: 640px) {
+    .care { flex-wrap: wrap; }
+    .care .act { align-self: flex-start; margin-left: 52px; }
+  }
+
+  /* หัวข้อพับต้องดูกดได้ชัด เพราะตอนนี้ยุบหมดตั้งแต่แรก
+     ถ้าดูเหมือนรายการเฉยๆ ผู้ใช้จะไม่รู้ว่ามีเนื้อหาซ่อนอยู่ */
+  .fold-head::after {
+    content: "ดูรายละเอียด";
+    font-size: .74rem; color: var(--deep); white-space: nowrap;
+  }
+  .fold.on .fold-head::after { content: "ย่อกลับ"; }
+  @media (max-width: 520px) { .fold-head::after { display: none; } }
+
+  /* ══════════════════════════════════════════════════════════
      การอ่านออก
      ปัญหาเดิม: ทุกขั้นตอนกางออกหมดพร้อมกัน หน้าหนึ่งมีข้อความ 20 ย่อหน้าเรียงต่อกัน
      ผู้ใช้เลื่อนหาสิ่งที่ต้องการไม่เจอ และไม่รู้ว่าทั้งหมดมีกี่ขั้น
@@ -864,9 +1011,9 @@
     <div class="mark">
       <div class="mark-name">
         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 21c0-6 0-9 0-11" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round"/>
-          <path d="M12 10C12 6 9 3.5 5.5 3c-.4 3.8 2 7 6.5 7z" fill="#FFFFFF"/>
-          <path d="M12 13c0-3.6 2.8-6 6-6.4.4 3.5-1.9 6.4-6 6.4z" fill="#C8E6C9"/>
+          <path d="M12 21c0-6 0-9 0-11" stroke="#1B5E3A" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M12 10C12 6 9 3.5 5.5 3c-.4 3.8 2 7 6.5 7z" fill="#2E8B57"/>
+          <path d="M12 13c0-3.6 2.8-6 6-6.4.4 3.5-1.9 6.4-6 6.4z" fill="#6FBF73"/>
         </svg>
         SmartRice AI
       </div>
@@ -914,6 +1061,7 @@
 <script src="soil-guide.js"></script>
 <script src="fertilizer-guide.js"></script>
 <script src="cost-guide.js"></script>
+<script src="care-guide.js"></script>
 <script>
 (function () {
 "use strict";
@@ -1966,7 +2114,7 @@ function renderVerdict(host, results, opts) {
 
   if (unsure) {
     host.appendChild(el("div", "verdict-alt",
-      "ภาพนี้ยังไม่ชัดพอให้ระบุโรคได้ ลองถ่ายใหม่ให้ใบเต็มเฟรม แสงสม่ำเสมอ ไม่ย้อนแสง"));
+      "ภาพยังไม่ชัดพอ ลองถ่ายใหม่ให้ใบเต็มจอ แสงสม่ำเสมอ อย่าถ่ายย้อนแสง"));
   } else if (sorted.length > 1 && sorted[1].value > 0.05) {
     // บอกตัวเลือกรองเป็น "ชื่อ" อย่างเดียว ไม่มีตัวเลข
     // มีประโยชน์เวลาผู้ใช้เห็นอาการแล้วรู้สึกว่าน่าจะเป็นอีกโรค จะได้รู้ว่าโมเดลก็ลังเลระหว่างสองตัวนี้
@@ -2066,7 +2214,7 @@ function buildVerifyPanel(saved, res) {
   var box = el("div", "verify");
   box.appendChild(el("div", "verify-ask", "ผลนี้ตรงกับที่คุณเห็นในแปลงจริงหรือไม่"));
   box.appendChild(el("div", "verify-note",
-    "คำตอบของคุณใช้วัดความแม่นยำจริงในภาคสนาม และชี้เป้าว่าควรเก็บภาพเพิ่มในคลาสไหน"));
+    "คำตอบของคุณช่วยให้เรารู้ว่าระบบแม่นแค่ไหนในการใช้งานจริง"));
 
   var actions = el("div", "verify-acts");
   var yes = el("button", "act act-go act-sm", "ตรงกัน");
@@ -2157,7 +2305,7 @@ views.overview = async function (root) {
   cv.height = 210;
   if (phValues.length < 2) {
     phCard.appendChild(stateBlock("〜", "ยังวาดกราฟไม่ได้",
-      "ต้องมีค่า pH อย่างน้อย 2 ครั้งจึงจะเห็นแนวโน้ม บันทึกเพิ่มได้ที่หน้าบันทึกสำรวจ"));
+      "ต้องวัด pH อย่างน้อย 2 ครั้งถึงจะเห็นแนวโน้ม"));
   } else {
     phCard.appendChild(cv);
   }
@@ -2171,7 +2319,7 @@ views.overview = async function (root) {
 
   if (!logs.length) {
     aiBody.appendChild(stateBlock("◇", "ยังไม่มีข้อมูลให้วิเคราะห์",
-      "บันทึกผลตรวจอย่างน้อย 1 ครั้ง แล้ว AI จะสรุปสถานการณ์แปลงให้อัตโนมัติ"));
+      "ตรวจภาพสัก 1 ครั้ง แล้ว AI จะสรุปสถานการณ์แปลงให้"));
   } else {
     aiBody.appendChild(stateBlock("◌", "กำลังให้ AI อ่านข้อมูลแปลง", "ใช้เวลาสักครู่"));
     Store.askGemini(
@@ -2244,7 +2392,7 @@ views.diagnose = function (root) {
 
   var wrap = el("div", "row-2");
 
-  var left = plot("ภาพใบข้าว", "ระบบตรวจ 2 ขั้น: เป็นใบข้าวหรือไม่ → ถ้าใช่ จำแนกชนิดโรค");
+  var left = plot("ภาพใบข้าว", "ตรวจ 2 ขั้น — ใช่ใบข้าวไหม แล้วค่อยดูว่าเป็นโรคอะไร");
   var intake = makeIntake({
     onReady: function () { runBtn.dataset.armed = "1"; markBrain(); },
     onFail: function (m) { showFlash(m, "bad"); }
@@ -2322,8 +2470,7 @@ views.diagnose = function (root) {
         miss.appendChild(el("div", "verify-ask",
           "นี่อาจไม่ใช่รูปใบข้าว กรุณาใช้รูปใบข้าว"));
         miss.appendChild(el("div", "verify-note",
-          "ถ้าเป็นรูปใบข้าวจริง กรุณาถ่ายใหม่ให้ใบเต็มเฟรม แสงสม่ำเสมอ ไม่ย้อนแสง " +
-          "และให้เห็นแผลบนใบชัดเจน"));
+          "ถ้าเป็นใบข้าวจริง ลองถ่ายใหม่ให้ใบเต็มจอ เห็นแผลชัด และอย่าถ่ายย้อนแสง"));
         resultHost.appendChild(miss);
 
         // เหตุผลทางเทคนิคยังต้องบอก แต่แยกออกมาเป็นบรรทัดรองที่ไม่แย่งความสนใจ
@@ -2335,7 +2482,7 @@ views.diagnose = function (root) {
       // คำเตือนถาวร — ขึ้นทุกครั้งที่มีผล ไม่ว่าผลจะออกมาแบบไหน
       // วางไว้หลังแนวทางแก้ไข เพื่อให้เป็นสิ่งสุดท้ายที่ผู้ใช้อ่านก่อนลงมือทำ
       resultHost.appendChild(el("div", "flash flash-warn",
-        "การวิเคราะห์นี้อาจผิดพลาดได้ กรุณาปรึกษาเจ้าหน้าที่เกษตรหรือผู้เชี่ยวชาญเพื่อยืนยันโรคก่อนใช้สารเคมีทุกครั้ง"));
+        "ผลนี้อาจผิดพลาดได้ ควรให้เจ้าหน้าที่เกษตรยืนยันก่อนใช้สารเคมีทุกครั้ง"));
 
       resultHost.appendChild(bund("หลักฐานเชิงสี"));
       var mixHost = el("div");
@@ -2383,7 +2530,7 @@ views.survey = async function (root) {
 
   var wrap = el("div", "row-2");
 
-  var form = plot("แบบสำรวจใหม่", "วัด pH 5 จุดในแปลง ระบบจะเฉลี่ยให้อัตโนมัติ");
+  var form = plot("แบบสำรวจใหม่", "วัด pH 5 จุด ระบบเฉลี่ยให้เอง");
   var grid = el("div", "inputs");
   var prof = Store.profile();
 
@@ -2585,7 +2732,7 @@ views.soil = async function (root) {
   // ถ้าบอกว่า "ดินเปรี้ยวจัด" แล้วไม่บอกวิธีแก้ ผู้ใช้จะไปหาข้อมูลที่อื่นแทน
   if (G.problems) {
     root.appendChild(bund("วิธีแก้ปัญหาดิน"));
-    var probCard = plot(null, "เลือกปัญหาที่ตรงกับแปลงของคุณ ถ้าไม่แน่ใจให้ดูจากอาการที่สังเกตได้");
+    var probCard = plot(null, "ไม่แน่ใจว่าเป็นปัญหาไหน ให้ดูจากอาการที่เห็นในแปลง");
     var probBody = el("div");
 
     // ถ้ามีค่า pH แล้วและอยู่ในเกณฑ์ที่มีปัญหา ให้เปิดหัวข้อนั้นไว้เลย
@@ -2625,7 +2772,7 @@ views.soil = async function (root) {
       pr.fixes.forEach(function (fx, i) {
         fixBox.appendChild(fold(i + 1, fx.title, fx.cost, function (body) {
           body.appendChild(el("p", "", fx.detail));
-        }, i === 0));
+        }, false));
       });
       if (pr.warn) fixBox.appendChild(el("div", "flash flash-bad", "ข้อควรระวัง: " + pr.warn));
       fixBox.appendChild(el("div", "rx-src", "อ้างอิง: " + pr.source));
@@ -2639,7 +2786,7 @@ views.soil = async function (root) {
 
   // ══ ตัวเลือกบริบทแปลง ══
   root.appendChild(bund("เลือกให้ตรงกับแปลงของคุณ"));
-  var pickCard = plot(null, "ขั้นตอนด้านล่างจะเปลี่ยนตามที่เลือก เพราะการเตรียมดินแต่ละแบบต่างกันจริง");
+  var pickCard = plot(null, "ขั้นตอนด้านล่างจะเปลี่ยนตามที่เลือก");
 
   function chooser(label, dict, current, onPick) {
     var box = el("div");
@@ -2686,7 +2833,7 @@ views.soil = async function (root) {
       stepBox.appendChild(fold(i + 1, st.title, st.when, function (body) {
         body.appendChild(el("p", "", st.detail));
         if (st.watch) body.appendChild(el("div", "fold-note", "จุดที่พลาดบ่อย: " + st.watch));
-      }, i === 0));
+      }, false));
     });
     stepsHost.appendChild(stepBox);
 
@@ -2709,7 +2856,7 @@ views.soil = async function (root) {
         nBox.appendChild(fold("ก" + (i + 1), st.title, st.when, function (body) {
           body.appendChild(el("p", "", st.detail));
           if (st.watch) body.appendChild(el("div", "fold-note", "จุดที่พลาดบ่อย: " + st.watch));
-        }, i === 0));
+        }, false));
       });
       stepsHost.appendChild(nBox);
 
@@ -2875,7 +3022,7 @@ views.fert = async function (root) {
     t.steps.forEach(function (st, i) {
       fBox.appendChild(fold(i + 1, st.title, null, function (bd) {
         bd.appendChild(el("p", "", st.detail));
-      }, i === 0));
+      }, false));
     });
     body.appendChild(fBox);
 
@@ -3084,7 +3231,7 @@ views.cost = async function (root) {
   }
 
   root.appendChild(bund("ข้อมูลแปลงของคุณ"));
-  var inCard = plot(null, "กรอกตัวเลขจริงของคุณแทนค่าตั้งต้นได้ทุกช่อง ระบบจะจำไว้ให้");
+  var inCard = plot(null, "แก้ตัวเลขให้ตรงกับที่คุณจ่ายจริงได้ทุกช่อง ระบบจะจำไว้ให้");
   var outHost = el("div");
 
   // ── ช่องกรอกหลัก ──
@@ -3148,7 +3295,7 @@ views.cost = async function (root) {
 
   // ── รายการต้นทุน ──
   root.appendChild(bund("รายการต้นทุนต่อไร่"));
-  var costCard = plot(null, "ปรับให้ตรงกับที่คุณจ่ายจริง ช่องที่ไม่มีรายการนี้ให้ใส่ 0");
+  var costCard = plot(null, "รายการไหนไม่มีให้ใส่ 0");
   var itemInputs = {};
   C.costItems.forEach(function (it) {
     var row = el("div");
@@ -3297,9 +3444,8 @@ views.cost = async function (root) {
     srcBox.style.marginTop = "13px";
     srcBox.appendChild(more("ที่มาของค่าตั้งต้นทั้งหมด", C.sources.join(" · ")));
     srcBox.appendChild(el("div", "flash flash-warn",
-      "ตัวเลขค่าตั้งต้นเป็นข้อมูล " + C.asOf + " ราคาข้าวเปลี่ยนแปลงตลอดเวลา " +
-      "ผลการคำนวณนี้เป็นเพียงการประมาณเพื่อวางแผน ไม่ใช่การรับประกันรายได้ " +
-      "ก่อนตัดสินใจลงทุนจริงควรตรวจสอบราคารับซื้อปัจจุบันกับโรงสีหรือสหกรณ์ในพื้นที่"));
+      "ค่าตั้งต้นเป็นข้อมูล " + C.asOf + " ราคาข้าวเปลี่ยนทุกสัปดาห์ " +
+      "ตัวเลขนี้ใช้วางแผนได้ แต่ไม่ใช่การรับประกัน ควรถามราคารับซื้อจากโรงสีก่อนตัดสินใจจริง"));
     outHost.appendChild(srcBox);
   }
 
@@ -3359,9 +3505,10 @@ views.soildata = async function (root) {
   // ══ ฟอร์มกรอก ══
   root.appendChild(bund("กรอกผลวิเคราะห์ดิน"));
   var form = plot(null,
-    "กรอกค่าจากใบผลวิเคราะห์ดินของสถานีพัฒนาที่ดิน หรือจากชุดตรวจสอบดินภาคสนาม กรอกเท่าที่มีก็ได้");
+    "กรอกจากใบผลวิเคราะห์ดิน หรือชุดตรวจสอบดินภาคสนาม มีค่าไหนกรอกค่านั้น");
 
   var grid = el("div", "inputs");
+  var inputs = {};   // เก็บช่องกรอกไว้ตรงๆ ไม่ต้องพึ่ง document.getElementById
   function field(label, id, hint, value) {
     var d = el("div", "inp");
     d.appendChild(el("label", "", label));
@@ -3370,6 +3517,7 @@ views.soildata = async function (root) {
     i.className = "num-in";
     i.inputMode = "decimal";
     if (value != null) i.value = String(value);
+    inputs[id] = i;
     d.appendChild(i);
     if (hint) d.appendChild(el("div", "read-foot", hint));
     return d;
@@ -3397,9 +3545,8 @@ views.soildata = async function (root) {
 
   // อธิบายจุดที่ผู้ใช้มักหาไม่เจอในใบผลวิเคราะห์
   form.appendChild(el("div", "flash flash-warn",
-    "หาไนโตรเจนในใบผลวิเคราะห์ไม่เจอเป็นเรื่องปกติ ห้องแล็บส่วนใหญ่ไม่รายงานค่านี้ " +
-    "ให้ใช้อินทรียวัตถุแทนได้เลย เพราะไนโตรเจนในดินเกือบทั้งหมดอยู่ในรูปอินทรีย์ " +
-    "และหลักการปุ๋ยสั่งตัดก็ใช้อินทรียวัตถุเป็นตัวประเมินไนโตรเจนเช่นกัน"));
+    "หาไนโตรเจนในใบผลวิเคราะห์ไม่เจอไม่ต้องตกใจ ห้องแล็บส่วนใหญ่ไม่รายงานค่านี้ " +
+    "ให้ดูที่อินทรียวัตถุแทนได้เลย เพราะสองค่านี้สัมพันธ์กันโดยตรง"));
 
   var acts = el("div");
   acts.style.cssText = "display:flex;gap:9px;margin-top:14px;flex-wrap:wrap";
@@ -3420,7 +3567,9 @@ views.soildata = async function (root) {
 
   function readForm() {
     function num(id) {
-      var v = parseFloat(document.getElementById(id).value);
+      var box = inputs[id];
+      if (!box) return null;
+      var v = parseFloat(box.value);
       return isNaN(v) ? null : v;
     }
     var out = { date: dIn.value, ph: num("sdPh") };
@@ -3525,9 +3674,8 @@ views.soildata = async function (root) {
       rec.appendChild(ul);
 
       rec.appendChild(el("div", "flash flash-warn",
-        "คำแนะนำนี้พิจารณาจากผลวิเคราะห์ดินของคุณ ซึ่งแม่นกว่าการใช้อัตรามาตรฐานกลาง " +
-        "แต่ยังไม่ใช่ปุ๋ยสั่งตัดเต็มรูปแบบซึ่งต้องใช้ชุดดินและเป้าผลผลิตประกอบด้วย " +
-        "ถ้าต้องการความแม่นสูงสุด ให้นำใบผลวิเคราะห์ไปปรึกษาหมอดินอาสาประจำตำบล"));
+        "คำแนะนำนี้ดูจากผลวิเคราะห์ดินของคุณ จึงแม่นกว่าอัตรามาตรฐานกลาง " +
+        "ถ้าอยากได้แม่นที่สุด เอาใบผลวิเคราะห์ไปปรึกษาหมอดินอาสาประจำตำบล"));
       rec.appendChild(el("div", "rx-src",
         "เกณฑ์แปลผลอ้างอิงสำนักวิทยาศาสตร์เพื่อการพัฒนาที่ดิน กรมพัฒนาที่ดิน · อัตราปุ๋ยอ้างอิง Rice Knowledge Bank กรมการข้าว"));
       outHost.appendChild(rec);
@@ -3806,9 +3954,8 @@ views.weather = async function (root) {
     // ถ้าไม่บอก ผู้ใช้จะเข้าใจว่าเป็นค่าที่วัดจากนาตัวเองแล้วไปโทษระบบเมื่อคลาดเคลื่อน
     if (st.lat != null) {
       card.appendChild(el("div", "read-foot",
-        "อ่านจากจุดพยากรณ์ใกล้แปลงที่สุด " + st.lat.toFixed(3) + ", " + st.lon.toFixed(3) +
-        (st.elevation != null ? " · สูงจากระดับน้ำทะเล " + Math.round(st.elevation) + " ม." : "") +
-        " — เป็นค่าจากแบบจำลอง ไม่ใช่เครื่องวัดที่ติดตั้งในแปลง"));
+        "อ่านจากจุดพยากรณ์ใกล้แปลง " + st.lat.toFixed(3) + ", " + st.lon.toFixed(3) +
+        " — เป็นค่าจากแบบจำลอง ไม่ใช่เครื่องวัดในแปลงจริง"));
     }
 
     var grid = el("div", "fx-grid");
@@ -4051,8 +4198,92 @@ views.weather = async function (root) {
   });
 };
 
+// ─── หน้าคำแนะนำการดูแลและปรึกษา AI ────────────
+//
+// โครงหน้าแบ่งเป็น 2 ส่วนโดยตั้งใจ
+//   1. การ์ดคำแนะนำแยกตามระยะข้าว — ตอบคำถามที่พบบ่อยที่สุดโดยไม่ต้องพิมพ์และไม่กินโควตา AI
+//   2. ช่องถาม AI — สำหรับเรื่องเฉพาะของแปลงที่การ์ดสำเร็จรูปตอบไม่ได้
+//
+// เหตุผลที่เอาการ์ดขึ้นก่อน: คำถาม 80% ของเกษตรกรคือ "ตอนนี้ควรทำอะไร"
+// ซึ่งตอบได้จากอายุข้าวอย่างเดียว ไม่ต้องใช้ AI เลย
+// การให้พิมพ์ถามทุกครั้งจึงเป็นภาระเกินจำเป็นและเปลืองโควตาที่มีจำกัด
 views.consult = async function (root) {
-  root.appendChild(bund("ปรึกษาผู้เชี่ยวชาญ AI"));
+  var C = window.CARE_GUIDE;
+
+  // ══ การ์ดคำแนะนำแยกตามระยะ ══
+  if (C) {
+    root.appendChild(bund("คำแนะนำการดูแลแปลงนา"));
+
+    // จำระยะที่ดูล่าสุด เพราะข้าวอยู่ระยะเดิมนานหลายสัปดาห์
+    var SKEY = "smartrice-stage:" + (Session.user ? Session.user.username : "guest");
+    var pick = "tiller";
+    try {
+      var sv = localStorage.getItem(SKEY);
+      if (sv && C.stages.some(function (x) { return x.key === sv; })) pick = sv;
+    } catch (e) { /* ใช้ค่าเริ่มต้น */ }
+
+    var tabCard = plot(null);
+    var cardHost = el("div");
+
+    function paintStage() {
+      tabCard.innerHTML = "";
+
+      var tabs = el("div", "stage-tabs");
+      C.stages.forEach(function (st) {
+        var b = el("button", "stage-tab" + (st.key === pick ? " on" : ""));
+        b.appendChild(el("span", "stage-name", st.thai));
+        b.appendChild(el("span", "stage-age", st.age));
+        b.onclick = function () {
+          pick = st.key;
+          try { localStorage.setItem(SKEY, pick); } catch (e) {}
+          paintStage();
+        };
+        tabs.appendChild(b);
+      });
+      tabCard.appendChild(tabs);
+
+      var st = C.stages.filter(function (x) { return x.key === pick; })[0];
+      tabCard.appendChild(el("div", "read-foot", st.note));
+
+      cardHost.innerHTML = "";
+      st.cards.forEach(function (c) {
+        var ic = C.icons[c.icon] || C.icons.fert;
+        var row = el("div", "care");
+
+        var chip = el("div", "care-icon");
+        chip.style.background = "color-mix(in srgb, " + ic.color + " 14%, transparent)";
+        chip.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="' + ic.color +
+          '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + ic.path + '"/></svg>';
+        row.appendChild(chip);
+
+        var mid = el("div", "care-mid");
+        mid.appendChild(el("div", "care-title", c.title));
+        mid.appendChild(el("div", "care-sum", c.summary));
+        // รายละเอียดซ่อนไว้ กดปุ่มถึงจะโผล่ ตามที่ผู้ใช้ต้องการ
+        var det = el("div", "care-detail", c.detail);
+        det.hidden = true;
+        mid.appendChild(det);
+        row.appendChild(mid);
+
+        var btn = el("button", "act act-line act-sm", "ดูรายละเอียด");
+        btn.onclick = function () {
+          det.hidden = !det.hidden;
+          btn.textContent = det.hidden ? "ดูรายละเอียด" : "ย่อกลับ";
+        };
+        row.appendChild(btn);
+
+        cardHost.appendChild(row);
+      });
+    }
+
+    root.appendChild(tabCard);
+    root.appendChild(cardHost);
+    paintStage();
+    root.appendChild(more("ที่มาของคำแนะนำ", C.source));
+  }
+
+  // ══ ถาม AI เรื่องเฉพาะของแปลง ══
+  root.appendChild(bund("ถามเพิ่มเติมกับ AI"));
   var card = plot(null);
 
   // ความจำบทสนทนา — Gemini ไม่จำอะไรข้ามคำถาม ต้องส่งประวัติไปเองทุกครั้ง
