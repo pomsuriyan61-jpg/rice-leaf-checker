@@ -844,6 +844,7 @@
 <script src="disease-guide.js"></script>
 <script src="soil-guide.js"></script>
 <script src="fertilizer-guide.js"></script>
+<script src="cost-guide.js"></script>
 <script>
 (function () {
 "use strict";
@@ -889,6 +890,7 @@ var PAGES = [
   { id: "survey",   label: "บันทึกสำรวจ",   kicker: "เก็บข้อมูล", icon: "M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zm2 5h4m-4 4h4m-4 4h2" },
   { id: "soil",     label: "เตรียมดิน",      kicker: "ก่อนปลูก",  icon: "M3 17h18M5 17V9m5 8V6m5 11v-7m5 7v-4" },
   { id: "fert",     label: "ปุ๋ยอินทรีย์",   kicker: "ก่อนปลูก",  icon: "M12 21c-4-3-6-6-6-9a6 6 0 0112 0c0 3-2 6-6 9zm0-12v3m-2-1h4" },
+  { id: "cost",     label: "ต้นทุนและกำไร",  kicker: "วางแผน",   icon: "M12 3v18M8 7h6a2.5 2.5 0 010 5H9a2.5 2.5 0 000 5h7" },
   { id: "plots",    label: "โรคที่พบ",       kicker: "ตรวจโรค",  icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
   { id: "ledger",   label: "ทะเบียนบันทึก", kicker: "เก็บข้อมูล", icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
   { id: "weather",  label: "อากาศและความเสี่ยง", kicker: "วิเคราะห์", icon: "M7 17a4 4 0 010-8 5.5 5.5 0 0110.5 1.5A3.5 3.5 0 0117 17zm-1 2l-1 2m4-2l-1 2m4-2l-1 2" },
@@ -2150,8 +2152,22 @@ views.diagnose = function (root) {
             "ยังไม่มีแนวทางจัดการของโรคนี้ในฐานข้อมูล กรุณาปรึกษาเจ้าหน้าที่เกษตรในพื้นที่"));
         }
       } else {
-        resultHost.appendChild(el("div", "flash flash-bad",
-          res.gated ? res.pre.why : "ภาพนี้ไม่ใช่ใบข้าว ระบบจึงไม่ตรวจโรคต่อ"));
+        // ระบบแยกไม่ออกระหว่าง "ไม่ใช่ใบข้าวจริงๆ" กับ "ใช่ใบข้าวแต่ถ่ายมาไม่ดี"
+        // ทั้งสองกรณีมาถึงตรงนี้เหมือนกัน จึงต้องเขียนข้อความให้ครอบคลุมทั้งคู่
+        // ถ้าฟันธงว่า "ไม่ใช่ใบข้าว" อย่างเดียว เกษตรกรที่ถ่ายใบข้าวจริงมาจะงงและเลิกใช้
+        // ทั้งที่แค่ถ่ายใหม่ให้ชัดขึ้นก็ผ่านแล้ว
+        var miss = el("div", "flash flash-bad");
+        miss.appendChild(el("div", "verify-ask",
+          "นี่อาจไม่ใช่รูปใบข้าว กรุณาใช้รูปใบข้าว"));
+        miss.appendChild(el("div", "verify-note",
+          "ถ้าเป็นรูปใบข้าวจริง กรุณาถ่ายใหม่ให้ใบเต็มเฟรม แสงสม่ำเสมอ ไม่ย้อนแสง " +
+          "และให้เห็นแผลบนใบชัดเจน"));
+        resultHost.appendChild(miss);
+
+        // เหตุผลทางเทคนิคยังต้องบอก แต่แยกออกมาเป็นบรรทัดรองที่ไม่แย่งความสนใจ
+        // เพราะคนที่อยากรู้ว่าทำไมระบบตัดสินแบบนี้ควรตรวจสอบย้อนกลับได้
+        var why = res.gated ? res.pre.why : "โมเดลจำแนกภาพตัดสินว่าภาพนี้ไม่ใช่ใบข้าว";
+        resultHost.appendChild(el("div", "verdict-src", "เหตุผลของระบบ: " + why));
       }
 
       // คำเตือนถาวร — ขึ้นทุกครั้งที่มีผล ไม่ว่าผลจะออกมาแบบไหน
@@ -2811,6 +2827,307 @@ views.fert = async function (root) {
   root.appendChild(pickCard);
   root.appendChild(body);
   repaint();
+};
+
+// ─── หน้าต้นทุนและกำไร ─────────────────────────
+//
+// ตัวเลขทุกช่องแก้ได้ โดยตั้งใจ
+//
+// เหตุผล: ราคาข้าวเปลือกเจ้าลดลง 33% ภายในปีเดียวในปี 2568 ค่าตั้งต้นที่ฝังไว้
+// จึงล้าสมัยเร็วมาก ถ้าล็อกตัวเลขไว้แล้วเกษตรกรใช้ตัดสินใจลงทุนจริง
+// จะเสียหายหนักกว่าการไม่มีเครื่องมือนี้เลย
+//
+// สิ่งที่ระบบทำได้ดีกว่าคนคือ "เลขคณิตที่ไม่ผิด" ไม่ใช่ "การรู้ราคาปัจจุบัน"
+// หน้านี้จึงเน้นให้กรอกง่ายและคำนวณครบ แทนการพยายามเดาราคาให้
+views.cost = async function (root) {
+  var C = window.COST_GUIDE;
+  if (!C) {
+    root.appendChild(stateBlock("!", "ไม่พบไฟล์ฐานข้อมูล",
+      "ไฟล์ cost-guide.js ยังไม่ได้อัปโหลด กรุณาวางไว้ในโฟลเดอร์เดียวกับ index.html"));
+    return;
+  }
+
+  // จำค่าที่กรอกไว้ เพราะเกษตรกรจะกลับมาดูซ้ำและปรับตัวเลขทีละนิด
+  var KEY = "smartrice-cost:" + (Session.user ? Session.user.username : "guest");
+  var st = { rai: 10, soil: "clay", variety: "avg", items: {}, yieldPerRai: null, price: null };
+  try {
+    var old = JSON.parse(localStorage.getItem(KEY) || "{}");
+    Object.keys(old).forEach(function (k) { st[k] = old[k]; });
+  } catch (e) { /* อ่านไม่ได้ก็ใช้ค่าเริ่มต้น */ }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* พื้นที่เต็ม */ }
+  }
+
+  function varOf() {
+    return C.varieties.filter(function (v) { return v.key === st.variety; })[0] || C.varieties[0];
+  }
+  function itemCost(it) {
+    var v = st.items[it.key];
+    return typeof v === "number" && !isNaN(v) ? v : it.perRai;
+  }
+  function money(n) {
+    return Math.round(n).toLocaleString("th-TH");
+  }
+
+  root.appendChild(bund("ข้อมูลแปลงของคุณ"));
+  var inCard = plot(null, "กรอกตัวเลขจริงของคุณแทนค่าตั้งต้นได้ทุกช่อง ระบบจะจำไว้ให้");
+  var outHost = el("div");
+
+  // ── ช่องกรอกหลัก ──
+  var grid = el("div", "inputs");
+
+  var f1 = el("div", "inp");
+  f1.appendChild(el("label", "", "ขนาดแปลง (ไร่)"));
+  var raiIn = el("input");
+  raiIn.className = "num-in";
+  raiIn.inputMode = "decimal";
+  raiIn.value = String(st.rai);
+  f1.appendChild(raiIn);
+  grid.appendChild(f1);
+
+  var f2 = el("div", "inp");
+  f2.appendChild(el("label", "", "ชนิดข้าวที่จะขาย"));
+  var vSel = el("select");
+  vSel.style.cssText = "width:100%;padding:9px 12px;border:1px solid var(--rule);border-radius:var(--r-sm);background:#FFFFFF;color:var(--ink)";
+  C.varieties.forEach(function (v) {
+    var o = el("option", "", v.thai + " (" + v.price + " บาท/กก.)");
+    o.value = v.key;
+    if (v.key === st.variety) o.selected = true;
+    vSel.appendChild(o);
+  });
+  f2.appendChild(vSel);
+  grid.appendChild(f2);
+
+  var f3 = el("div", "inp");
+  f3.appendChild(el("label", "", "ชนิดดิน"));
+  var sSel = el("select");
+  sSel.style.cssText = vSel.style.cssText;
+  Object.keys(C.soilNotes).forEach(function (k) {
+    var o = el("option", "", C.soilNotes[k].thai);
+    o.value = k;
+    if (k === st.soil) o.selected = true;
+    sSel.appendChild(o);
+  });
+  f3.appendChild(sSel);
+  grid.appendChild(f3);
+
+  var f4 = el("div", "inp");
+  f4.appendChild(el("label", "", "ผลผลิตที่คาดว่าจะได้ (กก./ไร่)"));
+  var yIn = el("input");
+  yIn.className = "num-in";
+  yIn.inputMode = "decimal";
+  f4.appendChild(yIn);
+  grid.appendChild(f4);
+
+  var f5 = el("div", "inp");
+  f5.appendChild(el("label", "", "ราคาที่คาดว่าจะขายได้ (บาท/กก.)"));
+  var pIn = el("input");
+  pIn.className = "num-in";
+  pIn.inputMode = "decimal";
+  f5.appendChild(pIn);
+  grid.appendChild(f5);
+
+  inCard.appendChild(grid);
+  inCard.appendChild(el("div", "read-foot",
+    "ค่าตั้งต้นอ้างอิง " + C.asOf + " · ราคาข้าวเปลี่ยนทุกสัปดาห์ ควรถามราคารับซื้อจากโรงสีในพื้นที่ก่อนตัดสินใจจริง"));
+  root.appendChild(inCard);
+
+  // ── รายการต้นทุน ──
+  root.appendChild(bund("รายการต้นทุนต่อไร่"));
+  var costCard = plot(null, "ปรับให้ตรงกับที่คุณจ่ายจริง ช่องที่ไม่มีรายการนี้ให้ใส่ 0");
+  var itemInputs = {};
+  C.costItems.forEach(function (it) {
+    var row = el("div");
+    row.style.cssText = "display:flex;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--rule-soft)";
+
+    var left = el("div");
+    left.style.cssText = "flex:1;min-width:0";
+    var nm = el("div");
+    nm.style.cssText = "font-size:.88rem;display:flex;align-items:center;gap:7px;flex-wrap:wrap";
+    nm.appendChild(document.createTextNode(it.name));
+    // บอกให้ชัดว่าตัวไหนมีแหล่งอ้างอิงตรง ตัวไหนเป็นค่าประมาณ
+    // ถ้าแสดงเหมือนกันหมด ผู้ใช้จะเข้าใจว่าทุกตัวเลขแม่นเท่ากัน
+    nm.appendChild(el("span", it.cited ? "tag-yes" : "tag-wait", it.cited ? "มีอ้างอิง" : "ค่าประมาณ"));
+    left.appendChild(nm);
+    left.appendChild(el("div", "read-foot", it.note));
+    row.appendChild(left);
+
+    var inp = el("input");
+    inp.className = "num-in";
+    inp.inputMode = "decimal";
+    inp.value = String(itemCost(it));
+    inp.style.cssText = "width:110px;flex:none;padding:7px 10px;border:1px solid var(--rule);border-radius:var(--r-sm);background:#FFFFFF;color:var(--ink);text-align:right";
+    inp.oninput = function () {
+      var v = parseFloat(inp.value);
+      st.items[it.key] = isNaN(v) ? it.perRai : v;
+      save();
+      recalc();
+    };
+    itemInputs[it.key] = inp;
+    row.appendChild(inp);
+    row.appendChild(el("span", "read-foot", "บาท"));
+
+    costCard.appendChild(row);
+  });
+  root.appendChild(costCard);
+
+  root.appendChild(bund("ผลการคำนวณ"));
+  root.appendChild(outHost);
+
+  function syncDefaults() {
+    var v = varOf();
+    if (st.yieldPerRai == null) yIn.value = String(v.yieldPerRai);
+    else yIn.value = String(st.yieldPerRai);
+    if (st.price == null) pIn.value = String(v.price);
+    else pIn.value = String(st.price);
+  }
+
+  function recalc() {
+    outHost.innerHTML = "";
+
+    var rai = parseFloat(raiIn.value);
+    var yPer = parseFloat(yIn.value);
+    var price = parseFloat(pIn.value);
+
+    if (!rai || rai <= 0 || !yPer || yPer <= 0 || !price || price <= 0) {
+      outHost.appendChild(stateBlock("◇", "กรอกข้อมูลให้ครบก่อน",
+        "ขนาดแปลง ผลผลิตต่อไร่ และราคาขาย ต้องเป็นตัวเลขมากกว่า 0 ทั้งหมด"));
+      return;
+    }
+
+    var perRai = C.costItems.reduce(function (a, it) { return a + itemCost(it); }, 0);
+    var cost = perRai * rai;
+    var kg = yPer * rai;
+    var revenue = kg * price;
+    var profit = revenue - cost;
+    // จุดคุ้มทุนคือตัวเลขที่มีประโยชน์ที่สุดของทั้งหน้า
+    // เพราะเป็นราคาที่เกษตรกรเอาไปเทียบกับที่โรงสีเสนอได้ทันทีว่าควรขายหรือรอ
+    var breakEven = cost / kg;
+    var good = profit >= 0;
+
+    // ── สรุปผล ──
+    var sum = plot(null);
+    var hero = el("div");
+    hero.style.cssText = "text-align:center;padding:8px 0 16px;border-bottom:1px solid var(--rule-soft);margin-bottom:16px";
+    hero.appendChild(el("div", "read-label", good ? "กำไรที่คาดว่าจะได้" : "ผลขาดทุนที่คาดว่าจะเกิด"));
+    var big = el("div", "num", (good ? "" : "-") + money(Math.abs(profit)) + " บาท");
+    big.style.cssText = "font-size:2.5rem;font-weight:500;line-height:1.1;color:" +
+      (good ? "var(--blade)" : "var(--rust)");
+    hero.appendChild(big);
+    hero.appendChild(el("div", "read-foot",
+      (good ? "กำไร " : "ขาดทุน ") + money(Math.abs(profit) / rai) + " บาทต่อไร่ จากทั้งหมด " + rai + " ไร่"));
+    sum.appendChild(hero);
+
+    var cells = el("div");
+    cells.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px";
+    cells.appendChild(readOut("ต้นทุนรวม", money(cost) + " บาท", money(perRai) + " บาท/ไร่"));
+    cells.appendChild(readOut("ผลผลิตที่คาด", money(kg) + " กก.", yPer + " กก./ไร่"));
+    cells.appendChild(readOut("รายได้จากการขาย", money(revenue) + " บาท", "ที่ราคา " + price + " บาท/กก."));
+    sum.appendChild(cells);
+    outHost.appendChild(sum);
+
+    // ── จุดคุ้มทุน ──
+    var be = plot(null);
+    be.style.marginTop = "13px";
+    be.appendChild(el("div", "rx-sect", "ราคาที่ต้องขายให้ได้อย่างน้อย (จุดคุ้มทุน)"));
+    var beBig = el("div", "num", breakEven.toFixed(2) + " บาท/กก.");
+    beBig.style.cssText = "font-size:1.9rem;font-weight:500;line-height:1.2;color:" +
+      (price >= breakEven ? "var(--blade)" : "var(--rust)");
+    be.appendChild(beBig);
+
+    var diff = price - breakEven;
+    be.appendChild(el("p", "", price >= breakEven
+      ? "ราคาที่คุณกรอกไว้สูงกว่าจุดคุ้มทุน " + diff.toFixed(2) + " บาทต่อกิโลกรัม ทุกกิโลกรัมที่ขายได้เกินจากนี้คือกำไร"
+      : "ราคาที่คุณกรอกไว้ต่ำกว่าจุดคุ้มทุน " + Math.abs(diff).toFixed(2) + " บาทต่อกิโลกรัม แปลว่ายิ่งขายยิ่งขาดทุน"));
+    be.querySelector("p").style.cssText = "margin:6px 0 0;font-size:.87rem";
+
+    be.appendChild(el("div", "read-foot",
+      "เอาตัวเลขนี้ไปเทียบกับราคาที่โรงสีเสนอได้ทันที ถ้าต่ำกว่านี้แปลว่าขายแล้วขาดทุน"));
+    outHost.appendChild(be);
+
+    // ── คำเตือนเมื่อขาดทุน พร้อมทางออกที่ทำได้จริง ──
+    if (!good) {
+      var fix = el("div", "flash flash-bad");
+      fix.appendChild(el("div", "verify-ask", "ตัวเลขนี้ขาดทุน ลองพิจารณา 3 ทาง"));
+      var ul = el("ul");
+      ul.style.cssText = "margin:8px 0 0;padding-left:19px;font-size:.86rem";
+      // เรียงตามผลที่ทำได้จริงเร็วที่สุดก่อน
+      [
+        "ลดค่าปุ๋ยด้วยปุ๋ยอินทรีย์และการใส่ตามค่าวิเคราะห์ดิน — เป็นรายการที่ลดได้มากที่สุดโดยไม่กระทบผลผลิต",
+        "เพิ่มผลผลิตต่อไร่ด้วยการเตรียมดินให้ดีขึ้นและตรวจพบโรคเร็ว ต้นทุนเท่าเดิมแต่ได้ข้าวมากขึ้น",
+        "ชะลอการขายถ้าเก็บได้ ราคาข้าวขึ้นลงตามฤดู มีโครงการสินเชื่อชะลอการขายของ ธ.ก.ส. ให้ค่าฝากเก็บ"
+      ].forEach(function (x) {
+        var li = el("li", "", x);
+        li.style.marginBottom = "5px";
+        ul.appendChild(li);
+      });
+      fix.appendChild(ul);
+      outHost.appendChild(fix);
+    }
+
+    // ── ข้อสังเกตตามชนิดดิน ──
+    var sn = C.soilNotes[st.soil];
+    if (sn) {
+      var sc = plot(null);
+      sc.style.marginTop = "13px";
+      sc.appendChild(el("div", "rx-sect", "ข้อสังเกตสำหรับ" + sn.thai));
+      var p1 = el("p", "", sn.say);
+      p1.style.cssText = "margin:0 0 7px;font-size:.87rem";
+      sc.appendChild(p1);
+      sc.appendChild(el("div", "flash flash-warn", "แนะนำให้ปรับ: " + sn.adjust));
+      outHost.appendChild(sc);
+    }
+
+    // ── ที่มาของตัวเลข ──
+    var srcBox = plot(null);
+    srcBox.style.marginTop = "13px";
+    srcBox.appendChild(el("div", "rx-sect", "ที่มาของค่าตั้งต้น"));
+    var sul = el("ul");
+    sul.style.cssText = "margin:0;padding-left:19px;font-size:.8rem;color:var(--ink-soft)";
+    C.sources.forEach(function (x) {
+      var li = el("li", "", x);
+      li.style.marginBottom = "4px";
+      sul.appendChild(li);
+    });
+    srcBox.appendChild(sul);
+    srcBox.appendChild(el("div", "flash flash-warn",
+      "ตัวเลขค่าตั้งต้นเป็นข้อมูล " + C.asOf + " ราคาข้าวเปลี่ยนแปลงตลอดเวลา " +
+      "ผลการคำนวณนี้เป็นเพียงการประมาณเพื่อวางแผน ไม่ใช่การรับประกันรายได้ " +
+      "ก่อนตัดสินใจลงทุนจริงควรตรวจสอบราคารับซื้อปัจจุบันกับโรงสีหรือสหกรณ์ในพื้นที่"));
+    outHost.appendChild(srcBox);
+  }
+
+  raiIn.oninput = function () {
+    var v = parseFloat(raiIn.value);
+    if (!isNaN(v)) { st.rai = v; save(); }
+    recalc();
+  };
+  yIn.oninput = function () {
+    var v = parseFloat(yIn.value);
+    st.yieldPerRai = isNaN(v) ? null : v;
+    save();
+    recalc();
+  };
+  pIn.oninput = function () {
+    var v = parseFloat(pIn.value);
+    st.price = isNaN(v) ? null : v;
+    save();
+    recalc();
+  };
+  vSel.onchange = function () {
+    st.variety = vSel.value;
+    // เปลี่ยนชนิดข้าวแล้วรีเซ็ตผลผลิตกับราคากลับเป็นค่าตั้งต้นของชนิดนั้น
+    // ไม่งั้นผู้ใช้จะได้ราคาข้าวเจ้าติดมากับหอมมะลิโดยไม่รู้ตัว
+    st.yieldPerRai = null;
+    st.price = null;
+    save();
+    syncDefaults();
+    recalc();
+  };
+  sSel.onchange = function () { st.soil = sSel.value; save(); recalc(); };
+
+  syncDefaults();
+  recalc();
 };
 
 views.plots = async function (root) {
