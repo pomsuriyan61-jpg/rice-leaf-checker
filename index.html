@@ -736,6 +736,13 @@
   }
   .rail-out:hover { border-color: var(--rust); color: var(--rust); background: var(--tint-bad); }
 
+  /* หัวข้อกลุ่มในเมนู บอกลำดับงานตามฤดูกาล */
+  .rail-group {
+    font-size: .7rem; letter-spacing: .06em; font-weight: 600;
+    color: var(--ink-faint); padding: 16px 13px 6px;
+  }
+  .rail-nav > .rail-group:first-child { padding-top: 6px; }
+
   /* ── แถบบนขาวสะอาด ── */
   .bar { background: #FFFFFF; border-bottom: 1px solid var(--rule); backdrop-filter: none; }
   .bar-title { font-size: 1.42rem; font-weight: 700; letter-spacing: -.015em; }
@@ -1101,21 +1108,51 @@ function th(l) {
   return (g && g.thai) || l;
 }
 
+// เรียงตามลำดับงานจริงของการทำนา ไม่ใช่ตามความถี่ที่ใช้
+//
+// เหตุผล: ผู้ใช้ใหม่เปิดแอปครั้งแรกแล้วไม่รู้ว่าควรเริ่มตรงไหน
+// ถ้าเรียงตามความนิยม วินิจฉัยใบข้าวจะอยู่บนสุด ซึ่งเป็นงานกลางฤดู
+// คนที่เพิ่งเริ่มจะกดเข้าไปแล้วงงว่าทำไมยังไม่มีต้นข้าวให้ถ่าย
+//
+// ตอนนี้เรียงเป็น 3 ช่วงตามฤดูกาลปลูก แล้วปิดท้ายด้วยหมวดตั้งค่า
+// เลขหน้าชื่อกลุ่มช่วยให้เห็นว่าต้องทำอะไรก่อนหลังโดยไม่ต้องอ่านคำอธิบาย
 var PAGES = [
-  { id: "overview", label: "ภาพรวมแปลง",   kicker: "แปลงนา",   icon: "M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z" },
-  { id: "diagnose", label: "วินิจฉัยใบข้าว", kicker: "ตรวจโรค",  icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
-  { id: "survey",   label: "บันทึกสำรวจ",   kicker: "เก็บข้อมูล", icon: "M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zm2 5h4m-4 4h4m-4 4h2" },
-  { id: "soil",     label: "เตรียมดิน",      kicker: "ก่อนปลูก",  icon: "M3 17h18M5 17V9m5 8V6m5 11v-7m5 7v-4" },
-  { id: "soildata", label: "ข้อมูลดิน",       kicker: "ก่อนปลูก",  icon: "M4 19h16M4 15h16M6 11h12M8 7h8m-4-4v4" },
-  { id: "fert",     label: "ปุ๋ยและการบำรุง", kicker: "ก่อนปลูก",  icon: "M12 21c-4-3-6-6-6-9a6 6 0 0112 0c0 3-2 6-6 9zm0-12v3m-2-1h4" },
-  { id: "cost",     label: "ต้นทุนและกำไร",  kicker: "วางแผน",   icon: "M12 3v18M8 7h6a2.5 2.5 0 010 5H9a2.5 2.5 0 000 5h7" },
-  { id: "plots",    label: "โรคที่พบ",       kicker: "ตรวจโรค",  icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
-  { id: "ledger",   label: "ทะเบียนบันทึก", kicker: "เก็บข้อมูล", icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
-  { id: "weather",  label: "อากาศและความเสี่ยง", kicker: "วิเคราะห์", icon: "M7 17a4 4 0 010-8 5.5 5.5 0 0110.5 1.5A3.5 3.5 0 0117 17zm-1 2l-1 2m4-2l-1 2m4-2l-1 2" },
-  { id: "consult",  label: "ปรึกษา AI",     kicker: "วิเคราะห์",  icon: "M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v13a2 2 0 01-2 2z" },
-  { id: "map",      label: "ที่นาของฉัน",    kicker: "แปลงนา",   icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
-  { id: "profile",  label: "ข้อมูลผู้ใช้",   kicker: "ตั้งค่า",   icon: "M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 5v1h14v-1c0-3-3-5-7-5z" },
-  { id: "admin",    label: "ผู้ดูแลระบบ",    kicker: "ตั้งค่า",   adminOnly: true, icon: "M12 3l7 3v6c0 4.4-3 8.2-7 9-4-.8-7-4.6-7-9V6zm0 6v4m0 3h.01" },
+  { id: "overview", label: "ภาพรวมแปลง",   kicker: "แปลงนา",   group: "หน้าหลัก",
+    icon: "M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z" },
+
+  // ── ช่วงที่ 1 เตรียมการก่อนปลูก ──
+  { id: "map",      label: "ที่นาของฉัน",    kicker: "ก่อนปลูก", group: "1 · ก่อนปลูก",
+    icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
+  { id: "soildata", label: "ข้อมูลดิน",       kicker: "ก่อนปลูก", group: "1 · ก่อนปลูก",
+    icon: "M4 19h16M4 15h16M6 11h12M8 7h8m-4-4v4" },
+  { id: "soil",     label: "เตรียมดิน",      kicker: "ก่อนปลูก", group: "1 · ก่อนปลูก",
+    icon: "M3 17h18M5 17V9m5 8V6m5 11v-7m5 7v-4" },
+  { id: "fert",     label: "ปุ๋ยและการบำรุง", kicker: "ก่อนปลูก", group: "1 · ก่อนปลูก",
+    icon: "M12 21c-4-3-6-6-6-9a6 6 0 0112 0c0 3-2 6-6 9zm0-12v3m-2-1h4" },
+
+  // ── ช่วงที่ 2 ดูแลระหว่างปลูก ──
+  { id: "consult",  label: "คำแนะนำการดูแล", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
+    icon: "M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v13a2 2 0 01-2 2z" },
+  { id: "diagnose", label: "วินิจฉัยใบข้าว", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
+    icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
+  { id: "weather",  label: "อากาศและความเสี่ยง", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
+    icon: "M7 17a4 4 0 010-8 5.5 5.5 0 0110.5 1.5A3.5 3.5 0 0117 17zm-1 2l-1 2m4-2l-1 2m4-2l-1 2" },
+  { id: "survey",   label: "บันทึกสำรวจ",   kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
+    icon: "M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zm2 5h4m-4 4h4m-4 4h2" },
+
+  // ── ช่วงที่ 3 สรุปและทบทวน ──
+  { id: "plots",    label: "โรคที่พบ",       kicker: "สรุปผล",   group: "3 · สรุปผล",
+    icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
+  { id: "ledger",   label: "ทะเบียนบันทึก", kicker: "สรุปผล",   group: "3 · สรุปผล",
+    icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
+  { id: "cost",     label: "ต้นทุนและกำไร",  kicker: "สรุปผล",   group: "3 · สรุปผล",
+    icon: "M12 3v18M8 7h6a2.5 2.5 0 010 5H9a2.5 2.5 0 000 5h7" },
+
+  // ── ตั้งค่า ──
+  { id: "profile",  label: "ข้อมูลผู้ใช้",   kicker: "ตั้งค่า",  group: "ตั้งค่า",
+    icon: "M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 5v1h14v-1c0-3-3-5-7-5z" },
+  { id: "admin",    label: "ผู้ดูแลระบบ",    kicker: "ตั้งค่า",  group: "ตั้งค่า", adminOnly: true,
+    icon: "M12 3l7 3v6c0 4.4-3 8.2-7 9-4-.8-7-4.6-7-9V6zm0 6v4m0 3h.01" }
 ];
 
 // ─── สิทธิ์การเข้าใช้ ───────────────────────────
@@ -2607,24 +2644,90 @@ views.survey = async function (root) {
   wrap.appendChild(form);
 
   var recent = plot("บันทึกล่าสุด", "8 รายการหลังสุด");
-  if (!logs.length) {
-    recent.appendChild(stateBlock("◇", "ยังไม่มีบันทึก", "กรอกแบบสำรวจด้านซ้ายเพื่อเริ่มเก็บข้อมูลแปลง"));
-  } else {
+  var recentBody = el("div");
+  recent.appendChild(recentBody);
+
+  // ── คำเตือนเรื่องข้อมูลข้ามฤดู ──
+  //
+  // ระบบนำบันทึกทั้งหมดไปคำนวณโดยไม่แยกฤดู ทั้งค่า pH เฉลี่ย คะแนนสุขภาพล่าสุด
+  // โรคที่พบบ่อย และบริบทที่ส่งให้ AI
+  // ถ้าเริ่มฤดูใหม่แล้วยังมีบันทึกฤดูก่อนค้างอยู่ ตัวเลขจะเพี้ยนโดยผู้ใช้ไม่รู้ตัว
+  // เช่นฤดูก่อนเจอโรคไหม้หนัก ฤดูใหม่ยังไม่ปลูกเลยแต่หน้าภาพรวมยังขึ้นว่าต้องจัดการด่วน
+  recent.appendChild(el("div", "flash flash-warn",
+    "จะเริ่มฤดูปลูกใหม่ ให้ลบบันทึกของฤดูก่อนออกก่อน เพราะระบบนำบันทึกทั้งหมดมาคำนวณรวมกัน " +
+    "ทั้งค่า pH เฉลี่ย คะแนนสุขภาพ และคำแนะนำจาก AI ถ้าไม่ลบ ข้อมูลฤดูเก่าจะทำให้ผลของฤดูใหม่คลาดเคลื่อน"));
+
+  function paintRecent() {
+    recentBody.innerHTML = "";
+    if (!logs.length) {
+      recentBody.appendChild(stateBlock("◇", "ยังไม่มีบันทึก", "กรอกแบบสำรวจด้านซ้ายเพื่อเริ่มเก็บข้อมูลแปลง"));
+      return;
+    }
+
+    var wrapT = el("div");
+    wrapT.style.overflowX = "auto";
     var t = el("table");
-    t.innerHTML = "<thead><tr><th>วันที่</th><th>ผลตรวจ</th><th>pH</th><th>คะแนน</th></tr></thead>";
+    t.innerHTML = "<thead><tr><th>วันที่</th><th>ผลตรวจ</th><th>pH</th><th>คะแนน</th><th></th></tr></thead>";
     var tb = el("tbody");
+
     logs.slice(0, 8).forEach(function (l) {
       var tr = el("tr");
-      var wellClass = l.disease === "ไม่พบโรค" ? " well" : l.disease.indexOf("โรค") === 0 ? " ill" : "";
-      tr.innerHTML = "<td class='n'>" + l.date + "</td>" +
-        "<td class='dx" + wellClass + "'>" + l.disease + "</td>" +
-        "<td class='n'>" + (l.ph != null ? l.ph : "—") + "</td>" +
-        "<td class='n'>" + l.score + "</td>";
+      var wellClass = l.kind === "soil" ? "" :
+        l.disease === "ไม่พบโรค" ? " well" : l.disease.indexOf("โรค") === 0 ? " ill" : "";
+      tr.appendChild(el("td", "n", l.date));
+      tr.appendChild(el("td", "dx" + wellClass, l.disease));
+      tr.appendChild(el("td", "n", l.ph != null ? String(l.ph) : "—"));
+      tr.appendChild(el("td", "n", String(l.score)));
+
+      var tdAct = el("td");
+      var del = el("button", "act act-line act-sm", "ลบ");
+      del.style.cssText = "border-color:var(--rust);color:var(--rust)";
+      del.onclick = function () {
+        if (!confirm("ลบบันทึกวันที่ " + l.date + " (" + l.disease + ")\n\nลบแล้วกู้คืนไม่ได้ และค่า pH กับคะแนนสุขภาพจะถูกคำนวณใหม่")) return;
+        del.disabled = true;
+        del.textContent = "กำลังลบ";
+        Store.remove(l.id)
+          .then(function () {
+            logs = logs.filter(function (x) { return x.id !== l.id; });
+            paintRecent();
+          })
+          .catch(function (err) {
+            del.disabled = false;
+            del.textContent = "ลบไม่ได้";
+            alert("ลบไม่สำเร็จ: " + err.message);
+          });
+      };
+      tdAct.appendChild(del);
+      tr.appendChild(tdAct);
       tb.appendChild(tr);
     });
+
     t.appendChild(tb);
-    recent.appendChild(t);
+    wrapT.appendChild(t);
+    recentBody.appendChild(wrapT);
+
+    // ลบทั้งหมดสำหรับตอนขึ้นฤดูใหม่ ยืนยัน 2 ชั้นเพราะย้อนกลับไม่ได้
+    if (logs.length > 1) {
+      var clearAll = el("button", "act act-line act-sm", "ลบบันทึกทั้งหมด " + logs.length + " รายการ");
+      clearAll.style.cssText = "margin-top:13px;border-color:var(--rust);color:var(--rust)";
+      clearAll.onclick = async function () {
+        if (!confirm("ลบบันทึกทั้งหมด " + logs.length + " รายการ\n\nใช้เมื่อขึ้นฤดูปลูกใหม่เท่านั้น ลบแล้วกู้คืนไม่ได้")) return;
+        if (!confirm("ยืนยันอีกครั้ง ข้อมูลทั้งหมดจะหายถาวร รวมถึงภาพที่แนบไว้และกราฟแนวโน้ม pH")) return;
+
+        clearAll.disabled = true;
+        var fail = 0;
+        for (var i = 0; i < logs.length; i++) {
+          try { await Store.remove(logs[i].id); } catch (e) { fail++; }
+        }
+        logs = fail ? await Store.list() : [];
+        paintRecent();
+        if (fail) alert("ลบไม่สำเร็จ " + fail + " รายการ ลองใหม่อีกครั้ง");
+      };
+      recentBody.appendChild(clearAll);
+    }
   }
+
+  paintRecent();
   wrap.appendChild(recent);
   root.appendChild(wrap);
 };
@@ -4936,7 +5039,13 @@ function visiblePages() {
 function paintNav() {
   var nav = document.getElementById("railNav");
   nav.innerHTML = "";
+  var lastGroup = null;
   visiblePages().forEach(function (p) {
+    // ขึ้นหัวข้อกลุ่มใหม่เมื่อเปลี่ยนช่วง ทำให้เห็นลำดับงานโดยไม่ต้องอ่านคำอธิบาย
+    if (p.group && p.group !== lastGroup) {
+      nav.appendChild(el("div", "rail-group", p.group));
+      lastGroup = p.group;
+    }
     var b = el("button", "rail-item" + (p.id === here ? " on" : ""));
     b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + p.icon + '"/></svg>';
     b.appendChild(document.createTextNode(p.label));
@@ -4952,7 +5061,7 @@ function paintNav() {
 // ปลายทางที่ใช้บ่อยที่สุดตอนอยู่หน้างานจริง
 // เลือกจากลำดับงานของเกษตรกร: ดูภาพรวม → ถ่ายใบไปตรวจ → จดบันทึก → ดูอากาศ → ถาม AI
 // ไม่ใส่หน้าตั้งค่ากับผู้ดูแลระบบ เพราะไม่ได้ใช้ตอนยืนอยู่กลางแปลง
-var TAB_IDS = ["overview", "diagnose", "survey", "weather", "consult"];
+var TAB_IDS = ["overview", "soil", "consult", "diagnose", "weather"];
 
 function paintTabs() {
   var bar = document.getElementById("tabbar");
