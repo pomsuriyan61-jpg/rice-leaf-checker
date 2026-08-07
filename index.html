@@ -889,7 +889,7 @@ var PAGES = [
   { id: "diagnose", label: "วินิจฉัยใบข้าว", kicker: "ตรวจโรค",  icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
   { id: "survey",   label: "บันทึกสำรวจ",   kicker: "เก็บข้อมูล", icon: "M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zm2 5h4m-4 4h4m-4 4h2" },
   { id: "soil",     label: "เตรียมดิน",      kicker: "ก่อนปลูก",  icon: "M3 17h18M5 17V9m5 8V6m5 11v-7m5 7v-4" },
-  { id: "fert",     label: "ปุ๋ยอินทรีย์",   kicker: "ก่อนปลูก",  icon: "M12 21c-4-3-6-6-6-9a6 6 0 0112 0c0 3-2 6-6 9zm0-12v3m-2-1h4" },
+  { id: "fert",     label: "ปุ๋ยและการบำรุง", kicker: "ก่อนปลูก",  icon: "M12 21c-4-3-6-6-6-9a6 6 0 0112 0c0 3-2 6-6 9zm0-12v3m-2-1h4" },
   { id: "cost",     label: "ต้นทุนและกำไร",  kicker: "วางแผน",   icon: "M12 3v18M8 7h6a2.5 2.5 0 010 5H9a2.5 2.5 0 000 5h7" },
   { id: "plots",    label: "โรคที่พบ",       kicker: "ตรวจโรค",  icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
   { id: "ledger",   label: "ทะเบียนบันทึก", kicker: "เก็บข้อมูล", icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
@@ -1423,7 +1423,10 @@ function soilFertForPrompt() {
       var t = F.types[k];
       var line = "- " + t.thai + " (" + t.short + ") ใช้เวลา " + t.duration;
       if (t.recipe) line += " | สูตรกอง 1 ตัน: " + t.recipe.items.join(", ");
-      line += " | วิธีใช้: " + t.use.join(" ");
+      // ช่อง rates คืออัตราการใช้ที่ AI แต่งเองไม่ได้ ต้องส่งไปเสมอถ้ามี
+      if (t.rates) line += "\n  อัตราการใช้: " + t.rates.join("\n  ");
+      line += "\n  วิธีใช้: " + t.use.join(" ");
+      if (t.warn) line += "\n  ข้อควรระวัง: " + t.warn;
       out.push(line);
     });
     out.push("หลักการสำคัญ: " + F.overview.key);
@@ -1446,6 +1449,18 @@ function soilFertForPrompt() {
         return x.title + " (" + x.when + ")";
       }).join(" → ") + " | " + S.nursery.tip);
     }
+    if (S.problems) {
+      out.push("");
+      out.push("[วิธีแก้ปัญหาดิน — ใช้อัตราเหล่านี้เท่านั้น ห้ามแต่งตัวเลขใหม่]");
+      Object.keys(S.problems).forEach(function (k) {
+        var pr = S.problems[k];
+        out.push("- " + pr.thai + " (พบเมื่อ " + pr.when + ") อาการ: " + pr.sign);
+        pr.fixes.forEach(function (fx) {
+          out.push("    วิธีที่ทำได้: " + fx.title + " — " + fx.detail + " [" + fx.cost + "]");
+        });
+        out.push("    ข้อควรระวัง: " + pr.warn);
+      });
+    }
   }
 
   if (!out.length) return "";
@@ -1456,7 +1471,9 @@ function soilFertForPrompt() {
     "ถ้าส่งดินไปวิเคราะห์แล้วควรใช้ปุ๋ยสั่งตัดซึ่งแม่นกว่าและมักใช้ปุ๋ยน้อยกว่า\n" +
     "3. ต้องถามหรือระบุก่อนว่าเป็นข้าวไวต่อช่วงแสงหรือไม่ เพราะอัตราต่างกันชัดเจน " +
     "ข้าวไวต่อช่วงแสงคือพันธุ์นาปีอย่างขาวดอกมะลิ 105 และ กข6 ส่วนพันธุ์นาปรังทั่วไปไม่ไวต่อช่วงแสง\n" +
-    "4. ห้ามคำนวณอัตราปูนขาวจากค่า pH เพราะต้องใช้ค่าความต้องการปูนจากห้องแล็บ ให้แนะนำไปสถานีพัฒนาที่ดินแทน\n" +
+    "4. เรื่องปูนแก้ดินเปรี้ยว ให้บอกช่วงอัตราตามข้อมูลด้านบนได้ แต่ต้องอธิบายด้วยว่าช่วงกว้างเพราะขึ้นกับความรุนแรงของกรด " +
+    "และตัวเลขที่แม่นจริงต้องมาจากค่าความต้องการปูนที่วัดในห้องแล็บ ห้ามฟันธงตัวเลขเดียวให้ผู้ใช้ไปใส่เลย " +
+    "และต้องเตือนเสมอว่าใส่ปูนเกินทำให้ดินเป็นด่างซึ่งแก้ยากกว่าเดิม\n" +
     "5. ถ้าเรื่องที่ถามไม่มีในข้อมูลด้านบน ให้บอกตรงๆ ว่าไม่มีข้อมูล และแนะนำให้ปรึกษาหมอดินอาสาประจำตำบล]";
 }
 
@@ -2427,6 +2444,83 @@ views.soil = async function (root) {
   }
   root.appendChild(phCard);
 
+  // ══ วิธีแก้ปัญหาดิน ══
+  // วางไว้ต่อจากการแปลผล pH ทันที เพราะเป็นคำถามถัดไปที่ผู้ใช้จะถามเสมอ
+  // ถ้าบอกว่า "ดินเปรี้ยวจัด" แล้วไม่บอกวิธีแก้ ผู้ใช้จะไปหาข้อมูลที่อื่นแทน
+  if (G.problems) {
+    root.appendChild(bund("วิธีแก้ปัญหาดิน"));
+    var probCard = plot(null, "เลือกปัญหาที่ตรงกับแปลงของคุณ ถ้าไม่แน่ใจให้ดูจากอาการที่สังเกตได้");
+    var probBody = el("div");
+
+    // ถ้ามีค่า pH แล้วและอยู่ในเกณฑ์ที่มีปัญหา ให้เปิดหัวข้อนั้นไว้เลย
+    // ประหยัดขั้นตอนให้ผู้ใช้ที่วัด pH มาแล้วและกำลังหาทางแก้
+    var openKey = null;
+    if (phs.length) {
+      var b0 = window.readSoilPh(phs[0].ph);
+      if (b0 && b0.problem) openKey = b0.problem;
+    }
+    if (!openKey) openKey = Object.keys(G.problems)[0];
+
+    function paintProblems() {
+      probCard.innerHTML = "";
+      probCard.appendChild(el("div", "plot-note",
+        "เลือกปัญหาที่ตรงกับแปลงของคุณ ถ้าไม่แน่ใจให้ดูจากอาการที่สังเกตได้"));
+
+      var row = el("div");
+      row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-top:11px";
+      Object.keys(G.problems).forEach(function (k) {
+        var b = el("button", "act act-sm " + (k === openKey ? "act-go" : "act-line"), G.problems[k].thai);
+        b.onclick = function () { openKey = k; paintProblems(); };
+        row.appendChild(b);
+      });
+      probCard.appendChild(row);
+
+      var pr = G.problems[openKey];
+      probBody.innerHTML = "";
+
+      var info = plot(null);
+      info.style.marginTop = "13px";
+      info.appendChild(el("div", "rx-sect", "สังเกตอย่างไรว่าเป็นปัญหานี้"));
+      var s1 = el("p", "", pr.sign);
+      s1.style.cssText = "margin:0 0 11px;font-size:.88rem";
+      info.appendChild(s1);
+      info.appendChild(el("div", "rx-sect", "ทำไมถึงกระทบผลผลิต"));
+      var s2 = el("p", "", pr.why);
+      s2.style.cssText = "margin:0;font-size:.88rem";
+      info.appendChild(s2);
+      info.appendChild(el("div", "read-foot", "มักพบเมื่อ: " + pr.when));
+      probBody.appendChild(info);
+
+      pr.fixes.forEach(function (fx, i) {
+        var c = plot(null);
+        c.style.marginTop = "13px";
+        var top = el("div");
+        top.style.cssText = "display:flex;gap:13px;align-items:flex-start;margin-bottom:9px";
+        var badge = el("div", "num", String(i + 1));
+        badge.style.cssText = "flex:none;width:30px;height:30px;border-radius:50%;display:flex;" +
+          "align-items:center;justify-content:center;background:var(--tint-ok);color:var(--deep);font-weight:600;font-size:.9rem";
+        top.appendChild(badge);
+        var tt = el("div", "", fx.title);
+        tt.style.cssText = "font-family:var(--f-display);font-weight:600;font-size:1.02rem;line-height:1.35;padding-top:3px";
+        top.appendChild(tt);
+        c.appendChild(top);
+        var d = el("p", "", fx.detail);
+        d.style.cssText = "margin:0 0 8px;font-size:.88rem";
+        c.appendChild(d);
+        // ต้นทุนคือสิ่งที่ตัดสินว่าเกษตรกรจะทำหรือไม่ทำ จึงต้องบอกทุกวิธี
+        c.appendChild(el("div", "read-foot", "ต้นทุนและข้อจำกัด: " + fx.cost));
+        probBody.appendChild(c);
+      });
+
+      if (pr.warn) probBody.appendChild(el("div", "flash flash-bad", "ข้อควรระวัง: " + pr.warn));
+      probBody.appendChild(el("div", "rx-src", "อ้างอิง: " + pr.source));
+    }
+
+    root.appendChild(probCard);
+    root.appendChild(probBody);
+    paintProblems();
+  }
+
   // ══ ตัวเลือกบริบทแปลง ══
   root.appendChild(bund("เลือกให้ตรงกับแปลงของคุณ"));
   var pickCard = plot(null, "ขั้นตอนด้านล่างจะเปลี่ยนตามที่เลือก เพราะการเตรียมดินแต่ละแบบต่างกันจริง");
@@ -2590,7 +2684,7 @@ views.fert = async function (root) {
   } catch (e) { /* อ่านไม่ได้ก็ใช้ค่าเริ่มต้น */ }
 
   // ══ ความรู้พื้นฐาน ══
-  root.appendChild(bund("ปุ๋ยอินทรีย์คืออะไร"));
+  root.appendChild(bund("ปุ๋ยสำหรับนาข้าว"));
   var over = plot(null);
   var w = el("p", "", G.overview.what);
   w.style.cssText = "margin:0 0 14px;font-size:.89rem";
@@ -3669,8 +3763,9 @@ views.consult = async function (root) {
 
   var talk = el("div", "talk");
   talk.appendChild(el("div", "say say-ai",
-    "สวัสดีครับ ผมใช้ผลจากโมเดลตรวจภาพ ค่า pH ดิน และบันทึกแปลงของคุณประกอบการตอบ " +
-    "ถามเรื่องโรคข้าว การเตรียมดิน หรือการทำปุ๋ยอินทรีย์ได้เลยครับ จะแนบภาพใบข้าวมาด้วยก็ได้"));
+    "สวัสดีครับ ผมใช้ผลจากโมเดลตรวจภาพ ค่า pH ดิน และบันทึกแปลงของคุณประกอบการตอบ\n\n" +
+    "ถามได้ทั้งเรื่องโรคข้าว การเตรียมดิน การเตรียมต้นกล้า ปุ๋ยอินทรีย์ และปุ๋ยเคมี " +
+    "เช่น ข้าวอายุ 25 วันควรใส่ปุ๋ยสูตรอะไร หรือจะแนบภาพใบข้าวมาให้ดูก็ได้ครับ"));
   card.appendChild(talk);
 
   var clip = el("div", "clip");
@@ -3788,7 +3883,7 @@ views.consult = async function (root) {
 
       // ส่งข้อมูลดินและปุ๋ยเฉพาะตอนที่คำถามเกี่ยวข้อง เพื่อไม่ให้พรอมต์ยาวเกินจำเป็น
       // คำถามเรื่องโรคไม่ต้องใช้ข้อมูลปุ๋ย และโควตา AI ตอนนี้ก็ตึงอยู่แล้ว
-      var wantsSoil = /ปุ๋ย|หมัก|คอก|พืชสด|ปอเทือง|เตรียมดิน|ไถ|ตอซัง|ดิน|pH|กรด|ด่าง|ปูน|อินทรีย|เคมี|ยูเรีย|46-0-0|16-20-0|16-16-8|21-0-0|0-0-60|สูตร|ตกกล้า|ต้นกล้า|ปักดำ|นาดำ|แตกกอ|ช่อดอก/i.test(text || "");
+      var wantsSoil = /ปุ๋ย|หมัก|คอก|พืชสด|ปอเทือง|เตรียมดิน|ไถ|ตอซัง|ดิน|pH|กรด|ด่าง|ปูน|อินทรีย|เคมี|ยูเรีย|46-0-0|16-20-0|16-16-8|21-0-0|0-0-60|สูตร|ตกกล้า|ต้นกล้า|ปักดำ|นาดำ|แตกกอ|ช่อดอก|เปรี้ยว|เค็ม|ดาน|ทราย|ปูนมาร์ล|โดโลไมท|ยิปซัม|แก้ดิน|ปรับปรุงดิน|เสื่อมโทรม/i.test(text || "");
       var soilRef = wantsSoil ? soilFertForPrompt() : "";
 
       var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าว การเตรียมดิน และปุ๋ยอินทรีย์ของไทย ตอบภาษาไทยแบบเข้าใจง่าย กระชับ\n" +
