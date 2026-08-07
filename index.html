@@ -1113,7 +1113,7 @@ var PAGES = [
   { id: "ledger",   label: "ทะเบียนบันทึก", kicker: "เก็บข้อมูล", icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
   { id: "weather",  label: "อากาศและความเสี่ยง", kicker: "วิเคราะห์", icon: "M7 17a4 4 0 010-8 5.5 5.5 0 0110.5 1.5A3.5 3.5 0 0117 17zm-1 2l-1 2m4-2l-1 2m4-2l-1 2" },
   { id: "consult",  label: "ปรึกษา AI",     kicker: "วิเคราะห์",  icon: "M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v13a2 2 0 01-2 2z" },
-  { id: "map",      label: "แผนที่แปลง",    kicker: "แปลงนา",   icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
+  { id: "map",      label: "ที่นาของฉัน",    kicker: "แปลงนา",   icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
   { id: "profile",  label: "ข้อมูลผู้ใช้",   kicker: "ตั้งค่า",   icon: "M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 5v1h14v-1c0-3-3-5-7-5z" },
   { id: "admin",    label: "ผู้ดูแลระบบ",    kicker: "ตั้งค่า",   adminOnly: true, icon: "M12 3l7 3v6c0 4.4-3 8.2-7 9-4-.8-7-4.6-7-9V6zm0 6v4m0 3h.01" },
 ];
@@ -2310,31 +2310,6 @@ views.overview = async function (root) {
     phCard.appendChild(cv);
   }
   root.appendChild(phCard);
-
-  root.appendChild(bund("ข้อสังเกตจาก AI"));
-  var aiCard = plot();
-  var aiBody = el("div");
-  aiCard.appendChild(aiBody);
-  root.appendChild(aiCard);
-
-  if (!logs.length) {
-    aiBody.appendChild(stateBlock("◇", "ยังไม่มีข้อมูลให้วิเคราะห์",
-      "ตรวจภาพสัก 1 ครั้ง แล้ว AI จะสรุปสถานการณ์แปลงให้"));
-  } else {
-    aiBody.appendChild(stateBlock("◌", "กำลังให้ AI อ่านข้อมูลแปลง", "ใช้เวลาสักครู่"));
-    Store.askGemini(
-      "คุณเป็นผู้เชี่ยวชาญข้าวไทย นี่คือข้อมูลแปลงนาจากระบบ:\n" + buildFarmContext(logs) +
-      "\n\nสรุปสถานการณ์แปลง 2-3 ประโยค แล้วให้คำแนะนำที่ลงมือทำได้ทันที 1 ข้อ ตอบภาษาไทย ไม่ต้องใส่หัวข้อ"
-    ).then(function (answer) {
-      aiBody.innerHTML = "";
-      var p = el("p", "", answer.text);
-      p.style.cssText = "margin:0;font-size:.9rem";
-      aiBody.appendChild(p);
-    }).catch(function (e) {
-      aiBody.innerHTML = "";
-      aiBody.appendChild(stateBlock("!", "ยังให้ AI สรุปไม่ได้", friendlyError(e.message)));
-    });
-  }
 
   if (phValues.length >= 2) {
     var series = logs.filter(function (l) { return typeof l.ph === "number"; }).slice(0, 8).reverse();
@@ -4478,58 +4453,212 @@ views.consult = async function (root) {
   q.onkeydown = function (e) { if (e.key === "Enter") ask(); };
 };
 
+// ─── หน้าที่นาของฉัน ───────────────────────────
+//
+// สิ่งที่หน้านี้ต้องทำให้ได้คือ "ปักหมุดที่นาไว้แล้วมันอยู่ตรงนั้นตลอด"
+// เดิมแผนที่ย้ายตามตำแหน่งปัจจุบันทุกครั้ง พอเดินออกจากนาแล้วเปิดดูจะหาที่นาไม่เจอ
+//
+// พิกัดที่ล็อกเก็บในเครื่องแยกตามบัญชี ไม่ต้องแก้ฝั่งเซิร์ฟเวอร์
+// ข้อจำกัดที่ต้องรู้: ถ้าเปลี่ยนเครื่องหรือล้างข้อมูลเบราว์เซอร์ หมุดจะหาย
+// จึงแสดงพิกัดเป็นตัวเลขไว้ให้จดเก็บได้ด้วย
 views.map = async function (root) {
   var logs = await Store.list();
   var pins = logs.filter(function (l) { return l.gps && l.gps.indexOf(",") !== -1; });
 
-  root.appendChild(bund("ตำแหน่งแปลง"));
-  var card = plot(null, null);
+  var KEY = "smartrice-field:" + (Session.user ? Session.user.username : "guest");
+  var field = null;
+  try { field = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { field = null; }
 
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(field)); } catch (e) { /* พื้นที่เต็ม */ }
+  }
+
+  // 1 ไร่ = 1,600 ตารางเมตร เป็นค่ามาตรฐานไทย
+  // แสดงเป็นไร่-งาน-วา ด้วย เพราะเกษตรกรใช้หน่วยนี้ในการซื้อขายและทำเอกสารสิทธิ์
+  function areaOf(radiusM) {
+    var sqm = Math.PI * radiusM * radiusM;
+    var rai = sqm / 1600;
+    var raiWhole = Math.floor(rai);
+    var ngan = Math.floor((rai - raiWhole) * 4);
+    var wa = Math.round((((rai - raiWhole) * 4) - ngan) * 100);
+    return { sqm: sqm, rai: rai, text: raiWhole + " ไร่ " + ngan + " งาน " + wa + " ตารางวา" };
+  }
+
+  root.appendChild(bund("ที่นาของฉัน"));
+
+  // ══ แผงควบคุม ══
+  var ctl = plot(null);
   var head = el("div");
-  head.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:13px";
+  head.style.cssText = "display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:14px";
   var info = el("div");
-  info.appendChild(el("div", "plot-title", "แผนที่แปลง"));
-  info.appendChild(el("div", "plot-note", pins.length
-    ? "ปักหมุดจากพิกัดที่บันทึกไว้ " + pins.length + " จุด"
-    : "ยังไม่มีพิกัดในระบบ กดดึงพิกัดที่หน้าบันทึกสำรวจเพื่อเริ่มปักหมุด"));
+  info.appendChild(el("div", "plot-title", "ตำแหน่งที่นา"));
+  var infoNote = el("div", "plot-note", "");
+  info.appendChild(infoNote);
   head.appendChild(info);
-  var hereBtn = el("button", "act act-line act-sm", "ไปที่ตำแหน่งของฉัน");
-  head.appendChild(hereBtn);
-  card.appendChild(head);
 
+  var lockBtn = el("button", "act act-go act-sm", "ล็อกจุดนี้ไว้");
+  head.appendChild(lockBtn);
+  ctl.appendChild(head);
+
+  // ── ช่องกรอกรัศมี ──
+  var rowR = el("div");
+  rowR.style.cssText = "display:flex;gap:13px;align-items:flex-end;flex-wrap:wrap";
+
+  var fR = el("div", "inp");
+  fR.style.cssText = "flex:1;min-width:150px";
+  fR.appendChild(el("label", "", "รัศมีที่นา (เมตร)"));
+  var rIn = el("input");
+  rIn.className = "num-in";
+  rIn.inputMode = "numeric";
+  rIn.value = String(field && field.radius ? field.radius : 100);
+  fR.appendChild(rIn);
+  rowR.appendChild(fR);
+
+  var hereBtn = el("button", "act act-line act-sm", "ใช้ตำแหน่งปัจจุบัน");
+  rowR.appendChild(hereBtn);
+  ctl.appendChild(rowR);
+
+  // ── กล่องแสดงพื้นที่ ──
+  var areaBox = el("div");
+  areaBox.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-top:16px;padding-top:15px;border-top:1px solid var(--rule-soft)";
+  ctl.appendChild(areaBox);
+
+  var msg = el("div");
+  ctl.appendChild(msg);
+  root.appendChild(ctl);
+
+  var mapCard = plot(null);
   var canvasHost = el("div");
   canvasHost.id = "map";
-  card.appendChild(canvasHost);
-  root.appendChild(card);
+  mapCard.appendChild(canvasHost);
+  root.appendChild(mapCard);
 
-  var center = pins.length ? pins[0].gps.split(",").map(Number) : [15.87, 100.99];
-  var map = L.map("map").setView(center, pins.length ? 12 : 6);
+  // ══ แผนที่ ══
+  var center = field ? [field.lat, field.lon]
+             : pins.length ? pins[0].gps.split(",").map(Number)
+             : [15.87, 100.99];
+  var map = L.map("map").setView(center, field ? 16 : pins.length ? 12 : 6);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap", maxZoom: 19
   }).addTo(map);
 
+  // หมุดจากบันทึกเก่า แสดงเป็นจุดเล็กๆ ไม่ให้แย่งความสนใจจากหมุดที่นาหลัก
   pins.forEach(function (p) {
     var c = p.gps.split(",").map(Number);
-    L.marker(c).addTo(map).bindPopup(
-      "<b>" + p.date + "</b><br>" + p.disease + "<br>คะแนน " + p.score);
+    L.circleMarker(c, { radius: 5, color: "#7C9385", fillColor: "#C8E6C9", fillOpacity: .8, weight: 1.5 })
+      .addTo(map).bindPopup(p.date + "<br>" + p.disease);
   });
 
+  var marker = null, circle = null;
+
+  function draw() {
+    var r = parseInt(rIn.value, 10);
+    if (!r || r < 5) r = 5;
+    if (r > 5000) r = 5000;
+
+    if (!field) {
+      areaBox.innerHTML = "";
+      areaBox.appendChild(readOut("พื้นที่โดยประมาณ", "—", "ยังไม่ได้ปักหมุด"));
+      infoNote.textContent = "กดใช้ตำแหน่งปัจจุบันเพื่อปักหมุด หรือกดบนแผนที่ตรงจุดที่เป็นที่นาของคุณ";
+      lockBtn.disabled = true;
+      lockBtn.textContent = "ล็อกจุดนี้ไว้";
+      if (marker) { map.removeLayer(marker); marker = null; }
+      if (circle) { map.removeLayer(circle); circle = null; }
+      return;
+    }
+
+    lockBtn.disabled = false;
+    field.radius = r;
+
+    if (marker) map.removeLayer(marker);
+    if (circle) map.removeLayer(circle);
+
+    // ล็อกแล้วลากไม่ได้ กันเผลอลากหมุดเคลื่อนตอนซูมด้วยนิ้ว
+    marker = L.marker([field.lat, field.lon], { draggable: !field.locked }).addTo(map);
+    circle = L.circle([field.lat, field.lon], {
+      radius: r,
+      color: field.locked ? "#1B5E3A" : "#2E8B57",
+      fillColor: "#6FBF73",
+      fillOpacity: .18,
+      weight: 2,
+      dashArray: field.locked ? null : "6 5"
+    }).addTo(map);
+
+    marker.on("dragend", function (e) {
+      var ll = e.target.getLatLng();
+      field.lat = ll.lat;
+      field.lon = ll.lng;
+      save();
+      draw();
+    });
+
+    var a = areaOf(r);
+    areaBox.innerHTML = "";
+    areaBox.appendChild(readOut("พื้นที่โดยประมาณ", a.rai.toFixed(2) + " ไร่", a.text));
+    areaBox.appendChild(readOut("รัศมี", r + " เมตร", "วัดจากหมุดกลาง"));
+    areaBox.appendChild(readOut("พิกัด", field.lat.toFixed(5), field.lon.toFixed(5)));
+
+    infoNote.textContent = field.locked
+      ? "ล็อกไว้แล้ว หมุดจะอยู่ที่เดิมแม้คุณจะเดินไปที่อื่น"
+      : "ลากหมุดบนแผนที่เพื่อปรับตำแหน่งได้ เสร็จแล้วกดล็อกจุดนี้ไว้";
+    lockBtn.textContent = field.locked ? "ปลดล็อกเพื่อแก้ไข" : "ล็อกจุดนี้ไว้";
+    lockBtn.className = "act act-sm " + (field.locked ? "act-line" : "act-go");
+  }
+
+  // กดบนแผนที่เพื่อปักหมุด ใช้ได้เฉพาะตอนยังไม่ล็อก
+  map.on("click", function (e) {
+    if (field && field.locked) return;
+    field = field || {};
+    field.lat = e.latlng.lat;
+    field.lon = e.latlng.lng;
+    field.radius = parseInt(rIn.value, 10) || 100;
+    field.locked = false;
+    save();
+    draw();
+  });
+
+  rIn.oninput = function () { if (field) { draw(); save(); } };
+
+  lockBtn.onclick = function () {
+    if (!field) return;
+    field.locked = !field.locked;
+    save();
+    draw();
+    msg.innerHTML = "";
+    msg.appendChild(el("div", "flash " + (field.locked ? "flash-ok" : "flash-warn"),
+      field.locked
+        ? "ล็อกที่นาไว้แล้ว เปิดหน้านี้จากที่ไหนก็จะเห็นจุดเดิมเสมอ"
+        : "ปลดล็อกแล้ว ลากหมุดหรือกดบนแผนที่เพื่อย้ายตำแหน่งได้"));
+  };
+
   hereBtn.onclick = function () {
+    if (field && field.locked) {
+      msg.innerHTML = "";
+      msg.appendChild(el("div", "flash flash-warn", "ต้องปลดล็อกก่อนจึงจะย้ายหมุดได้"));
+      return;
+    }
     hereBtn.textContent = "กำลังหาตำแหน่ง";
     hereBtn.disabled = true;
     navigator.geolocation.getCurrentPosition(function (p) {
-      var c = [p.coords.latitude, p.coords.longitude];
-      map.setView(c, 14);
-      L.circleMarker(c, { radius: 8, color: "#1B5E3A", fillColor: "#6FBF73", fillOpacity: .9, weight: 2 })
-        .addTo(map).bindPopup("ตำแหน่งปัจจุบันของคุณ").openPopup();
-      hereBtn.textContent = "ไปที่ตำแหน่งของฉัน";
+      field = field || {};
+      field.lat = p.coords.latitude;
+      field.lon = p.coords.longitude;
+      field.radius = parseInt(rIn.value, 10) || 100;
+      field.locked = false;
+      save();
+      map.setView([field.lat, field.lon], 16);
+      draw();
+      hereBtn.textContent = "ใช้ตำแหน่งปัจจุบัน";
       hereBtn.disabled = false;
     }, function () {
       hereBtn.textContent = "เปิดสิทธิ์ตำแหน่งก่อน";
       hereBtn.disabled = false;
     });
   };
+
+  draw();
 };
+
 
 views.profile = function (root) {
   var p = Store.profile();
