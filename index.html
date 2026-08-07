@@ -898,7 +898,6 @@ var PAGES = [
   { id: "map",      label: "แผนที่แปลง",    kicker: "แปลงนา",   icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
   { id: "profile",  label: "ข้อมูลผู้ใช้",   kicker: "ตั้งค่า",   icon: "M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 5v1h14v-1c0-3-3-5-7-5z" },
   { id: "admin",    label: "ผู้ดูแลระบบ",    kicker: "ตั้งค่า",   adminOnly: true, icon: "M12 3l7 3v6c0 4.4-3 8.2-7 9-4-.8-7-4.6-7-9V6zm0 6v4m0 3h.01" },
-  { id: "system",   label: "ระบบ",          kicker: "ตั้งค่า",   icon: "M12 15a3 3 0 100-6 3 3 0 000 6zm8-3a8 8 0 01-.2 1.7l2 1.6-2 3.4-2.4-1a8 8 0 01-2.9 1.7l-.4 2.6h-4l-.4-2.6a8 8 0 01-2.9-1.7l-2.4 1-2-3.4 2-1.6A8 8 0 014 12" }
 ];
 
 // ─── สิทธิ์การเข้าใช้ ───────────────────────────
@@ -1442,13 +1441,23 @@ function soilFertForPrompt() {
     Object.keys(S.soils).forEach(function (k) {
       out.push("- ข้อควรระวังของ" + S.soils[k].thai + ": " + S.soils[k].tips[0]);
     });
+    if (S.nursery) {
+      out.push("- การเตรียมต้นกล้าสำหรับนาดำ: " + S.nursery.steps.map(function (x) {
+        return x.title + " (" + x.when + ")";
+      }).join(" → ") + " | " + S.nursery.tip);
+    }
   }
 
   if (!out.length) return "";
   return "\n\n" + out.join("\n") +
-    "\n[ถ้าผู้ใช้ถามเรื่องปุ๋ยหรือการเตรียมดินที่ไม่มีในข้อมูลด้านบน ให้บอกตรงๆ ว่าไม่มีข้อมูล " +
-    "และแนะนำให้ปรึกษาหมอดินอาสาประจำตำบลหรือสถานีพัฒนาที่ดินจังหวัด " +
-    "ห้ามแนะนำสูตรปุ๋ยเคมี N-P-K หรืออัตราปูนขาวเด็ดขาด เพราะต้องใช้ผลวิเคราะห์ดินที่ระบบไม่มี]";
+    "\n[กติกาการตอบเรื่องปุ๋ยและดิน]\n" +
+    "1. แนะนำสูตรและอัตราปุ๋ยเคมีได้ แต่ต้องใช้ตัวเลขจากข้อมูลด้านบนเท่านั้น ห้ามแต่งอัตราใหม่หรือดัดแปลงตัวเลข\n" +
+    "2. เมื่อแนะนำปุ๋ยเคมี ให้บอกด้วยเสมอว่านี่เป็นอัตรามาตรฐานสำหรับกรณียังไม่มีผลวิเคราะห์ดิน " +
+    "ถ้าส่งดินไปวิเคราะห์แล้วควรใช้ปุ๋ยสั่งตัดซึ่งแม่นกว่าและมักใช้ปุ๋ยน้อยกว่า\n" +
+    "3. ต้องถามหรือระบุก่อนว่าเป็นข้าวไวต่อช่วงแสงหรือไม่ เพราะอัตราต่างกันชัดเจน " +
+    "ข้าวไวต่อช่วงแสงคือพันธุ์นาปีอย่างขาวดอกมะลิ 105 และ กข6 ส่วนพันธุ์นาปรังทั่วไปไม่ไวต่อช่วงแสง\n" +
+    "4. ห้ามคำนวณอัตราปูนขาวจากค่า pH เพราะต้องใช้ค่าความต้องการปูนจากห้องแล็บ ให้แนะนำไปสถานีพัฒนาที่ดินแทน\n" +
+    "5. ถ้าเรื่องที่ถามไม่มีในข้อมูลด้านบน ให้บอกตรงๆ ว่าไม่มีข้อมูล และแนะนำให้ปรึกษาหมอดินอาสาประจำตำบล]";
 }
 
 // รวบรวมข้อมูลจากทุกหน้าให้ AI ใช้ประกอบการตอบ
@@ -2489,6 +2498,46 @@ views.soil = async function (root) {
       }
       stepsHost.appendChild(c);
     });
+
+    // ── การเตรียมต้นกล้า แสดงเฉพาะนาดำ ──
+    // เป็นงานคู่ขนานกับการเตรียมแปลงใหญ่ ไม่ใช่ขั้นตอนที่ทำต่อกัน
+    // จึงแยกออกมาเป็นหัวข้อของตัวเอง ไม่แทรกในลำดับขั้นตอนด้านบน
+    if (G.nursery && G.nursery.forMethod === pick.method) {
+      var N = G.nursery;
+      stepsHost.appendChild(bund(N.title));
+
+      var nIntro = plot(null);
+      var ni = el("p", "", N.intro);
+      ni.style.cssText = "margin:0;font-size:.89rem;color:var(--ink-soft)";
+      nIntro.appendChild(ni);
+      stepsHost.appendChild(nIntro);
+
+      N.steps.forEach(function (st, i) {
+        var c = plot(null);
+        c.style.marginTop = "13px";
+        var top = el("div");
+        top.style.cssText = "display:flex;gap:13px;align-items:flex-start;margin-bottom:11px";
+        var badge = el("div", "num", "ก" + (i + 1));
+        badge.style.cssText = "flex:none;min-width:30px;height:30px;padding:0 6px;border-radius:15px;display:flex;" +
+          "align-items:center;justify-content:center;background:var(--tint-warn);color:#7A5A11;font-weight:600;font-size:.82rem";
+        top.appendChild(badge);
+        var tw = el("div");
+        var t2 = el("div", "", st.title);
+        t2.style.cssText = "font-family:var(--f-display);font-weight:600;font-size:1.02rem;line-height:1.3";
+        tw.appendChild(t2);
+        tw.appendChild(el("div", "read-foot", "ช่วงเวลา: " + st.when));
+        top.appendChild(tw);
+        c.appendChild(top);
+
+        var d2 = el("p", "", st.detail);
+        d2.style.cssText = "margin:0;font-size:.88rem";
+        c.appendChild(d2);
+        if (st.watch) c.appendChild(el("div", "flash flash-warn", "จุดที่พลาดบ่อย: " + st.watch));
+        stepsHost.appendChild(c);
+      });
+
+      if (N.tip) stepsHost.appendChild(el("div", "flash flash-bad", N.tip));
+    }
 
     // ── ข้อควรระวังตามชนิดดิน ──
     stepsHost.appendChild(bund("ข้อควรระวังสำหรับ" + sl.thai));
@@ -3739,7 +3788,7 @@ views.consult = async function (root) {
 
       // ส่งข้อมูลดินและปุ๋ยเฉพาะตอนที่คำถามเกี่ยวข้อง เพื่อไม่ให้พรอมต์ยาวเกินจำเป็น
       // คำถามเรื่องโรคไม่ต้องใช้ข้อมูลปุ๋ย และโควตา AI ตอนนี้ก็ตึงอยู่แล้ว
-      var wantsSoil = /ปุ๋ย|หมัก|คอก|พืชสด|ปอเทือง|เตรียมดิน|ไถ|ตอซัง|ดิน|pH|กรด|ด่าง|ปูน|อินทรีย/i.test(text || "");
+      var wantsSoil = /ปุ๋ย|หมัก|คอก|พืชสด|ปอเทือง|เตรียมดิน|ไถ|ตอซัง|ดิน|pH|กรด|ด่าง|ปูน|อินทรีย|เคมี|ยูเรีย|46-0-0|16-20-0|16-16-8|21-0-0|0-0-60|สูตร|ตกกล้า|ต้นกล้า|ปักดำ|นาดำ|แตกกอ|ช่อดอก/i.test(text || "");
       var soilRef = wantsSoil ? soilFertForPrompt() : "";
 
       var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าว การเตรียมดิน และปุ๋ยอินทรีย์ของไทย ตอบภาษาไทยแบบเข้าใจง่าย กระชับ\n" +
@@ -4110,53 +4159,6 @@ views.admin = async function (root) {
   var note = el("p", "", "หน้านี้แสดงเฉพาะบัญชีที่มีสิทธิ์ผู้ดูแลระบบ ผู้ใช้ทั่วไปจะไม่เห็นเมนูนี้และเรียกใช้ไม่ได้แม้พิมพ์ที่อยู่ตรงๆ · การระงับย้อนกลับได้ทุกเมื่อและข้อมูลยังอยู่ครบ ส่วนการลบบัญชีจะลบบันทึกและภาพทั้งหมดถาวร กู้คืนไม่ได้ จึงควรใช้การระงับก่อนเสมอเมื่อยังไม่แน่ใจ · บัญชีผู้ดูแลระบบและบัญชีของตัวเองจะไม่มีปุ่มระงับและลบ");
   note.style.cssText = "font-size:.78rem;color:var(--ink-soft);margin:16px 0 0";
   host.appendChild(note);
-};
-
-views.system = function (root) {
-  root.appendChild(bund("สถานะระบบ"));
-  var card = plot(null);
-  card.style.maxWidth = "640px";
-
-  function line(label, valueId, initial) {
-    var d = el("div");
-    d.style.cssText = "display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--rule-soft);font-size:.86rem";
-    d.appendChild(el("span", "", label));
-    var v = el("span", "num");
-    v.id = valueId;
-    v.textContent = initial;
-    v.style.cssText = "color:var(--ink-soft);text-align:right;word-break:break-all";
-    d.appendChild(v);
-    return d;
-  }
-  card.appendChild(line("เซิร์ฟเวอร์ข้อมูล", "sysApi", API_BASE));
-  card.appendChild(line("โมเดลจำแนกข้าว", "sysM1", "กำลังโหลด"));
-  card.appendChild(line("โมเดลจำแนกโรค", "sysM2", "กำลังโหลด"));
-  card.appendChild(line("ฐานความรู้แนวทางแก้ไข", "sysGuide",
-    window.DISEASE_GUIDE ? Object.keys(window.DISEASE_GUIDE).length + " โรค" : "ไม่พบไฟล์ disease-guide.js"));
-
-  setTimeout(function () {
-    var m1 = document.getElementById("sysM1"), m2 = document.getElementById("sysM2");
-    if (m1) m1.textContent = models.rice.project
-      ? models.rice.project.name + " v" + models.rice.project.deploy_version : "โหลดไม่สำเร็จ";
-    if (m2) m2.textContent = models.disease.project
-      ? models.disease.project.name + " v" + models.disease.project.deploy_version : "โหลดไม่สำเร็จ";
-  }, 1600);
-
-  var note = el("p", "", "ภาพถ่ายทั้งหมดประมวลผลในเบราว์เซอร์ของคุณเอง ไม่ถูกส่งขึ้นเซิร์ฟเวอร์ ส่วนบันทึกสำรวจ (วันที่ ผลตรวจ ค่า pH พิกัด) เก็บผ่านเซิร์ฟเวอร์เพื่อให้เปิดดูข้ามเครื่องได้");
-  note.style.cssText = "font-size:.8rem;color:var(--ink-soft);margin:16px 0 0";
-  card.appendChild(note);
-
-  var wipe = el("button", "act act-line act-sm", "ล้างสำเนาข้อมูลในเครื่องนี้");
-  wipe.style.marginTop = "14px";
-  wipe.onclick = function () {
-    if (confirm("ลบสำเนาข้อมูลในเครื่องนี้ทั้งหมด ข้อมูลบนเซิร์ฟเวอร์จะยังอยู่ ยืนยันหรือไม่")) {
-      localStorage.removeItem("smartrice-logs");
-      Store._cache = null;
-      wipe.textContent = "ล้างข้อมูลในเครื่องแล้ว";
-    }
-  };
-  card.appendChild(wipe);
-  root.appendChild(card);
 };
 
 // ─── ตัวสลับหน้า ────────────────────────────────
