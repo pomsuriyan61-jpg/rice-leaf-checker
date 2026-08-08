@@ -1033,11 +1033,18 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="disease-guide.js"></script>
-<script src="soil-guide.js"></script>
-<script src="fertilizer-guide.js"></script>
-<script src="cost-guide.js"></script>
-<script src="care-guide.js"></script>
+<!-- ตัวเลขต่อท้าย ?v= คือตัวบังคับให้เบราว์เซอร์โหลดไฟล์ใหม่
+     ต้องบวกเลขนี้ขึ้น 1 ทุกครั้งที่แก้ไฟล์ความรู้ไฟล์ใดไฟล์หนึ่ง
+
+     ทำไมจำเป็น: GitHub Pages ตั้งอายุแคชไว้ และเบราว์เซอร์เก็บไฟล์ .js ไว้นาน
+     ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างในแคช
+     หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
+     อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
+<script src="disease-guide.js?v=7"></script>
+<script src="soil-guide.js?v=7"></script>
+<script src="fertilizer-guide.js?v=7"></script>
+<script src="cost-guide.js?v=7"></script>
+<script src="care-guide.js?v=7"></script>
 <script>
 (function () {
 "use strict";
@@ -2175,6 +2182,41 @@ function setFieldVariety(v) {
 function fieldVarietyChosen() {
   var f = readField();
   return !!(f && f.variety);
+}
+
+// ── ตาข่ายรองรับเมื่อ care-guide.js เป็นคนละเวอร์ชันกับ index.html ──
+//
+// สองไฟล์นี้ต้องอัปเดตพร้อมกันเสมอ เพราะ index.html เรียก window.careText
+// ซึ่งเพิ่งมีในไฟล์ความรู้เวอร์ชันใหม่ ถ้าเบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างในแคช
+// การเรียกฟังก์ชันที่ไม่มีจะโยน TypeError แล้วหน้าทั้งหน้าตายเงียบๆ
+//
+// วิธีป้องกันที่ถูกคือเติมฟังก์ชันสำรองให้เอง ไม่ใช่ปล่อยให้พัง
+// เกษตรกรที่เปิดเว็บอยู่จะยังใช้งานต่อได้ แค่เห็นเนื้อหาชุดเริ่มต้นแทนชุดตามพันธุ์
+// ซึ่งดีกว่าเจอหน้าขาวโดยไม่รู้ว่าเกิดอะไรขึ้นและทำอะไรต่อไม่ได้เลย
+if (typeof window.careText !== "function") {
+  window.careText = function (field, varietyKey) {
+    if (field == null) return "";
+    if (typeof field === "string") return field;
+    var v = varietyKey || "photo";
+    if (field[v] != null) return field[v];
+    if (field.photo != null) return field.photo;
+    // ไฟล์เก่าสุดที่ยังไม่มีการแยกพันธุ์เลย ค่าอาจเป็นอ็อบเจกต์รูปแบบอื่น
+    // คืนค่าแรกที่เป็นข้อความ ดีกว่าคืนค่าว่างจนการ์ดโล่ง
+    for (var k in field) if (typeof field[k] === "string") return field[k];
+    return "";
+  };
+}
+
+if (typeof window.careVariety !== "function") {
+  window.careVariety = function () {
+    return {
+      key: "photo",
+      thai: "ข้าวไวต่อช่วงแสง",
+      short: "นาปี",
+      examples: "ขาวดอกมะลิ 105, กข6",
+      note: "ข้อมูลพันธุ์ยังโหลดไม่ครบ กรุณารีเฟรชหน้าเว็บอีกครั้ง"
+    };
+  };
 }
 
 function clampRadius(r) {
