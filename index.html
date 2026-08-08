@@ -801,9 +801,12 @@
   .care-mid { flex: 1; min-width: 0; }
   .care-title { font-weight: 600; font-size: .96rem; line-height: 1.4; }
   .care-sum { font-size: .85rem; color: var(--ink-soft); margin-top: 3px; line-height: 1.6; max-width: 62ch; }
+  /* pre-line เพราะรายละเอียดบางการ์ดยาวหลายย่อหน้าแล้ว
+     ถ้าไม่ตั้ง ข้อความจะไหลติดกันเป็นก้อนเดียวจนอ่านไม่ออกบนมือถือ */
   .care-detail {
     margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--rule-soft);
     font-size: .86rem; line-height: 1.75; color: var(--ink); max-width: 66ch;
+    white-space: pre-line;
   }
   .care .act { flex: none; align-self: center; white-space: nowrap; }
   @media (max-width: 640px) {
@@ -1674,8 +1677,14 @@ var TOPICS = {
       });
       out.push("หลักการสำคัญ: " + F.overview.key);
       out.push("[แนะนำสูตรและอัตราได้ แต่ต้องใช้ตัวเลขด้านบนเท่านั้น " +
-               "ต้องระบุเสมอว่าเป็นข้าวไวต่อช่วงแสงหรือไม่ เพราะอัตราต่างกันเกือบเท่าตัว " +
+               "ต้องระบุเสมอว่าเป็นข้าวไวต่อช่วงแสงหรือไม่ เพราะทั้งอัตราและจังหวะต่างกัน " +
                "ข้าวไวต่อช่วงแสงคือพันธุ์นาปีอย่างขาวดอกมะลิ 105 และ กข6]");
+      out.push("[กฎสำคัญ 2 ข้อที่ห้ามพลาด] " +
+               "1. จังหวะปุ๋ยครั้งที่ 2 คือระยะกำเนิดช่อดอก = 30 วันก่อนข้าวออกดอก " +
+               "ตัวเลขอายุ 45-50 วันใช้ได้เฉพาะข้าวไม่ไวต่อช่วงแสงเท่านั้น " +
+               "ถ้าเป็นข้าวไวต่อช่วงแสงต้องนับถอยหลังจากวันออกดอก ห้ามให้ตัวเลขอายุ | " +
+               "2. การเสริม 0-0-60 ต้องเข้าเงื่อนไขครบสองข้อคือ สูตรครั้งที่ 1 ไม่มีโพแทสเซียม " +
+               "และดินเป็นดินทรายหรือดินร่วนทราย ถ้าผู้ใช้เลือก 16-16-8 อยู่แล้วห้ามแนะนำ 0-0-60 ซ้ำ]");
       return out.join("\n");
     }
   },
@@ -1721,14 +1730,26 @@ var TOPICS = {
     build: function () {
       var C = window.CARE_GUIDE;
       if (!C) return null;
-      var out = ["[คำแนะนำการดูแลแยกตามระยะการเจริญเติบโต]"];
+      // คลี่เนื้อหาตามพันธุ์ที่ผู้ใช้ตั้งไว้ก่อนส่ง
+      // ถ้าส่งทั้งสองชุดไป AI จะเลือกเองมั่วและมักหยิบชุดที่ผิดกับแปลงนั้น
+      var vk = fieldVariety();
+      var vv = window.careVariety(vk);
+      var out = ["[คำแนะนำการดูแลแยกตามระยะการเจริญเติบโต ชุดนี้คำนวณสำหรับ" +
+                 vv.thai + " (" + vv.short + ") ตามที่ผู้ใช้ตั้งไว้ในหน้าที่นาของฉัน]"];
       C.stages.forEach(function (st) {
-        out.push("- " + st.thai + " (" + st.age + "): " + st.note);
+        out.push("- " + st.thai + " (" + window.careText(st.age, vk) + "): " + st.note);
         st.cards.forEach(function (c) {
-          out.push("    " + c.title + " — " + c.summary + " | " + c.detail);
+          out.push("    " + window.careText(c.title, vk) +
+                   " — " + window.careText(c.summary, vk) +
+                   " | " + window.careText(c.detail, vk));
         });
       });
       out.push("[ถ้าผู้ใช้บอกอายุข้าว ให้ตอบเฉพาะระยะที่ตรงกับอายุนั้น ไม่ต้องเล่าทุกระยะ]");
+      if (vk === "photo") {
+        out.push("[ข้าวไวต่อช่วงแสงออกดอกตามความยาวกลางวัน อายุเป็นวันจึงบอกระยะไม่ได้แน่นอน " +
+                 "ถ้าผู้ใช้บอกอายุมา ให้ถามเดือนที่หว่านประกอบด้วย และเตือนว่าจังหวะปุ๋ยครั้งที่ 2 " +
+                 "ต้องนับถอยหลัง 30 วันจากวันออกดอก ไม่ใช่นับจากวันหว่าน]");
+      }
       return out.join("\n");
     }
   },
@@ -1809,10 +1830,41 @@ function knowledgeFor(text) {
 // รวบรวมข้อมูลจากทุกหน้าให้ AI ใช้ประกอบการตอบ
 // สรุปเป็นตัวเลขก่อนส่ง แทนที่จะโยนรายการดิบทั้งหมด เพราะ AI ตอบแม่นกว่า
 // เมื่อได้ข้อมูลที่ย่อยมาแล้ว และประหยัด token ด้วย
+// บรรทัดบอกพันธุ์ข้าวสำหรับส่งเข้า prompt
+//
+// ต้องมีเสมอ ไม่ใช่เฉพาะตอนผู้ใช้ถามเรื่องปุ๋ย เพราะ AI จะหยิบตัวเลขอายุ
+// จากฐานความรู้มาตอบเองแม้ผู้ใช้ไม่ได้ระบุพันธุ์ ซึ่งผิดครึ่งหนึ่งของกรณี
+// และถ้าผู้ใช้ยังไม่ได้เลือก ต้องบอก AI ให้ถามก่อน ไม่ใช่ให้เดา
+function varietyContext() {
+  var v = window.careVariety ? window.careVariety(fieldVariety()) : null;
+  if (!v) return "";
+  if (!fieldVarietyChosen()) {
+    return "พันธุ์ข้าวที่ปลูก: ผู้ใช้ยังไม่ได้ระบุ " +
+           "[ห้ามบอกจังหวะใส่ปุ๋ยครั้งที่ 2 เป็นตัวเลขอายุตายตัวก่อนรู้พันธุ์ " +
+           "ให้ถามก่อนว่าปลูกข้าวไวต่อช่วงแสง (นาปี เช่น ขาวดอกมะลิ 105 กข6) " +
+           "หรือไม่ไวต่อช่วงแสง (นาปรัง เช่น กข41 ปทุมธานี 1) " +
+           "แล้วแนะนำให้ไปตั้งค่าที่หน้าที่นาของฉัน]";
+  }
+  var line = "พันธุ์ข้าวที่ปลูก: " + v.thai + " (" + v.short + ") ตัวอย่างเช่น " + v.examples;
+  if (v.key === "photo") {
+    line += " [ข้าวกลุ่มนี้ออกดอกตามช่วงแสง ไม่ใช่ตามอายุ " +
+            "ห้ามบอกว่าใส่ปุ๋ยครั้งที่ 2 ที่อายุ 45-50 วันเด็ดขาด " +
+            "ให้บอกว่าใส่ก่อนออกดอก 30 วัน และยกตัวอย่างวันจริงตามพันธุ์ " +
+            "ขาวดอกมะลิ 105 ออกดอกราว 20 ต.ค. จึงใส่ราว 20 ก.ย. " +
+            "อัตรายูเรีย 46-0-0 คือ 10 กก./ไร่ และปุ๋ยครั้งที่ 1 คือ 20-25 กก./ไร่]";
+  } else {
+    line += " [ข้าวกลุ่มนี้ออกดอกตามอายุ ใส่ปุ๋ยครั้งที่ 2 ที่อายุ 45-50 วัน " +
+            "ซึ่งตรงกับ 30 วันก่อนออกดอกสำหรับพันธุ์อายุราว 100 วัน " +
+            "อัตรายูเรีย 46-0-0 คือ 20 กก./ไร่ และปุ๋ยครั้งที่ 1 คือ 30-35 กก./ไร่]";
+  }
+  return line;
+}
+
 function buildFarmContext(logs) {
   var prof = Store.profile();
   if (!logs.length) {
     return "ข้อมูลผู้ใช้: " + prof.name + (prof.farm ? " แปลง " + prof.farm : "") +
+           "\n" + varietyContext() +
            "\nยังไม่มีบันทึกสำรวจในระบบ";
   }
 
@@ -1827,6 +1879,7 @@ function buildFarmContext(logs) {
   var lines = [];
   lines.push("ข้อมูลผู้ใช้: " + prof.name + (prof.farm ? " แปลง " + prof.farm : ""));
   lines.push("จำนวนการสำรวจสะสม: " + logs.length + " ครั้ง");
+  lines.push(varietyContext());
   if (scores.length) {
     lines.push("คะแนนสุขภาพเฉลี่ย: " + Math.round(avg(scores)) + " (" + statusWord(statusOf(Math.round(avg(scores)))) + ")");
   }
@@ -2092,6 +2145,38 @@ function fieldCoords() {
   return null;
 }
 
+// ── พันธุ์ข้าวของแปลง ────────────────────────────
+//
+// เก็บไว้ในระเบียนแปลงเดียวกับพิกัด เพราะเป็นคุณสมบัติของแปลงในฤดูนั้น
+// ไม่ใช่การตั้งค่าการแสดงผล ทุกหน้าที่ให้คำแนะนำเรื่องจังหวะปุ๋ยต้องอ่านค่านี้
+//
+// ทำไมสำคัญ: ข้าวไวต่อช่วงแสงออกดอกตามความยาวกลางวัน ไม่ใช่ตามอายุ
+// ปฏิทินปุ๋ยครั้งที่ 2 ของสองกลุ่มนี้จึงห่างกันได้เป็นเดือน
+// ถ้าไม่รู้พันธุ์ ระบบจะแนะนำจังหวะผิดโดยที่ผู้ใช้ไม่มีทางรู้ตัว
+//
+// ค่าเริ่มต้นเป็น photo (ไวต่อช่วงแสง) เพราะเป็นข้าวส่วนใหญ่ของประเทศ
+// และการเดาผิดไปทางนี้ปลอดภัยกว่า เพราะคำแนะนำจะบอกให้นับจากวันออกดอก
+// ซึ่งใช้ได้กับทั้งสองกลุ่ม ต่างจากการเดาเป็นนาปรังที่ให้ตัวเลขอายุตายตัว
+function fieldVariety() {
+  var f = readField();
+  var v = f && f.variety;
+  var list = (window.CARE_GUIDE && window.CARE_GUIDE.varieties) || [];
+  for (var i = 0; i < list.length; i++) if (list[i].key === v) return v;
+  return (window.CARE_GUIDE && window.CARE_GUIDE.defaultVariety) || "photo";
+}
+
+function setFieldVariety(v) {
+  var f = readField() || {};
+  f.variety = v;
+  writeField(f);
+}
+
+// จริงหรือไม่ว่าผู้ใช้เคยเลือกพันธุ์ไว้แล้ว ใช้เตือนเมื่อยังไม่ได้เลือก
+function fieldVarietyChosen() {
+  var f = readField();
+  return !!(f && f.variety);
+}
+
 function clampRadius(r) {
   if (!r || isNaN(r) || r < 5) return 5;
   return r > 5000 ? 5000 : r;
@@ -2168,6 +2253,16 @@ function plot(title, note) {
 //
 // เปิดอันแรกไว้เสมอ เพื่อให้ผู้ใช้เห็นทันทีว่าข้างในหน้าตาเป็นอย่างไร
 // ถ้าพับหมดทุกอันผู้ใช้จะไม่รู้ว่าควรกดหรือไม่ และอาจคิดว่าหน้ายังโหลดไม่เสร็จ
+// แตกข้อความที่คั่นด้วยบรรทัดว่างออกเป็นย่อหน้าจริง
+// ฐานความรู้บางหัวข้อยาวหลายย่อหน้าแล้ว การยัดลง <p> เดียวทำให้อ่านไม่ไหว
+function paras(host, text) {
+  String(text == null ? "" : text).split(/\n\s*\n/).forEach(function (chunk) {
+    var t = chunk.trim();
+    if (t) host.appendChild(el("p", "", t));
+  });
+  return host;
+}
+
 function fold(num, title, sub, fill, open) {
   var box = el("div", "fold" + (open ? " on" : ""));
 
@@ -3245,7 +3340,7 @@ views.fert = async function (root) {
     var fBox = plot(null);
     t.steps.forEach(function (st, i) {
       fBox.appendChild(fold(i + 1, st.title, null, function (bd) {
-        bd.appendChild(el("p", "", st.detail));
+        paras(bd, st.detail);
       }, false));
     });
     body.appendChild(fBox);
@@ -3326,8 +3421,13 @@ views.fert = async function (root) {
           outHost.appendChild(mat);
 
         } else {
+          // อัตราบางชนิดเป็นค่าเดียว ไม่ใช่ช่วง เช่นเมล็ดปอเทืองสำหรับหว่านคือ 5 กก./ไร่
+          // ถ้าแสดงเป็น "50-50 กก." จะดูเหมือนระบบคำนวณพลาด จึงยุบเหลือค่าเดียว
           var lo = rai * t.calc.perRaiMin, hi = rai * t.calc.perRaiMax;
-          grid.appendChild(readOut("เมล็ดที่ต้องซื้อ", fmt(lo) + "-" + fmt(hi) + " " + t.calc.unit, t.calc.perRaiText));
+          var seedText = (t.calc.perRaiMin === t.calc.perRaiMax)
+            ? fmt(hi) + " " + t.calc.unit
+            : fmt(lo) + "-" + fmt(hi) + " " + t.calc.unit;
+          grid.appendChild(readOut("เมล็ดที่ต้องซื้อ", seedText, t.calc.perRaiText));
           outHost.appendChild(grid);
         }
 
@@ -4314,8 +4414,39 @@ views.consult = async function (root) {
       if (sv && C.stages.some(function (x) { return x.key === sv; })) pick = sv;
     } catch (e) { /* ใช้ค่าเริ่มต้น */ }
 
+    // พันธุ์ข้าวมาจากระเบียนแปลง ไม่ใช่ตัวเลือกเฉพาะหน้านี้
+    // เพื่อให้หน้าอื่นและบริบทที่ส่งให้ AI ใช้ค่าเดียวกันเสมอ
+    var vKey = fieldVariety();
+
     var tabCard = plot(null);
     var cardHost = el("div");
+
+    // แถบบอกพันธุ์ที่ระบบกำลังใช้คำนวณปฏิทิน พร้อมทางลัดไปเปลี่ยน
+    // จำเป็นต้องเห็นตลอด เพราะคำแนะนำทั้งหน้าเปลี่ยนตามค่านี้
+    var vBar = plot(null);
+    function paintVarietyBar() {
+      vBar.innerHTML = "";
+      var v = window.careVariety(vKey);
+      vBar.appendChild(el("div", "plot-title", "ปฏิทินนี้คำนวณสำหรับ " + v.thai + " (" + v.short + ")"));
+      vBar.appendChild(el("div", "plot-note", v.examples));
+      vBar.appendChild(el("div", "read-foot", v.note));
+      if (!fieldVarietyChosen()) {
+        vBar.appendChild(el("div", "read-foot",
+          "ยังไม่ได้เลือกพันธุ์ไว้ ระบบใช้ค่าเริ่มต้นนี้ไปก่อน ถ้าปลูกพันธุ์อีกกลุ่มให้เปลี่ยนก่อนใช้ปฏิทิน"));
+      }
+      var sw = el("button", "act act-line act-sm", "เปลี่ยนเป็น" +
+        window.careVariety(vKey === "photo" ? "nonphoto" : "photo").thai);
+      sw.style.marginTop = "12px";
+      sw.onclick = function () {
+        vKey = (vKey === "photo") ? "nonphoto" : "photo";
+        setFieldVariety(vKey);
+        paintVarietyBar();
+        paintStage();
+      };
+      vBar.appendChild(sw);
+    }
+    root.appendChild(vBar);
+    paintVarietyBar();
 
     function paintStage() {
       tabCard.innerHTML = "";
@@ -4324,7 +4455,7 @@ views.consult = async function (root) {
       C.stages.forEach(function (st) {
         var b = el("button", "stage-tab" + (st.key === pick ? " on" : ""));
         b.appendChild(el("span", "stage-name", st.thai));
-        b.appendChild(el("span", "stage-age", st.age));
+        b.appendChild(el("span", "stage-age", window.careText(st.age, vKey)));
         b.onclick = function () {
           pick = st.key;
           try { localStorage.setItem(SKEY, pick); } catch (e) {}
@@ -4336,6 +4467,7 @@ views.consult = async function (root) {
 
       var st = C.stages.filter(function (x) { return x.key === pick; })[0];
       tabCard.appendChild(el("div", "read-foot", st.note));
+      tabCard.appendChild(el("div", "read-foot", "ช่วงเวลา: " + window.careText(st.age, vKey)));
 
       cardHost.innerHTML = "";
       st.cards.forEach(function (c) {
@@ -4349,10 +4481,10 @@ views.consult = async function (root) {
         row.appendChild(chip);
 
         var mid = el("div", "care-mid");
-        mid.appendChild(el("div", "care-title", c.title));
-        mid.appendChild(el("div", "care-sum", c.summary));
+        mid.appendChild(el("div", "care-title", window.careText(c.title, vKey)));
+        mid.appendChild(el("div", "care-sum", window.careText(c.summary, vKey)));
         // รายละเอียดซ่อนไว้ กดปุ่มถึงจะโผล่ ตามที่ผู้ใช้ต้องการ
-        var det = el("div", "care-detail", c.detail);
+        var det = el("div", "care-detail", window.careText(c.detail, vKey));
         det.hidden = true;
         mid.appendChild(det);
         row.appendChild(mid);
@@ -4619,6 +4751,64 @@ views.map = async function (root) {
   var msg = el("div");
   ctl.appendChild(msg);
   root.appendChild(ctl);
+
+  // ══ พันธุ์ข้าวที่ปลูกในฤดูนี้ ══
+  //
+  // วางไว้หน้าเดียวกับขนาดแปลง เพราะเป็นข้อมูลประจำแปลงเหมือนกัน
+  // และเป็นหน้าที่ผู้ใช้เปิดก่อนปลูกอยู่แล้วตามลำดับเมนู
+  //
+  // ค่านี้ไปเปลี่ยนปฏิทินในหน้าคำแนะนำการดูแลและบริบทที่ส่งให้ AI โดยตรง
+  // ไม่ใช่แค่ป้ายกำกับ จึงต้องอธิบายผลของการเลือกให้ชัดตรงนี้
+  if (window.CARE_GUIDE && window.CARE_GUIDE.varieties) {
+    var vCard = plot("พันธุ์ข้าวที่ปลูกฤดูนี้",
+      "ระบบใช้ค่านี้กำหนดปฏิทินการใส่ปุ๋ย เลือกผิดจะได้จังหวะปุ๋ยครั้งที่ 2 ผิดไปเป็นเดือน");
+
+    var vRow = el("div");
+    vRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap";
+    var vLab = el("div");
+    vLab.appendChild(el("div", "read-foot", "กลุ่มพันธุ์"));
+    var vSelect = el("select");
+    vSelect.style.cssText = "padding:9px 12px;border:1px solid var(--rule);border-radius:var(--r-sm);background:#FFFFFF;min-width:230px";
+    window.CARE_GUIDE.varieties.forEach(function (v) {
+      var o = el("option", null, v.thai + " (" + v.short + ")");
+      o.value = v.key;
+      vSelect.appendChild(o);
+    });
+    vSelect.value = fieldVariety();
+    vLab.appendChild(vSelect);
+    vRow.appendChild(vLab);
+    vCard.appendChild(vRow);
+
+    var vNote = el("div", "read-foot", "");
+    vNote.style.marginTop = "12px";
+    vCard.appendChild(vNote);
+
+    var vWarn = el("div", "read-foot", "");
+    vWarn.style.marginTop = "8px";
+    vCard.appendChild(vWarn);
+
+    function paintVariety() {
+      var v = window.careVariety(vSelect.value);
+      vNote.textContent = "ตัวอย่างพันธุ์: " + v.examples + " — " + v.note;
+      vWarn.textContent = fieldVarietyChosen()
+        ? ""
+        : "ยังไม่ได้ยืนยันพันธุ์ ระบบใช้ค่าเริ่มต้นเป็นข้าวไวต่อช่วงแสงไปก่อน ถ้าปลูกนาปรังให้เปลี่ยนแล้วกดบันทึก";
+    }
+
+    var vSave = el("button", "act act-go act-sm", "บันทึกพันธุ์");
+    vSave.onclick = function () {
+      setFieldVariety(vSelect.value);
+      field = readField();
+      paintVariety();
+      vSave.textContent = "บันทึกแล้ว";
+      setTimeout(function () { vSave.textContent = "บันทึกพันธุ์"; }, 1600);
+    };
+    vRow.appendChild(vSave);
+
+    vSelect.onchange = paintVariety;
+    paintVariety();
+    root.appendChild(vCard);
+  }
 
   var mapCard = plot(null);
   var canvasHost = el("div");
