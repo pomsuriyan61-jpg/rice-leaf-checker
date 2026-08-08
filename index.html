@@ -5084,6 +5084,73 @@ views.profile = function (root) {
 };
 
 views.admin = async function (root) {
+
+  // ══ สถานะบริการ AI ══
+  //
+  // วางไว้บนสุดเพราะเป็นคำถามแรกที่ผู้ดูแลเปิดหน้านี้มาหา
+  // เวลาผู้ใช้แจ้งว่า "AI ไม่ตอบ" ต้องแยกให้ออกก่อนว่าเป็นที่คีย์ โมเดล หรือโควตา
+  // ซึ่งแก้คนละทางกันหมด ถ้าไม่มีเครื่องมือแยกก็ต้องเดาแล้วลองทีละอย่าง
+  //
+  // ไม่เรียกอัตโนมัติตอนเปิดหน้า เพราะการตรวจยิงจริงทุกโมเดลและกินโควตาเล็กน้อย
+  // ให้กดเองเมื่อต้องการ จะได้ไม่เผาโควตาทิ้งทุกครั้งที่แค่เข้ามาดูรายชื่อผู้ใช้
+  root.appendChild(bund("สถานะบริการ AI"));
+
+  var aiCard = plot("ตรวจคีย์ Gemini ทีละโมเดล",
+    "ยิงคำถามสั้นที่สุดไปยังทุกโมเดลในรายการสำรอง แล้วรายงานสถานะดิบที่ได้กลับมา");
+  var aiHost = el("div");
+  aiCard.appendChild(aiHost);
+
+  var aiBtn = el("button", "act act-go act-sm", "ตรวจสถานะตอนนี้");
+  aiBtn.style.marginTop = "12px";
+  aiBtn.onclick = async function () {
+    aiBtn.disabled = true;
+    aiBtn.textContent = "กำลังตรวจ";
+    aiHost.innerHTML = "";
+    aiHost.appendChild(stateBlock("◌", "กำลังยิงทดสอบทีละโมเดล", "ใช้เวลาไม่กี่วินาที"));
+    try {
+      var h = await api("/admin/ai-health");
+      aiHost.innerHTML = "";
+
+      if (!h.configured) {
+        aiHost.appendChild(stateBlock("!", "ยังไม่ได้ตั้งค่าคีย์", h.verdict));
+      } else {
+        aiHost.appendChild(el("div", h.anyOk ? "flash flash-ok" : "flash flash-bad", h.verdict));
+
+        var meta = el("div", "read-foot",
+          "คีย์ลงท้ายด้วย " + h.keyTail +
+          (h.preferredModel ? " · โมเดลที่ตั้งไว้ " + h.preferredModel : " · ยังไม่ได้ตั้ง GEMINI_MODEL"));
+        meta.style.marginTop = "10px";
+        aiHost.appendChild(meta);
+
+        var wrapAi = el("div");
+        wrapAi.style.cssText = "overflow-x:auto;margin-top:12px";
+        var tAi = el("table");
+        tAi.innerHTML = "<thead><tr><th>โมเดล</th><th>สถานะ</th><th>หมายเหตุ</th></tr></thead>";
+        var tbAi = el("tbody");
+        (h.models || []).forEach(function (m) {
+          var tr = el("tr");
+          tr.appendChild(el("td", "n", m.model));
+          var tdS = el("td");
+          tdS.appendChild(el("span", m.ok ? "tag-yes" : "tag-no",
+            m.ok ? "ใช้ได้" : (m.status || "ผิดพลาด")));
+          tr.appendChild(tdS);
+          tr.appendChild(el("td", "", m.note));
+          tbAi.appendChild(tr);
+        });
+        tAi.appendChild(tbAi);
+        wrapAi.appendChild(tAi);
+        aiHost.appendChild(wrapAi);
+      }
+    } catch (err) {
+      aiHost.innerHTML = "";
+      aiHost.appendChild(stateBlock("!", "ตรวจไม่สำเร็จ", friendlyError(err.message)));
+    }
+    aiBtn.disabled = false;
+    aiBtn.textContent = "ตรวจอีกครั้ง";
+  };
+  aiCard.appendChild(aiBtn);
+  root.appendChild(aiCard);
+
   root.appendChild(bund("จัดการผู้ใช้"));
 
   var card = plot("ผู้ใช้ทั้งหมดในระบบ",
