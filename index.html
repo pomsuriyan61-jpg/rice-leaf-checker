@@ -651,34 +651,6 @@
   .gate-card { background: #FFFFFF; border: 1px solid var(--rule); box-shadow: var(--lift); }
   .gate-mark { color: var(--deep); }
 
-  /* ── แถบเมนูล่างสำหรับมือถือ ──
-     บนจอเล็ก การกดเปิดเมนูซ้ายทุกครั้งเพื่อสลับหน้าเป็นภาระเกินจำเป็น
-     จึงยกปลายทางที่ใช้บ่อยที่สุด 5 อันมาไว้ในระยะนิ้วโป้ง */
-  .tabbar { display: none; }
-  @media (max-width: 860px) {
-    .tabbar {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-      background: rgba(255,255,255,.97);
-      border-top: 1px solid var(--rule);
-      box-shadow: 0 -2px 14px rgba(27,94,58,.08);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      padding-bottom: env(safe-area-inset-bottom, 0);
-    }
-    .tab {
-      display: flex; flex-direction: column; align-items: center; gap: 3px;
-      padding: 9px 2px 8px;
-      background: none; border: none; cursor: pointer;
-      color: var(--ink-faint); font-family: var(--f-body); font-size: 10.5px;
-    }
-    .tab svg { display: block; }
-    .tab svg path, .tab svg circle { stroke: currentColor; }
-    .tab.on { color: var(--deep); font-weight: 500; }
-    .field { padding-bottom: 88px !important; }
-  }
-
   /* ── ปรับตามขนาดจอ ──
      เปลี่ยนเฉพาะการจัดวาง ไม่ซ่อนหรือเพิ่มฟังก์ชันใดๆ */
   @media (max-width: 860px) {
@@ -1000,11 +972,6 @@
   }
   .dot.live { animation: breathe 2.4s ease-out infinite; }
 
-  /* ── ปุ่มแถบล่างเด้งรับเมื่อกด ── */
-  .tab { transition: color .18s ease, transform .18s ease; }
-  .tab:active { transform: scale(.92); }
-  .tab.on svg { filter: drop-shadow(0 2px 4px rgba(27,94,58,.28)); }
-
   @media (prefers-reduced-motion: reduce) {
     .field.enter > *, .bar-title.swap, .bar-kicker.swap { animation: none !important; }
     .loadbar.on::after, .dot.live, .rail-item.on::before { animation: none !important; }
@@ -1055,7 +1022,6 @@
     </header>
     <div class="loadbar" id="loadbar" aria-hidden="true"></div>
     <main class="field" id="field"></main>
-    <nav class="tabbar" id="tabbar" aria-label="เมนูลัด"></nav>
   </div>
 </div>
 
@@ -1123,8 +1089,6 @@ var PAGES = [
   // ── ช่วงที่ 1 เตรียมการก่อนปลูก ──
   { id: "map",      label: "ที่นาของฉัน",    kicker: "ก่อนปลูก", group: "1 · ก่อนปลูก",
     icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
-  { id: "soildata", label: "ข้อมูลดิน",       kicker: "ก่อนปลูก", group: "1 · ก่อนปลูก",
-    icon: "M4 19h16M4 15h16M6 11h12M8 7h8m-4-4v4" },
   { id: "soil",     label: "เตรียมดิน",      kicker: "ก่อนปลูก", group: "1 · ก่อนปลูก",
     icon: "M3 17h18M5 17V9m5 8V6m5 11v-7m5 7v-4" },
   { id: "fert",     label: "ปุ๋ยและการบำรุง", kicker: "ก่อนปลูก", group: "1 · ก่อนปลูก",
@@ -1659,77 +1623,187 @@ function guideForPrompt(label) {
     "\nการป้องกัน: " + (g.prevention || []).join(" / ");
 }
 
-// ส่งฐานความรู้ดินและปุ๋ยให้ AI อ้างอิง
+// ═══ ระบบเลือกความรู้ส่งให้ AI ═══
 //
-// ทำไมต้องย่อก่อนส่ง ไม่ส่งทั้งไฟล์: ไฟล์เต็มยาวหลายพันคำ ถ้าส่งไปทั้งก้อน
-// จะกินโควตาเร็วมาก (ซึ่งตอนนี้ก็ตึงอยู่แล้ว) และ AI มักตอบคลุมเครือลง
-// เมื่อได้ข้อมูลเยอะเกินจำเป็น ตรงนี้จึงส่งเฉพาะ "ตัวเลขและจังหวะเวลา"
-// ที่ AI แต่งเองไม่ได้ ส่วนคำอธิบายทั่วไปปล่อยให้ AI เรียบเรียงเอง
+// ปัญหาเดิม: ระบบเช็คแค่คำว่า "ปุ๋ย" กับ "ดิน" ถามเรื่องโรค ต้นทุน หรือระยะข้าว
+// AI จะไม่ได้รับข้อมูลอะไรเลยและต้องเดาเอาเองล้วนๆ ทั้งที่เรามีฐานความรู้ครบ
 //
-// สิ่งที่ต้องอยู่ในนี้เสมอคือตัวเลขจากเอกสารทางการ เพราะเป็นจุดที่ AI
-// มักเดาแล้วผิด เช่น อัตราเมล็ดปอเทืองหรือสัดส่วนกองปุ๋ยหมัก
-function soilFertForPrompt() {
-  var out = [];
-  var F = window.FERT_GUIDE, S = window.SOIL_GUIDE;
+// วิธีแก้: ให้คะแนนแต่ละหมวดตามคำที่พบในคำถาม แล้วส่งเฉพาะหมวดที่เกี่ยวข้อง
+// ถ้าไม่ตรงหมวดไหนเลย ส่งสารบัญย่อของทุกหมวดแทนการไม่ส่งอะไร
+// เพราะ AI ที่รู้ว่า "ระบบมีข้อมูลอะไรบ้าง" จะชี้ทางให้ผู้ใช้ได้ถูกหน้า
+//
+// เพดานอยู่ที่ 2 หมวดต่อคำถาม เพื่อคุมความยาวไม่ให้เปลืองโควตาเกินจำเป็น
 
-  if (F) {
-    out.push("[ข้อมูลปุ๋ยอินทรีย์ อ้างอิงกรมพัฒนาที่ดิน ให้ยึดตัวเลขเหล่านี้เป็นหลัก ห้ามแต่งตัวเลขใหม่]");
-    Object.keys(F.types).forEach(function (k) {
-      var t = F.types[k];
-      var line = "- " + t.thai + " (" + t.short + ") ใช้เวลา " + t.duration;
-      if (t.recipe) line += " | สูตรกอง 1 ตัน: " + t.recipe.items.join(", ");
-      // ช่อง rates คืออัตราการใช้ที่ AI แต่งเองไม่ได้ ต้องส่งไปเสมอถ้ามี
-      if (t.rates) line += "\n  อัตราการใช้: " + t.rates.join("\n  ");
-      line += "\n  วิธีใช้: " + t.use.join(" ");
-      if (t.warn) line += "\n  ข้อควรระวัง: " + t.warn;
-      out.push(line);
-    });
-    out.push("หลักการสำคัญ: " + F.overview.key);
-  }
-
-  if (S) {
-    out.push("");
-    out.push("[ข้อมูลการเตรียมดิน]");
-    Object.keys(S.methods).forEach(function (k) {
-      var m = S.methods[k];
-      out.push("- " + m.thai + ": " + m.steps.map(function (x) {
-        return x.title + " (" + x.when + ")";
-      }).join(" → "));
-    });
-    Object.keys(S.soils).forEach(function (k) {
-      out.push("- ข้อควรระวังของ" + S.soils[k].thai + ": " + S.soils[k].tips[0]);
-    });
-    if (S.nursery) {
-      out.push("- การเตรียมต้นกล้าสำหรับนาดำ: " + S.nursery.steps.map(function (x) {
-        return x.title + " (" + x.when + ")";
-      }).join(" → ") + " | " + S.nursery.tip);
-    }
-    if (S.problems) {
-      out.push("");
-      out.push("[วิธีแก้ปัญหาดิน — ใช้อัตราเหล่านี้เท่านั้น ห้ามแต่งตัวเลขใหม่]");
-      Object.keys(S.problems).forEach(function (k) {
-        var pr = S.problems[k];
-        out.push("- " + pr.thai + " (พบเมื่อ " + pr.when + ") อาการ: " + pr.sign);
-        pr.fixes.forEach(function (fx) {
-          out.push("    วิธีที่ทำได้: " + fx.title + " — " + fx.detail + " [" + fx.cost + "]");
-        });
-        out.push("    ข้อควรระวัง: " + pr.warn);
+var TOPICS = {
+  disease: {
+    words: /โรค|ใบไหม้|ไหม้|ใบจุด|จุดสีน้ำตาล|กาบใบแห้ง|ใบสีส้ม|ทุงโร|ขอบใบแห้ง|เชื้อรา|แบคทีเรีย|ไวรัส|แผล|ใบเหลือง|ใบแห้ง|เพลี้ย|แมลง|ระบาด|ติดเชื้อ|รักษา|ยา|สารเคมี|พ่น/i,
+    build: function () {
+      var G = window.DISEASE_GUIDE;
+      if (!G) return null;
+      var out = ["[ฐานความรู้โรคข้าว — ใช้ข้อมูลนี้เท่านั้น ห้ามแต่งชื่อสารเคมีหรืออัตราใช้]"];
+      Object.keys(G).forEach(function (k) {
+        var d = G[k];
+        if (!d.symptoms || d.thai === "ปกติ ไม่พบโรค") return;
+        out.push("- " + d.thai + " | สาเหตุ: " + d.cause +
+                 " | อาการ: " + d.symptoms +
+                 " | จัดการ: " + (d.treatment || []).join(" ") +
+                 " | ป้องกัน: " + (d.prevention || []).join(" ") +
+                 " | ความเร่งด่วน: " + d.urgency);
       });
+      out.push("[ถ้าผู้ใช้บรรยายอาการ ให้เทียบกับอาการด้านบนแล้วบอกว่าน่าจะเป็นโรคไหน " +
+               "พร้อมบอกด้วยว่าให้ถ่ายภาพเข้าหน้าวินิจฉัยใบข้าวเพื่อยืนยัน " +
+               "ห้ามฟันธงโรคจากคำบรรยายอย่างเดียว]");
+      return out.join("\n");
+    }
+  },
+
+  fert: {
+    words: /ปุ๋ย|หมัก|คอก|พืชสด|ปอเทือง|อินทรีย|เคมี|ยูเรีย|46-0-0|16-20-0|16-16-8|21-0-0|0-0-60|สูตร|ไนโตรเจน|ฟอสฟอรัส|โพแทสเซียม|ธาตุอาหาร|บำรุง/i,
+    build: function () {
+      var F = window.FERT_GUIDE;
+      if (!F) return null;
+      var out = ["[ข้อมูลปุ๋ย อ้างอิงกรมพัฒนาที่ดินและกรมการข้าว ห้ามแต่งตัวเลขใหม่]"];
+      Object.keys(F.types).forEach(function (k) {
+        var t = F.types[k];
+        var line = "- " + t.thai + " (" + t.short + ") ใช้เวลา " + t.duration;
+        if (t.recipe) line += " | สูตรกอง 1 ตัน: " + t.recipe.items.join(", ");
+        if (t.rates) line += "\n  อัตราการใช้: " + t.rates.join("\n  ");
+        line += "\n  วิธีใช้: " + t.use.join(" ");
+        if (t.warn) line += "\n  ข้อควรระวัง: " + t.warn;
+        out.push(line);
+      });
+      out.push("หลักการสำคัญ: " + F.overview.key);
+      out.push("[แนะนำสูตรและอัตราได้ แต่ต้องใช้ตัวเลขด้านบนเท่านั้น " +
+               "ต้องระบุเสมอว่าเป็นข้าวไวต่อช่วงแสงหรือไม่ เพราะอัตราต่างกันเกือบเท่าตัว " +
+               "ข้าวไวต่อช่วงแสงคือพันธุ์นาปีอย่างขาวดอกมะลิ 105 และ กข6]");
+      return out.join("\n");
+    }
+  },
+
+  soil: {
+    words: /ดิน|pH|กรด|ด่าง|เปรี้ยว|เค็ม|ดาน|ทราย|เหนียว|ปูน|โดโลไมท|ยิปซัม|ปรับปรุงดิน|เตรียมดิน|ไถ|ตอซัง|เทือก|ตกกล้า|ต้นกล้า|ปักดำ|นาดำ|หว่าน|อินทรียวัตถุ/i,
+    build: function () {
+      var S = window.SOIL_GUIDE;
+      if (!S) return null;
+      var out = ["[ข้อมูลการเตรียมดินและการแก้ปัญหาดิน อ้างอิงกรมพัฒนาที่ดิน]"];
+      Object.keys(S.methods).forEach(function (k) {
+        out.push("- วิธีทำนาแบบ" + S.methods[k].thai + ": " + S.methods[k].steps.map(function (x) {
+          return x.title + " (" + x.when + ")";
+        }).join(" → "));
+      });
+      Object.keys(S.soils).forEach(function (k) {
+        out.push("- " + S.soils[k].thai + ": " + S.soils[k].trait + " | " + S.soils[k].tips.join(" "));
+      });
+      if (S.nursery) {
+        out.push("- การเตรียมต้นกล้าสำหรับนาดำ: " + S.nursery.steps.map(function (x) {
+          return x.title + " (" + x.when + ")";
+        }).join(" → ") + " | " + S.nursery.tip);
+      }
+      if (S.problems) {
+        Object.keys(S.problems).forEach(function (k) {
+          var pr = S.problems[k];
+          out.push("- ปัญหา" + pr.thai + " (พบเมื่อ " + pr.when + ") อาการ: " + pr.sign);
+          pr.fixes.forEach(function (fx) {
+            out.push("    วิธีแก้: " + fx.title + " — " + fx.detail + " [" + fx.cost + "]");
+          });
+          out.push("    ข้อควรระวัง: " + pr.warn);
+        });
+      }
+      out.push("[เรื่องอัตราปูนแก้ดินเปรี้ยว ให้บอกเป็นช่วงตามข้อมูลด้านบน " +
+               "และอธิบายว่าช่วงกว้างเพราะขึ้นกับความรุนแรงของกรด " +
+               "ห้ามฟันธงตัวเลขเดียว และต้องเตือนว่าใส่ปูนเกินทำให้ดินเป็นด่างซึ่งแก้ยากกว่า]");
+      return out.join("\n");
+    }
+  },
+
+  care: {
+    words: /ระยะ|อายุ|กี่วัน|วันที่|กล้า|แตกกอ|ตั้งท้อง|ออกรวง|เก็บเกี่ยว|เกี่ยว|ดูแล|ตอนนี้ต้องทำ|ควรทำอะไร|จัดการน้ำ|ระดับน้ำ|ระบายน้ำ/i,
+    build: function () {
+      var C = window.CARE_GUIDE;
+      if (!C) return null;
+      var out = ["[คำแนะนำการดูแลแยกตามระยะการเจริญเติบโต]"];
+      C.stages.forEach(function (st) {
+        out.push("- " + st.thai + " (" + st.age + "): " + st.note);
+        st.cards.forEach(function (c) {
+          out.push("    " + c.title + " — " + c.summary + " | " + c.detail);
+        });
+      });
+      out.push("[ถ้าผู้ใช้บอกอายุข้าว ให้ตอบเฉพาะระยะที่ตรงกับอายุนั้น ไม่ต้องเล่าทุกระยะ]");
+      return out.join("\n");
+    }
+  },
+
+  cost: {
+    words: /ต้นทุน|กำไร|ขาดทุน|ราคา|บาท|ขาย|รายได้|คุ้มทุน|ลงทุน|ค่าใช้จ่าย|แพง|ถูก|ประหยัด|ผลผลิต|กี่ไร่|ต่อไร่/i,
+    build: function () {
+      var C = window.COST_GUIDE;
+      if (!C) return null;
+      var out = ["[ข้อมูลต้นทุนและราคาข้าว อ้างอิงสำนักงานเศรษฐกิจการเกษตร " + C.asOf + "]"];
+      out.push("ค่ากลางประเทศ: ต้นทุน " + C.baseline.costPerRai + " บาท/ไร่ | ผลผลิต " +
+               C.baseline.yieldPerRai + " กก./ไร่ | ราคาเฉลี่ย " + C.baseline.avgPrice + " บาท/กก.");
+      out.push("รายการต้นทุนต่อไร่: " + C.costItems.map(function (i) {
+        return i.name + " " + i.perRai + " บาท";
+      }).join(", "));
+      out.push("ราคาข้าวเปลือกแยกชนิด: " + C.varieties.map(function (v) {
+        return v.thai + " " + v.price + " บาท/กก. (ผลผลิต " + v.yieldPerRai + " กก./ไร่)";
+      }).join(" | "));
+      if (C.fertPrices) {
+        out.push("ราคาปุ๋ยเคมี " + C.fertPrices.unit + " (" + C.fertPrices.asOf + "): " +
+          C.fertPrices.items.map(function (x) {
+            return x.formula + " " + x.low + "-" + x.high + " บาท";
+          }).join(", "));
+      }
+      out.push("[ราคาข้าวเปลี่ยนทุกสัปดาห์ ต้องเตือนเสมอว่าให้ตรวจสอบราคารับซื้อปัจจุบันกับโรงสีก่อนตัดสินใจ " +
+               "และแนะนำให้ใช้หน้าต้นทุนและกำไรซึ่งคำนวณให้ครบและปรับตัวเลขเองได้]");
+      return out.join("\n");
+    }
+  },
+
+  weather: {
+    words: /อากาศ|ฝน|แดด|ความชื้น|อุณหภูมิ|ร้อน|หนาว|แล้ง|น้ำท่วม|พยากรณ์|ลม|ฤดู/i,
+    build: function () {
+      if (typeof RISK_RULES === "undefined") return null;
+      var out = ["[ความสัมพันธ์ระหว่างสภาพอากาศกับความเสี่ยงโรค]"];
+      RISK_RULES.forEach(function (r) {
+        out.push("- " + r.thai + ": " + r.why);
+      });
+      out.push("[ระบบมีหน้าอากาศและความเสี่ยงที่คำนวณดัชนีให้อัตโนมัติจากพิกัดแปลง แนะนำให้ผู้ใช้ไปดู]");
+      return out.join("\n");
     }
   }
+};
 
-  if (!out.length) return "";
-  return "\n\n" + out.join("\n") +
-    "\n[กติกาการตอบเรื่องปุ๋ยและดิน]\n" +
-    "1. แนะนำสูตรและอัตราปุ๋ยเคมีได้ แต่ต้องใช้ตัวเลขจากข้อมูลด้านบนเท่านั้น ห้ามแต่งอัตราใหม่หรือดัดแปลงตัวเลข\n" +
-    "2. เมื่อแนะนำปุ๋ยเคมี ให้บอกด้วยเสมอว่านี่เป็นอัตรามาตรฐานสำหรับกรณียังไม่มีผลวิเคราะห์ดิน " +
-    "ถ้าส่งดินไปวิเคราะห์แล้วควรใช้ปุ๋ยสั่งตัดซึ่งแม่นกว่าและมักใช้ปุ๋ยน้อยกว่า\n" +
-    "3. ต้องถามหรือระบุก่อนว่าเป็นข้าวไวต่อช่วงแสงหรือไม่ เพราะอัตราต่างกันชัดเจน " +
-    "ข้าวไวต่อช่วงแสงคือพันธุ์นาปีอย่างขาวดอกมะลิ 105 และ กข6 ส่วนพันธุ์นาปรังทั่วไปไม่ไวต่อช่วงแสง\n" +
-    "4. เรื่องปูนแก้ดินเปรี้ยว ให้บอกช่วงอัตราตามข้อมูลด้านบนได้ แต่ต้องอธิบายด้วยว่าช่วงกว้างเพราะขึ้นกับความรุนแรงของกรด " +
-    "และตัวเลขที่แม่นจริงต้องมาจากค่าความต้องการปูนที่วัดในห้องแล็บ ห้ามฟันธงตัวเลขเดียวให้ผู้ใช้ไปใส่เลย " +
-    "และต้องเตือนเสมอว่าใส่ปูนเกินทำให้ดินเป็นด่างซึ่งแก้ยากกว่าเดิม\n" +
-    "5. ถ้าเรื่องที่ถามไม่มีในข้อมูลด้านบน ให้บอกตรงๆ ว่าไม่มีข้อมูล และแนะนำให้ปรึกษาหมอดินอาสาประจำตำบล]";
+// สารบัญย่อ ส่งเมื่อคำถามไม่ตรงหมวดไหนเลย
+// สำคัญกว่าที่คิด เพราะทำให้ AI รู้ว่าควรถามอะไรกลับและชี้ไปหน้าไหน
+// แทนที่จะตอบว่าไม่ทราบซึ่งไม่ช่วยอะไรผู้ใช้เลย
+function knowledgeIndex() {
+  return "[ระบบนี้มีข้อมูลเรื่องต่อไปนี้ ถ้าคำถามเกี่ยวข้อง ให้ชวนผู้ใช้ถามให้เจาะจงขึ้นเพื่อดึงข้อมูลมาตอบ]\n" +
+    "- โรคข้าว 6 ชนิด พร้อมอาการ วิธีจัดการ และการป้องกัน (หน้าวินิจฉัยใบข้าว)\n" +
+    "- การเตรียมดิน 3 วิธีทำนา และการแก้ปัญหาดิน 5 แบบ (หน้าเตรียมดิน)\n" +
+    "- ผลวิเคราะห์ดินและการแปลผลธาตุอาหาร (หน้าข้อมูลดิน)\n" +
+    "- ปุ๋ยอินทรีย์ 3 ชนิดและปุ๋ยเคมีพร้อมอัตราใช้ (หน้าปุ๋ยและการบำรุง)\n" +
+    "- คำแนะนำการดูแลแยกตามระยะข้าว 4 ระยะ (หน้าคำแนะนำการดูแล)\n" +
+    "- ต้นทุนและกำไรพร้อมจุดคุ้มทุน (หน้าต้นทุนและกำไร)\n" +
+    "- ความเสี่ยงโรคจากสภาพอากาศตามพิกัดแปลง (หน้าอากาศและความเสี่ยง)";
+}
+
+function knowledgeFor(text) {
+  var q = text || "";
+  var hits = [];
+  Object.keys(TOPICS).forEach(function (k) {
+    if (TOPICS[k].words.test(q)) hits.push(k);
+  });
+
+  // จำกัด 2 หมวดต่อคำถาม เรียงตามลำดับความสำคัญที่นิยามไว้ใน TOPICS
+  // ถ้าส่งทุกหมวดพรอมต์จะยาวเกิน 25,000 ตัวอักษร เปลืองโควตาและ AI ตอบคลุมเครือลง
+  var blocks = [];
+  hits.slice(0, 2).forEach(function (k) {
+    var b = TOPICS[k].build();
+    if (b) blocks.push(b);
+  });
+
+  if (!blocks.length) blocks.push(knowledgeIndex());
+  return "\n\n" + blocks.join("\n\n");
 }
 
 // รวบรวมข้อมูลจากทุกหน้าให้ AI ใช้ประกอบการตอบ
@@ -1990,6 +2064,78 @@ async function fetchWeather(lat, lon) {
       tempMin: +avg("tempMin").toFixed(1)
     }
   };
+}
+
+// ═══ ข้อมูลแปลงนาที่ใช้ร่วมกันทุกหน้า ═══
+//
+// เดิมแต่ละหน้าหาพิกัดเอง หน้าอากาศใช้พิกัดจากบันทึกเก่า หน้าแผนที่ใช้อีกจุด
+// ผลคือดูอากาศของที่หนึ่งแต่แผนที่ชี้อีกที่ โดยผู้ใช้ไม่รู้ตัว
+// ตอนนี้ทุกหน้าดึงจากที่เดียวกันผ่าน fieldCoords()
+var FIELD_KEY_BASE = "smartrice-field:";
+function fieldKey() {
+  return FIELD_KEY_BASE + (Session.user ? Session.user.username : "guest");
+}
+function readField() {
+  try { return JSON.parse(localStorage.getItem(fieldKey()) || "null"); }
+  catch (e) { return null; }
+}
+function writeField(f) {
+  try { localStorage.setItem(fieldKey(), JSON.stringify(f)); } catch (e) { /* พื้นที่เต็ม */ }
+}
+
+// คืนพิกัดแปลงพร้อมบอกว่าได้มาจากไหน เพื่อให้หน้าปลายทางแสดงที่มาให้ผู้ใช้เห็นได้
+function fieldCoords() {
+  var f = readField();
+  if (f && f.lat != null && f.lon != null) {
+    return { lat: f.lat, lon: f.lon, from: "ที่นาที่คุณปักหมุดไว้", field: f };
+  }
+  return null;
+}
+
+function clampRadius(r) {
+  if (!r || isNaN(r) || r < 5) return 5;
+  return r > 5000 ? 5000 : r;
+}
+
+// 1 ไร่ = 1,600 ตารางเมตร แสดงเป็นไร่-งาน-วา ด้วย
+// เพราะเกษตรกรใช้หน่วยนี้ในการซื้อขายและทำเอกสารสิทธิ์
+function raiFromSqm(sqm) {
+  var rai = sqm / 1600;
+  var whole = Math.floor(rai);
+  var ngan = Math.floor((rai - whole) * 4);
+  var wa = Math.round((((rai - whole) * 4) - ngan) * 100);
+  return { rai: rai, text: whole + " ไร่ " + ngan + " งาน " + wa + " ตารางวา" };
+}
+
+// พื้นที่รูปหลายเหลี่ยมจากพิกัดละติจูด-ลองจิจูด
+//
+// แปลงเป็นเมตรด้วยการฉายภาพแบบ equirectangular รอบจุดศูนย์กลางแปลงก่อน
+// แล้วใช้สูตร shoelace ตามปกติ
+// วิธีนี้แม่นพอสำหรับแปลงนาที่กว้างไม่กี่ร้อยเมตร ความคลาดเคลื่อนต่ำกว่า 0.1%
+// ถ้าเป็นพื้นที่ระดับหลายกิโลเมตรต้องใช้สูตรทรงกลมซึ่งซับซ้อนกว่าโดยไม่จำเป็นที่นี่
+function polygonArea(points) {
+  if (!points || points.length < 3) return 0;
+  var R = 6371000;
+  var lat0 = points.reduce(function (a, p) { return a + p[0]; }, 0) / points.length;
+  var cosLat = Math.cos(lat0 * Math.PI / 180);
+  var xy = points.map(function (p) {
+    return [
+      R * (p[1] * Math.PI / 180) * cosLat,
+      R * (p[0] * Math.PI / 180)
+    ];
+  });
+  var sum = 0;
+  for (var i = 0; i < xy.length; i++) {
+    var j = (i + 1) % xy.length;
+    sum += xy[i][0] * xy[j][1] - xy[j][0] * xy[i][1];
+  }
+  return Math.abs(sum) / 2;
+}
+
+function centroid(points) {
+  var lat = points.reduce(function (a, p) { return a + p[0]; }, 0) / points.length;
+  var lon = points.reduce(function (a, p) { return a + p[1]; }, 0) / points.length;
+  return [lat, lon];
 }
 
 // ─── ตัวช่วยสร้าง UI ────────────────────────────
@@ -3322,6 +3468,30 @@ views.cost = async function (root) {
   raiIn.inputMode = "decimal";
   raiIn.value = String(st.rai);
   f1.appendChild(raiIn);
+
+  // ถ้าเคยวัดพื้นที่ไว้ที่หน้าที่นา ให้ดึงมาใช้ได้เลย ไม่ต้องพิมพ์ซ้ำ
+  // ไม่เติมให้อัตโนมัติ เพราะผู้ใช้อาจคิดต้นทุนเฉพาะบางส่วนของแปลง
+  var fld = readField();
+  var measured = null;
+  if (fld) {
+    if (fld.mode === "poly" && fld.points && fld.points.length >= 3) {
+      measured = polygonArea(fld.points) / 1600;
+    } else if (fld.lat != null && fld.radius) {
+      measured = (Math.PI * fld.radius * fld.radius) / 1600;
+    }
+  }
+  if (measured) {
+    var useBtn = el("button", "act act-line act-sm",
+      "ใช้ขนาดจากที่นาที่วัดไว้ (" + measured.toFixed(2) + " ไร่)");
+    useBtn.style.marginTop = "7px";
+    useBtn.onclick = function () {
+      raiIn.value = measured.toFixed(2);
+      st.rai = +measured.toFixed(2);
+      save();
+      recalc();
+    };
+    f1.appendChild(useBtn);
+  }
   grid.appendChild(f1);
 
   var f2 = el("div", "inp");
@@ -3517,6 +3687,88 @@ views.cost = async function (root) {
       outHost.appendChild(sc);
     }
 
+    // ── ราคาปุ๋ยอ้างอิง ──
+    // ปุ๋ยเป็นรายการต้นทุนที่ใหญ่ที่สุดและผันผวนที่สุด จึงแสดงราคาไว้ให้เทียบ
+    if (C.fertPrices) {
+      var fp = plot(null);
+      fp.style.marginTop = "13px";
+      fp.appendChild(el("div", "rx-sect", "ราคาปุ๋ยเคมีอ้างอิง (" + C.fertPrices.unit + ")"));
+      C.fertPrices.items.forEach(function (x) {
+        var line = el("div");
+        line.style.cssText = "display:flex;justify-content:space-between;gap:12px;padding:8px 0;" +
+          "border-bottom:1px solid var(--rule-soft);font-size:.87rem";
+        var left = el("div");
+        left.appendChild(el("span", "num", x.formula));
+        var nm = el("span", "", "  " + x.name);
+        nm.style.color = "var(--ink-soft)";
+        left.appendChild(nm);
+        line.appendChild(left);
+        line.appendChild(el("span", "num",
+          x.low === x.high ? x.low.toLocaleString() : x.low.toLocaleString() + "-" + x.high.toLocaleString()));
+        fp.appendChild(line);
+      });
+      fp.appendChild(el("div", "read-foot", C.fertPrices.asOf + " · " + C.fertPrices.note));
+      outHost.appendChild(fp);
+    }
+
+    // ── ให้ AI ค้นราคาล่าสุดจากเว็บ ──
+    //
+    // ทำไมไม่ดึงราคาอัตโนมัติ: ไม่มี API ราคาข้าวและปุ๋ยไทยที่ฟรีและเชื่อถือได้
+    // การให้ AI ค้นแล้วแสดงพร้อมแหล่งอ้างอิงให้ผู้ใช้อ่านเอง ปลอดภัยกว่าการเติมตัวเลขให้อัตโนมัติ
+    // เพราะถ้า AI อ่านผิดแล้วระบบเติมลงช่องเลย ผู้ใช้จะไม่มีทางรู้ว่าผิด
+    var upd = plot(null);
+    upd.style.marginTop = "13px";
+    upd.appendChild(el("div", "rx-sect", "ราคาล่าสุด"));
+    upd.appendChild(el("div", "read-foot",
+      "ราคาในระบบเป็นข้อมูล " + C.asOf + " กดปุ่มด้านล่างให้ AI ค้นราคาปัจจุบันจากเว็บ แล้วนำมากรอกเองในช่องด้านบน"));
+    var updBtn = el("button", "act act-line act-sm", "ค้นราคาข้าวและปุ๋ยล่าสุด");
+    updBtn.style.marginTop = "11px";
+    var updOut = el("div");
+    upd.appendChild(updBtn);
+    upd.appendChild(updOut);
+
+    updBtn.onclick = async function () {
+      updBtn.disabled = true;
+      updBtn.textContent = "กำลังค้นหา";
+      updOut.innerHTML = "";
+      try {
+        var ans = await Store.askGemini(
+          "ค้นหาราคาปัจจุบันในประเทศไทยแล้วรายงานให้สั้นที่สุด\n" +
+          "1. ราคารับซื้อข้าวเปลือกหอมมะลิและข้าวเปลือกเจ้า บาทต่อกิโลกรัม\n" +
+          "2. ราคาปุ๋ยเคมีสูตร 46-0-0, 16-20-0 และ 16-16-8 บาทต่อกระสอบ 50 กิโลกรัม\n\n" +
+          "ตอบเป็นรายการสั้นๆ ระบุวันที่ของข้อมูลทุกรายการ " +
+          "ถ้าหาราคาปัจจุบันไม่เจอให้บอกตรงๆ ว่าไม่พบ ห้ามเดาตัวเลขเด็ดขาด",
+          null, { search: true });
+
+        updOut.innerHTML = "";
+        var p2 = el("p", "", ans.text);
+        p2.style.cssText = "margin:11px 0 0;font-size:.87rem;white-space:pre-wrap";
+        updOut.appendChild(p2);
+
+        if (ans.sources && ans.sources.length) {
+          var sb = el("div", "src-box");
+          sb.style.cssText = "margin-top:11px;padding:11px 13px;border:1px solid;border-radius:var(--r-sm)";
+          sb.appendChild(el("div", "src-head", "แหล่งที่ AI ค้นมา"));
+          ans.sources.slice(0, 4).forEach(function (sx) {
+            var a2 = el("a", "src-link");
+            a2.href = sx.url; a2.target = "_blank"; a2.rel = "noopener noreferrer";
+            a2.textContent = sx.title;
+            sb.appendChild(a2);
+          });
+          updOut.appendChild(sb);
+        }
+        updOut.appendChild(el("div", "flash flash-warn",
+          "AI อาจอ่านราคาคลาดเคลื่อน ควรกดดูแหล่งต้นทางก่อนนำตัวเลขมากรอก " +
+          "และราคารับซื้อจริงของโรงสีในพื้นที่คุณอาจต่างจากราคากลาง"));
+      } catch (err) {
+        updOut.appendChild(el("div", "flash flash-bad", friendlyError(err.message)));
+      } finally {
+        updBtn.disabled = false;
+        updBtn.textContent = "ค้นราคาข้าวและปุ๋ยล่าสุด";
+      }
+    };
+    outHost.appendChild(upd);
+
     // ── ที่มาของตัวเลข ──
     var srcBox = plot(null);
     srcBox.style.marginTop = "13px";
@@ -3558,254 +3810,6 @@ views.cost = async function (root) {
 
   syncDefaults();
   recalc();
-};
-
-// ─── หน้าข้อมูลดิน (ผลวิเคราะห์ธาตุอาหาร) ──────
-//
-// หน้านี้คือกุญแจที่ปลดล็อกข้อจำกัดใหญ่ที่สุดของระบบ
-//
-// ที่ผ่านมาเรามีแค่ค่า pH ซึ่งบอกไม่ได้เลยว่าดินขาดธาตุอะไร
-// จึงห้าม AI แนะนำสูตรปุ๋ยเฉพาะแปลงมาตลอด ทำได้แค่ให้อัตรามาตรฐานกลางๆ
-// เมื่อผู้ใช้กรอกผลวิเคราะห์ดินเข้ามา ข้อจำกัดนั้นหายไป
-// ระบบจะบอกได้ว่า "ดินคุณโพแทสเซียมสูงอยู่แล้ว ไม่ต้องซื้อ 0-0-60"
-// ซึ่งประหยัดเงินจริงและเป็นคำแนะนำที่มีฐานรองรับ
-views.soildata = async function (root) {
-  var G = window.SOIL_GUIDE;
-  if (!G || !G.nutrients) {
-    root.appendChild(stateBlock("!", "ไม่พบไฟล์ฐานความรู้",
-      "ไฟล์ soil-guide.js เป็นเวอร์ชันเก่าที่ยังไม่มีเกณฑ์แปลผลธาตุอาหาร กรุณาอัปโหลดตัวล่าสุด"));
-    return;
-  }
-
-  var logs = await Store.list();
-  var lastSoil = logs.filter(function (l) { return l.kind === "soil"; })[0];
-
-  // ══ ฟอร์มกรอก ══
-  root.appendChild(bund("กรอกผลวิเคราะห์ดิน"));
-  var form = plot(null,
-    "กรอกจากใบผลวิเคราะห์ดิน หรือชุดตรวจสอบดินภาคสนาม มีค่าไหนกรอกค่านั้น");
-
-  var grid = el("div", "inputs");
-  var inputs = {};   // เก็บช่องกรอกไว้ตรงๆ ไม่ต้องพึ่ง document.getElementById
-  function field(label, id, hint, value) {
-    var d = el("div", "inp");
-    d.appendChild(el("label", "", label));
-    var i = el("input");
-    i.id = id;
-    i.className = "num-in";
-    i.inputMode = "decimal";
-    if (value != null) i.value = String(value);
-    inputs[id] = i;
-    d.appendChild(i);
-    if (hint) d.appendChild(el("div", "read-foot", hint));
-    return d;
-  }
-
-  var dBox = el("div", "inp");
-  dBox.appendChild(el("label", "", "วันที่ตรวจวิเคราะห์"));
-  var dIn = el("input");
-  dIn.type = "date";
-  dIn.value = new Date().toISOString().slice(0, 10);
-  dBox.appendChild(dIn);
-  grid.appendChild(dBox);
-
-  grid.appendChild(field("ค่าความเป็นกรด-ด่าง (pH)", "sdPh",
-    "ค่าเหมาะสมกับข้าวคือ 5.5-7.0", lastSoil ? lastSoil.ph : null));
-
-  G.nutrients.forEach(function (n) {
-    grid.appendChild(field(
-      n.thai + " (" + n.abbr + ") — " + n.unit,
-      "sd_" + n.key,
-      n.optional ? "ไม่บังคับ ถ้าใบผลวิเคราะห์ไม่มีให้เว้นว่าง" : null,
-      lastSoil ? lastSoil[n.key] : null));
-  });
-  form.appendChild(grid);
-
-  // อธิบายจุดที่ผู้ใช้มักหาไม่เจอในใบผลวิเคราะห์
-  form.appendChild(el("div", "flash flash-warn",
-    "หาไนโตรเจนในใบผลวิเคราะห์ไม่เจอไม่ต้องตกใจ ห้องแล็บส่วนใหญ่ไม่รายงานค่านี้ " +
-    "ให้ดูที่อินทรียวัตถุแทนได้เลย เพราะสองค่านี้สัมพันธ์กันโดยตรง"));
-
-  var acts = el("div");
-  acts.style.cssText = "display:flex;gap:9px;margin-top:14px;flex-wrap:wrap";
-  var runBtn = el("button", "act act-go", "วิเคราะห์ดิน");
-  var saveBtn = el("button", "act act-line", "บันทึกผลการวิเคราะห์");
-  saveBtn.disabled = true;
-  acts.appendChild(runBtn);
-  acts.appendChild(saveBtn);
-  form.appendChild(acts);
-  var msgHost = el("div");
-  form.appendChild(msgHost);
-  root.appendChild(form);
-
-  // ══ ผลการวิเคราะห์ ══
-  root.appendChild(bund("ผลการวิเคราะห์ดิน"));
-  var outHost = el("div");
-  root.appendChild(outHost);
-
-  function readForm() {
-    function num(id) {
-      var box = inputs[id];
-      if (!box) return null;
-      var v = parseFloat(box.value);
-      return isNaN(v) ? null : v;
-    }
-    var out = { date: dIn.value, ph: num("sdPh") };
-    G.nutrients.forEach(function (n) { out[n.key] = num("sd_" + n.key); });
-    return out;
-  }
-
-  function analyse() {
-    var v = readForm();
-    outHost.innerHTML = "";
-
-    var rows = [];
-    if (v.ph != null) {
-      var pb = window.readSoilPh(v.ph);
-      rows.push({ name: "ความเป็นกรด-ด่าง (pH)", value: v.ph, unit: "",
-                  band: pb, key: pb.key, word: pb.title, todo: pb.todo, role: null });
-    }
-    G.nutrients.forEach(function (n) {
-      if (v[n.key] == null) return;
-      var r = window.readNutrient(n.key, v[n.key]);
-      if (!r) return;
-      rows.push({ name: n.thai + " (" + n.abbr + ")", value: v[n.key], unit: n.unit,
-                  key: r.band.key, word: r.band.word, say: r.band.say, todo: r.band.todo, role: n.role });
-    });
-
-    if (!rows.length) {
-      outHost.appendChild(stateBlock("◇", "ยังไม่มีค่าให้วิเคราะห์",
-        "กรอกอย่างน้อย 1 ค่าแล้วกดวิเคราะห์ดิน"));
-      saveBtn.disabled = true;
-      return null;
-    }
-
-    // ตารางผลรวม
-    var card = plot(null);
-    var wrap = el("div");
-    wrap.style.overflowX = "auto";
-    var t = el("table");
-    t.innerHTML = "<thead><tr><th>รายการ</th><th>ค่าที่ตรวจวัด</th><th>ระดับ</th><th>สิ่งที่ควรทำ</th></tr></thead>";
-    var tb = el("tbody");
-    rows.forEach(function (r) {
-      var tr = el("tr");
-      tr.appendChild(el("td", "", r.name));
-      tr.appendChild(el("td", "n", r.value + (r.unit ? " " + r.unit : "")));
-      var tdL = el("td");
-      tdL.appendChild(el("span",
-        r.key === "ok" ? "tag-yes" : r.key === "warn" ? "tag-wait" : "tag-no", r.word));
-      tr.appendChild(tdL);
-      var tdT = el("td");
-      tdT.style.cssText = "font-size:.83rem;line-height:1.55";
-      tdT.textContent = r.todo;
-      tr.appendChild(tdT);
-      tb.appendChild(tr);
-    });
-    t.appendChild(tb);
-    wrap.appendChild(t);
-    card.appendChild(wrap);
-    outHost.appendChild(card);
-
-    // ══ สรุปสูตรปุ๋ยที่เหมาะกับดินแปลงนี้ ══
-    //
-    // นี่คือสิ่งที่ทำไม่ได้เลยตอนมีแค่ pH
-    // ตรรกะง่ายมาก: ธาตุไหนสูงแล้วก็ไม่ต้องซื้อเพิ่ม ธาตุไหนต่ำก็ต้องเสริม
-    // ซึ่งตรงกับหลักปุ๋ยสั่งตัด และประหยัดเงินได้จริงเพราะไม่ซื้อสิ่งที่ดินมีอยู่แล้ว
-    var pR = v.p != null ? window.readNutrient("p", v.p) : null;
-    var kR = v.k != null ? window.readNutrient("k", v.k) : null;
-    var oR = v.om != null ? window.readNutrient("om", v.om) : null;
-
-    if (pR || kR || oR) {
-      var rec = plot(null);
-      rec.style.marginTop = "13px";
-      rec.appendChild(el("div", "rx-sect", "สูตรปุ๋ยที่เหมาะกับดินแปลงนี้"));
-
-      var lines = [];
-      var needP = pR ? (pR.band.key !== "ok") : true;
-      var needK = kR ? (kR.band.key !== "ok") : true;
-
-      if (needP && needK) {
-        lines.push("ดินขาดทั้งฟอสฟอรัสและโพแทสเซียม ควรใช้สูตร 16-16-8 ซึ่งมีครบทั้งสามธาตุ");
-      } else if (needP && !needK) {
-        lines.push("ดินมีโพแทสเซียมเพียงพออยู่แล้ว ใช้สูตร 16-20-0 ที่ไม่มีโพแทสเซียมได้ ประหยัดกว่าการซื้อสูตรที่มีครบ");
-      } else if (!needP && needK) {
-        lines.push("ดินมีฟอสฟอรัสเพียงพอแล้ว แต่ยังขาดโพแทสเซียม ควรเน้นสูตรที่มีโพแทสเซียม เช่น 16-16-8 หรือเสริม 0-0-60 อัตรา 5-10 กก./ไร่");
-      } else {
-        lines.push("ดินมีทั้งฟอสฟอรัสและโพแทสเซียมเพียงพอแล้ว รอบนี้เน้นเฉพาะปุ๋ยไนโตรเจนก็พอ ประหยัดค่าปุ๋ยได้มาก");
-      }
-
-      if (oR) {
-        if (oR.band.key === "ok") {
-          lines.push("อินทรียวัตถุอยู่ในเกณฑ์ดี ลดปุ๋ยไนโตรเจนลงจากอัตราแนะนำได้ แล้วสังเกตว่าข้าวเหลืองซีดหรือไม่");
-        } else {
-          lines.push("อินทรียวัตถุยังไม่พอ ใส่ปุ๋ยไนโตรเจนตามอัตราแนะนำเต็มที่ และเพิ่มอินทรียวัตถุระยะยาวด้วยการไถกลบตอซังและปุ๋ยอินทรีย์");
-        }
-      }
-
-      var ul = el("ul");
-      ul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
-      lines.forEach(function (x) {
-        var li = el("li", "", x);
-        li.style.marginBottom = "6px";
-        ul.appendChild(li);
-      });
-      rec.appendChild(ul);
-
-      rec.appendChild(el("div", "flash flash-warn",
-        "คำแนะนำนี้ดูจากผลวิเคราะห์ดินของคุณ จึงแม่นกว่าอัตรามาตรฐานกลาง " +
-        "ถ้าอยากได้แม่นที่สุด เอาใบผลวิเคราะห์ไปปรึกษาหมอดินอาสาประจำตำบล"));
-      rec.appendChild(el("div", "rx-src",
-        "เกณฑ์แปลผลอ้างอิงสำนักวิทยาศาสตร์เพื่อการพัฒนาที่ดิน กรมพัฒนาที่ดิน · อัตราปุ๋ยอ้างอิง Rice Knowledge Bank กรมการข้าว"));
-      outHost.appendChild(rec);
-    }
-
-    saveBtn.disabled = false;
-    return v;
-  }
-
-  runBtn.onclick = function () { msgHost.innerHTML = ""; analyse(); };
-
-  saveBtn.onclick = async function () {
-    var v = analyse();
-    if (!v) return;
-    saveBtn.disabled = true;
-    saveBtn.textContent = "กำลังบันทึก";
-    msgHost.innerHTML = "";
-    try {
-      // เก็บเป็นบันทึกชนิด soil เพื่อให้แยกจากบันทึกตรวจโรคได้
-      // ใช้โครงสร้างเดิมของ field-logs จึงไม่ต้องแก้ฝั่งเซิร์ฟเวอร์เลย
-      var d = new Date(v.date + "T00:00:00");
-      await Store.add({
-        kind: "soil",
-        date: String(d.getDate()).padStart(2, "0") + "/" +
-              String(d.getMonth() + 1).padStart(2, "0") + "/" +
-              String(d.getFullYear() + 543).slice(-2),
-        owner: Store.profile().name,
-        gps: "",
-        ph: v.ph,
-        om: v.om, p: v.p, k: v.k, n: v.n,
-        disease: "บันทึกผลวิเคราะห์ดิน",
-        score: 90
-      });
-      msgHost.appendChild(el("div", "flash flash-ok", Store.isOffline()
-        ? "บันทึกลงเครื่องแล้ว จะซิงก์เมื่อเชื่อมต่อได้"
-        : "บันทึกผลวิเคราะห์ดินแล้ว ระบบจะนำค่านี้ไปใช้ในหน้าอื่นและให้ AI อ้างอิงด้วย"));
-    } catch (err) {
-      msgHost.appendChild(el("div", "flash flash-bad", "บันทึกไม่สำเร็จ: " + err.message));
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = "บันทึกผลการวิเคราะห์";
-    }
-  };
-
-  if (lastSoil) {
-    outHost.appendChild(el("div", "read-foot",
-      "แสดงค่าจากผลวิเคราะห์ล่าสุดเมื่อ " + lastSoil.date + " กดวิเคราะห์ดินเพื่อดูผล หรือแก้ค่าแล้วบันทึกใหม่"));
-    analyse();
-  } else {
-    outHost.appendChild(stateBlock("◇", "ยังไม่มีผลวิเคราะห์ดิน",
-      "กรอกค่าด้านบนแล้วกดวิเคราะห์ดิน ถ้ายังไม่เคยส่งดินไปวิเคราะห์ ติดต่อขอรับบริการฟรีได้ที่สถานีพัฒนาที่ดินจังหวัด"));
-  }
 };
 
 views.plots = async function (root) {
@@ -3851,10 +3855,13 @@ views.ledger = async function (root) {
   var body = el("div");
   card.appendChild(body);
 
+  // คืน element แทนสตริง HTML เพราะค่า actual มาจากผู้ใช้
+  // การต่อสตริงแล้วยัดเข้า innerHTML เปิดช่องให้ฝังแท็กลงในบันทึกของตัวเองได้
+  // แม้กระทบแค่บัญชีตัวเอง แต่เป็นช่องที่ปิดได้ง่ายจึงไม่ควรเปิดทิ้งไว้
   function judgeTag(l) {
-    if (!l.verify) return '<span class="tag-wait">ยังไม่ยืนยัน</span>';
-    if (l.verify.correct) return '<span class="tag-yes">ถูกต้อง</span>';
-    return '<span class="tag-no">ผิด · ที่จริงคือ ' + th(l.verify.actual || "ไม่ระบุ") + '</span>';
+    if (!l.verify) return el("span", "tag-wait", "ยังไม่ยืนยัน");
+    if (l.verify.correct) return el("span", "tag-yes", "ถูกต้อง");
+    return el("span", "tag-no", "ผิด · ที่จริงคือ " + th(l.verify.actual || "ไม่ระบุ"));
   }
 
   function draw(filter) {
@@ -3903,7 +3910,7 @@ views.ledger = async function (root) {
       var tdDx = el("td", "dx" + wellClass, l.disease);
       tr.appendChild(tdDx);
       var tdJudge = el("td");
-      tdJudge.innerHTML = judgeTag(l);
+      tdJudge.appendChild(judgeTag(l));
       tr.appendChild(tdJudge);
       tr.appendChild(el("td", "n", l.ph != null ? String(l.ph) : "—"));
       tr.appendChild(el("td", "n", String(l.score)));
@@ -3980,7 +3987,14 @@ views.weather = async function (root) {
 
   var coords = null;
   var source = "";
-  if (saved) {
+
+  // ลำดับความสำคัญ: ที่นาที่ปักหมุดไว้ → พิกัดจากบันทึกเก่า → ตำแหน่งปัจจุบัน
+  // ที่นาที่ปักหมุดมาก่อนเสมอ เพราะเป็นจุดที่ผู้ใช้ตั้งใจกำหนดเอง
+  var pinned = fieldCoords();
+  if (pinned) {
+    coords = { lat: pinned.lat, lon: pinned.lon };
+    source = "อ้างอิง" + pinned.from;
+  } else if (saved) {
     var parts = saved.gps.split(",").map(Number);
     coords = { lat: parts[0], lon: parts[1] };
     source = "อ้างอิงพิกัดแปลงที่บันทึกไว้เมื่อ " + saved.date;
@@ -4497,14 +4511,19 @@ views.consult = async function (root) {
         ? "\n\nบทสนทนาก่อนหน้า:\n" + history.join("\n") + "\n"
         : "";
 
-      // ส่งข้อมูลดินและปุ๋ยเฉพาะตอนที่คำถามเกี่ยวข้อง เพื่อไม่ให้พรอมต์ยาวเกินจำเป็น
-      // คำถามเรื่องโรคไม่ต้องใช้ข้อมูลปุ๋ย และโควตา AI ตอนนี้ก็ตึงอยู่แล้ว
-      var wantsSoil = /ปุ๋ย|หมัก|คอก|พืชสด|ปอเทือง|เตรียมดิน|ไถ|ตอซัง|ดิน|pH|กรด|ด่าง|ปูน|อินทรีย|เคมี|ยูเรีย|46-0-0|16-20-0|16-16-8|21-0-0|0-0-60|สูตร|ตกกล้า|ต้นกล้า|ปักดำ|นาดำ|แตกกอ|ช่อดอก|เปรี้ยว|เค็ม|ดาน|ทราย|ปูนมาร์ล|โดโลไมท|ยิปซัม|แก้ดิน|ปรับปรุงดิน|เสื่อมโทรม/i.test(text || "");
-      var soilRef = wantsSoil ? soilFertForPrompt() : "";
+      // เลือกความรู้ตามเรื่องที่ถาม ครอบคลุมทุกหมวดไม่ใช่แค่ปุ๋ยกับดิน
+      // ถ้าไม่ตรงหมวดไหน จะส่งสารบัญย่อไปแทน เพื่อให้ AI ชี้ทางผู้ใช้ได้
+      var soilRef = knowledgeFor(text);
 
-      var prompt = "คุณเป็นผู้เชี่ยวชาญโรคข้าว การเตรียมดิน และปุ๋ยอินทรีย์ของไทย ตอบภาษาไทยแบบเข้าใจง่าย กระชับ\n" +
-        "ตอบจากข้อมูลที่ให้มาด้านล่างเท่านั้น ถ้าไม่มีข้อมูลให้บอกตรงๆ ว่าไม่ทราบ " +
-        "และห้ามแต่งชื่อสารเคมี อัตราการใช้ หรือสูตรปุ๋ยขึ้นเองเด็ดขาด\n\n" +
+      var prompt = "คุณเป็นผู้ช่วยเกษตรกรผู้ปลูกข้าวไทย ดูแลได้ครบทั้งโรคข้าว การเตรียมดิน " +
+        "การแก้ปัญหาดิน ปุ๋ยอินทรีย์และปุ๋ยเคมี การดูแลตามระยะการเจริญเติบโต และต้นทุนการผลิต\n\n" +
+        "วิธีตอบ:\n" +
+        "1. ตอบภาษาไทยแบบคุยกับเกษตรกร ไม่ต้องเป็นทางการ ใช้คำง่ายๆ ไม่เกิน 5-6 ประโยค\n" +
+        "2. บอกสิ่งที่ลงมือทำได้ก่อน แล้วค่อยอธิบายเหตุผลสั้นๆ\n" +
+        "3. ถ้าเรื่องที่ถามมีหน้าเฉพาะในระบบ ให้บอกชื่อหน้านั้นด้วยเพื่อให้ไปดูต่อได้\n" +
+        "4. ถ้าข้อมูลไม่พอตอบ ให้ถามกลับ 1 คำถามที่จะช่วยให้ตอบได้ตรงขึ้น " +
+        "เช่น ข้าวอายุกี่วัน ดินเป็นแบบไหน หรือมีผลวิเคราะห์ดินไหม อย่าตอบว่าไม่ทราบเฉยๆ\n" +
+        "5. ห้ามแต่งชื่อสารเคมี อัตราการใช้ สูตรปุ๋ย หรือตัวเลขใดๆ ที่ไม่มีในข้อมูลด้านล่างเด็ดขาด\n\n" +
         focus +
         "ข้อมูลแปลงนาของผู้ถาม (จากบันทึกในระบบ):\n" + farmContext + soilRef + "\n" +
         convo + carry + "\n" +
@@ -4558,34 +4577,18 @@ views.consult = async function (root) {
 
 // ─── หน้าที่นาของฉัน ───────────────────────────
 //
-// สิ่งที่หน้านี้ต้องทำให้ได้คือ "ปักหมุดที่นาไว้แล้วมันอยู่ตรงนั้นตลอด"
-// เดิมแผนที่ย้ายตามตำแหน่งปัจจุบันทุกครั้ง พอเดินออกจากนาแล้วเปิดดูจะหาที่นาไม่เจอ
+// รองรับ 2 แบบ เพราะที่นาจริงแทบไม่มีที่เป็นวงกลม
+//   วงกลม — ปักหมุดกลางแล้วใส่รัศมี เร็วที่สุด ใช้ประเมินคร่าวๆ
+//   วาดขอบเขต — กดตามมุมแปลงทีละจุด ได้พื้นที่จริงตามรูปร่างแปลง
 //
-// พิกัดที่ล็อกเก็บในเครื่องแยกตามบัญชี ไม่ต้องแก้ฝั่งเซิร์ฟเวอร์
-// ข้อจำกัดที่ต้องรู้: ถ้าเปลี่ยนเครื่องหรือล้างข้อมูลเบราว์เซอร์ หมุดจะหาย
-// จึงแสดงพิกัดเป็นตัวเลขไว้ให้จดเก็บได้ด้วย
+// พิกัดที่ล็อกไว้ถูกใช้เป็นตำแหน่งหลักของทั้งระบบ หน้าอากาศจะดึงไปใช้ด้วย
+// เพื่อให้ทุกหน้าอ้างอิงจุดเดียวกัน ไม่ใช่ต่างคนต่างใช้พิกัดคนละที่
 views.map = async function (root) {
   var logs = await Store.list();
   var pins = logs.filter(function (l) { return l.gps && l.gps.indexOf(",") !== -1; });
 
-  var KEY = "smartrice-field:" + (Session.user ? Session.user.username : "guest");
-  var field = null;
-  try { field = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { field = null; }
-
-  function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(field)); } catch (e) { /* พื้นที่เต็ม */ }
-  }
-
-  // 1 ไร่ = 1,600 ตารางเมตร เป็นค่ามาตรฐานไทย
-  // แสดงเป็นไร่-งาน-วา ด้วย เพราะเกษตรกรใช้หน่วยนี้ในการซื้อขายและทำเอกสารสิทธิ์
-  function areaOf(radiusM) {
-    var sqm = Math.PI * radiusM * radiusM;
-    var rai = sqm / 1600;
-    var raiWhole = Math.floor(rai);
-    var ngan = Math.floor((rai - raiWhole) * 4);
-    var wa = Math.round((((rai - raiWhole) * 4) - ngan) * 100);
-    return { sqm: sqm, rai: rai, text: raiWhole + " ไร่ " + ngan + " งาน " + wa + " ตารางวา" };
-  }
+  var field = readField();
+  function save() { writeField(field); }
 
   root.appendChild(bund("ที่นาของฉัน"));
 
@@ -4594,38 +4597,25 @@ views.map = async function (root) {
   var head = el("div");
   head.style.cssText = "display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:14px";
   var info = el("div");
-  info.appendChild(el("div", "plot-title", "ตำแหน่งที่นา"));
+  info.appendChild(el("div", "plot-title", "ตำแหน่งและขนาดที่นา"));
   var infoNote = el("div", "plot-note", "");
   info.appendChild(infoNote);
   head.appendChild(info);
-
-  var lockBtn = el("button", "act act-go act-sm", "ล็อกจุดนี้ไว้");
+  var lockBtn = el("button", "act act-go act-sm", "ล็อกไว้");
   head.appendChild(lockBtn);
   ctl.appendChild(head);
 
-  // ── ช่องกรอกรัศมี ──
-  var rowR = el("div");
-  rowR.style.cssText = "display:flex;gap:13px;align-items:flex-end;flex-wrap:wrap";
+  // ── เลือกวิธีวัด ──
+  var modeRow = el("div");
+  modeRow.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px";
+  var toolRow = el("div");
+  toolRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap";
+  ctl.appendChild(modeRow);
+  ctl.appendChild(toolRow);
 
-  var fR = el("div", "inp");
-  fR.style.cssText = "flex:1;min-width:150px";
-  fR.appendChild(el("label", "", "รัศมีที่นา (เมตร)"));
-  var rIn = el("input");
-  rIn.className = "num-in";
-  rIn.inputMode = "numeric";
-  rIn.value = String(field && field.radius ? field.radius : 100);
-  fR.appendChild(rIn);
-  rowR.appendChild(fR);
-
-  var hereBtn = el("button", "act act-line act-sm", "ใช้ตำแหน่งปัจจุบัน");
-  rowR.appendChild(hereBtn);
-  ctl.appendChild(rowR);
-
-  // ── กล่องแสดงพื้นที่ ──
   var areaBox = el("div");
   areaBox.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-top:16px;padding-top:15px;border-top:1px solid var(--rule-soft)";
   ctl.appendChild(areaBox);
-
   var msg = el("div");
   ctl.appendChild(msg);
   root.appendChild(ctl);
@@ -4641,124 +4631,211 @@ views.map = async function (root) {
              : pins.length ? pins[0].gps.split(",").map(Number)
              : [15.87, 100.99];
   var map = L.map("map").setView(center, field ? 16 : pins.length ? 12 : 6);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap", maxZoom: 19
-  }).addTo(map);
 
-  // หมุดจากบันทึกเก่า แสดงเป็นจุดเล็กๆ ไม่ให้แย่งความสนใจจากหมุดที่นาหลัก
+  // ภาพถ่ายดาวเทียมช่วยให้เห็นขอบแปลงจริง วาดขอบเขตได้แม่นกว่าแผนที่เส้น
+  var streets = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap", maxZoom: 19
+  });
+  var sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "Esri World Imagery", maxZoom: 19
+  });
+  sat.addTo(map);
+  L.control.layers({ "ภาพถ่ายดาวเทียม": sat, "แผนที่เส้น": streets }, null, { position: "topright" }).addTo(map);
+
   pins.forEach(function (p) {
     var c = p.gps.split(",").map(Number);
     L.circleMarker(c, { radius: 5, color: "#7C9385", fillColor: "#C8E6C9", fillOpacity: .8, weight: 1.5 })
       .addTo(map).bindPopup(p.date + "<br>" + p.disease);
   });
 
-  var marker = null, circle = null;
-
-  function draw() {
-    var r = parseInt(rIn.value, 10);
-    if (!r || r < 5) r = 5;
-    if (r > 5000) r = 5000;
-
-    if (!field) {
-      areaBox.innerHTML = "";
-      areaBox.appendChild(readOut("พื้นที่โดยประมาณ", "—", "ยังไม่ได้ปักหมุด"));
-      infoNote.textContent = "กดใช้ตำแหน่งปัจจุบันเพื่อปักหมุด หรือกดบนแผนที่ตรงจุดที่เป็นที่นาของคุณ";
-      lockBtn.disabled = true;
-      lockBtn.textContent = "ล็อกจุดนี้ไว้";
-      if (marker) { map.removeLayer(marker); marker = null; }
-      if (circle) { map.removeLayer(circle); circle = null; }
-      return;
-    }
-
-    lockBtn.disabled = false;
-    field.radius = r;
-
-    if (marker) map.removeLayer(marker);
-    if (circle) map.removeLayer(circle);
-
-    // ล็อกแล้วลากไม่ได้ กันเผลอลากหมุดเคลื่อนตอนซูมด้วยนิ้ว
-    marker = L.marker([field.lat, field.lon], { draggable: !field.locked }).addTo(map);
-    circle = L.circle([field.lat, field.lon], {
-      radius: r,
-      color: field.locked ? "#1B5E3A" : "#2E8B57",
-      fillColor: "#6FBF73",
-      fillOpacity: .18,
-      weight: 2,
-      dashArray: field.locked ? null : "6 5"
-    }).addTo(map);
-
-    marker.on("dragend", function (e) {
-      var ll = e.target.getLatLng();
-      field.lat = ll.lat;
-      field.lon = ll.lng;
-      save();
-      draw();
-    });
-
-    var a = areaOf(r);
-    areaBox.innerHTML = "";
-    areaBox.appendChild(readOut("พื้นที่โดยประมาณ", a.rai.toFixed(2) + " ไร่", a.text));
-    areaBox.appendChild(readOut("รัศมี", r + " เมตร", "วัดจากหมุดกลาง"));
-    areaBox.appendChild(readOut("พิกัด", field.lat.toFixed(5), field.lon.toFixed(5)));
-
-    infoNote.textContent = field.locked
-      ? "ล็อกไว้แล้ว หมุดจะอยู่ที่เดิมแม้คุณจะเดินไปที่อื่น"
-      : "ลากหมุดบนแผนที่เพื่อปรับตำแหน่งได้ เสร็จแล้วกดล็อกจุดนี้ไว้";
-    lockBtn.textContent = field.locked ? "ปลดล็อกเพื่อแก้ไข" : "ล็อกจุดนี้ไว้";
-    lockBtn.className = "act act-sm " + (field.locked ? "act-line" : "act-go");
+  var layers = [];
+  function clearLayers() {
+    layers.forEach(function (l) { map.removeLayer(l); });
+    layers = [];
   }
 
-  // กดบนแผนที่เพื่อปักหมุด ใช้ได้เฉพาะตอนยังไม่ล็อก
-  map.on("click", function (e) {
-    if (field && field.locked) return;
-    field = field || {};
-    field.lat = e.latlng.lat;
-    field.lon = e.latlng.lng;
-    field.radius = parseInt(rIn.value, 10) || 100;
-    field.locked = false;
-    save();
-    draw();
-  });
+  function showArea(sqm, extra) {
+    var a = raiFromSqm(sqm);
+    areaBox.innerHTML = "";
+    areaBox.appendChild(readOut("พื้นที่", a.rai.toFixed(2) + " ไร่", a.text));
+    areaBox.appendChild(readOut("ตารางเมตร", Math.round(sqm).toLocaleString("th-TH"), extra || ""));
+    if (field && field.lat != null) {
+      areaBox.appendChild(readOut("พิกัดกลางแปลง", field.lat.toFixed(5), field.lon.toFixed(5)));
+    }
+  }
 
-  rIn.oninput = function () { if (field) { draw(); save(); } };
+  function draw() {
+    clearLayers();
+    var locked = field && field.locked;
+
+    if (!field || (field.mode === "poly" && (!field.points || field.points.length < 3) && field.lat == null)) {
+      areaBox.innerHTML = "";
+      areaBox.appendChild(readOut("พื้นที่", "—", "ยังไม่ได้กำหนดแปลง"));
+    }
+
+    if (field && field.mode === "poly") {
+      var pts = field.points || [];
+      pts.forEach(function (pt, i) {
+        var mk = L.circleMarker(pt, {
+          radius: 7, color: "#FFFFFF", weight: 2,
+          fillColor: locked ? "#1B5E3A" : "#2E8B57", fillOpacity: 1
+        }).addTo(map).bindTooltip("มุมที่ " + (i + 1));
+        layers.push(mk);
+      });
+      if (pts.length >= 3) {
+        var poly = L.polygon(pts, {
+          color: locked ? "#1B5E3A" : "#2E8B57",
+          fillColor: "#6FBF73", fillOpacity: .28, weight: 2,
+          dashArray: locked ? null : "6 5"
+        }).addTo(map);
+        layers.push(poly);
+        var sqm = polygonArea(pts);
+        var c = centroid(pts);
+        field.lat = c[0]; field.lon = c[1];
+        showArea(sqm, "จาก " + pts.length + " มุมที่ปักไว้");
+      } else if (pts.length) {
+        areaBox.innerHTML = "";
+        areaBox.appendChild(readOut("พื้นที่", "—", "ปักครบ 3 มุมขึ้นไปจึงจะคำนวณได้ ตอนนี้มี " + pts.length));
+      }
+      infoNote.textContent = locked
+        ? "ล็อกไว้แล้ว เปิดจากที่ไหนก็เห็นแปลงเดิม"
+        : "กดบนแผนที่ตามมุมแปลงทีละจุด อย่างน้อย 3 มุม แล้วกดล็อกไว้";
+
+    } else if (field && field.lat != null) {
+      var r = clampRadius(field.radius);
+      field.radius = r;
+      var mk2 = L.marker([field.lat, field.lon], { draggable: !locked }).addTo(map);
+      var ci = L.circle([field.lat, field.lon], {
+        radius: r, color: locked ? "#1B5E3A" : "#2E8B57",
+        fillColor: "#6FBF73", fillOpacity: .2, weight: 2,
+        dashArray: locked ? null : "6 5"
+      }).addTo(map);
+      layers.push(mk2); layers.push(ci);
+      mk2.on("dragend", function (e) {
+        var ll = e.target.getLatLng();
+        field.lat = ll.lat; field.lon = ll.lng;
+        save(); draw();
+      });
+      showArea(Math.PI * r * r, "รัศมี " + r + " เมตร");
+      infoNote.textContent = locked
+        ? "ล็อกไว้แล้ว เปิดจากที่ไหนก็เห็นแปลงเดิม"
+        : "ลากหมุดปรับตำแหน่งได้ หรือกดบนแผนที่เพื่อย้าย";
+    } else {
+      infoNote.textContent = "เลือกวิธีวัดด้านล่าง แล้วกดบนแผนที่ตรงที่นาของคุณ";
+    }
+
+    lockBtn.disabled = !field || (field.mode === "poly" ? (field.points || []).length < 3 : field.lat == null);
+    lockBtn.textContent = locked ? "ปลดล็อกเพื่อแก้ไข" : "ล็อกไว้";
+    lockBtn.className = "act act-sm " + (locked ? "act-line" : "act-go");
+    save();
+  }
+
+  function paintTools() {
+    modeRow.innerHTML = "";
+    [["circle", "วงกลม", "ปักจุดกลาง ใส่รัศมี"],
+     ["poly", "วาดขอบเขตแปลง", "กดตามมุมแปลง ได้พื้นที่จริง"]].forEach(function (m) {
+      var on = field && field.mode === m[0];
+      var b = el("button", "act act-sm " + (on ? "act-go" : "act-line"));
+      b.appendChild(document.createTextNode(m[1]));
+      var sub = el("span", "", " · " + m[2]);
+      sub.style.opacity = ".72";
+      b.appendChild(sub);
+      b.onclick = function () {
+        if (field && field.locked) { warnLocked(); return; }
+        field = field || { mode: m[0], radius: 100, points: [] };
+        field.mode = m[0];
+        if (m[0] === "poly" && !field.points) field.points = [];
+        save(); paintTools(); draw();
+      };
+      modeRow.appendChild(b);
+    });
+
+    toolRow.innerHTML = "";
+    if (field && field.mode === "poly") {
+      var undo = el("button", "act act-line act-sm", "ลบมุมล่าสุด");
+      undo.onclick = function () {
+        if (field.locked) { warnLocked(); return; }
+        (field.points || []).pop();
+        save(); draw();
+      };
+      var clr = el("button", "act act-line act-sm", "ล้างทั้งหมด");
+      clr.onclick = function () {
+        if (field.locked) { warnLocked(); return; }
+        field.points = [];
+        save(); draw();
+      };
+      toolRow.appendChild(undo);
+      toolRow.appendChild(clr);
+    } else {
+      var fR = el("div", "inp");
+      fR.style.cssText = "flex:1;min-width:150px";
+      fR.appendChild(el("label", "", "รัศมี (เมตร)"));
+      var rIn = el("input");
+      rIn.className = "num-in";
+      rIn.inputMode = "numeric";
+      rIn.value = String(field && field.radius ? field.radius : 100);
+      rIn.oninput = function () {
+        if (!field || field.locked) return;
+        field.radius = clampRadius(parseInt(rIn.value, 10));
+        save(); draw();
+      };
+      fR.appendChild(rIn);
+      toolRow.appendChild(fR);
+    }
+
+    var hereBtn = el("button", "act act-line act-sm", "ใช้ตำแหน่งปัจจุบัน");
+    hereBtn.onclick = function () {
+      if (field && field.locked) { warnLocked(); return; }
+      hereBtn.textContent = "กำลังหาตำแหน่ง";
+      hereBtn.disabled = true;
+      navigator.geolocation.getCurrentPosition(function (p) {
+        field = field || { mode: "circle", radius: 100, points: [] };
+        if (field.mode === "poly") {
+          field.points = (field.points || []).concat([[p.coords.latitude, p.coords.longitude]]);
+        } else {
+          field.lat = p.coords.latitude; field.lon = p.coords.longitude;
+        }
+        save();
+        map.setView([p.coords.latitude, p.coords.longitude], 17);
+        draw();
+        hereBtn.textContent = "ใช้ตำแหน่งปัจจุบัน";
+        hereBtn.disabled = false;
+      }, function () {
+        hereBtn.textContent = "เปิดสิทธิ์ตำแหน่งก่อน";
+        hereBtn.disabled = false;
+      });
+    };
+    toolRow.appendChild(hereBtn);
+  }
+
+  function warnLocked() {
+    msg.innerHTML = "";
+    msg.appendChild(el("div", "flash flash-warn", "ต้องปลดล็อกก่อนจึงจะแก้ไขได้"));
+  }
+
+  map.on("click", function (e) {
+    if (!field) field = { mode: "circle", radius: 100, points: [] };
+    if (field.locked) return;
+    if (field.mode === "poly") {
+      field.points = (field.points || []).concat([[e.latlng.lat, e.latlng.lng]]);
+    } else {
+      field.lat = e.latlng.lat; field.lon = e.latlng.lng;
+    }
+    save(); draw();
+  });
 
   lockBtn.onclick = function () {
     if (!field) return;
     field.locked = !field.locked;
-    save();
-    draw();
+    save(); paintTools(); draw();
     msg.innerHTML = "";
     msg.appendChild(el("div", "flash " + (field.locked ? "flash-ok" : "flash-warn"),
       field.locked
-        ? "ล็อกที่นาไว้แล้ว เปิดหน้านี้จากที่ไหนก็จะเห็นจุดเดิมเสมอ"
-        : "ปลดล็อกแล้ว ลากหมุดหรือกดบนแผนที่เพื่อย้ายตำแหน่งได้"));
+        ? "ล็อกแล้ว หน้าอากาศและหน้าอื่นจะใช้พิกัดนี้เป็นตำแหน่งแปลงของคุณ"
+        : "ปลดล็อกแล้ว แก้ไขตำแหน่งและขอบเขตได้"));
   };
 
-  hereBtn.onclick = function () {
-    if (field && field.locked) {
-      msg.innerHTML = "";
-      msg.appendChild(el("div", "flash flash-warn", "ต้องปลดล็อกก่อนจึงจะย้ายหมุดได้"));
-      return;
-    }
-    hereBtn.textContent = "กำลังหาตำแหน่ง";
-    hereBtn.disabled = true;
-    navigator.geolocation.getCurrentPosition(function (p) {
-      field = field || {};
-      field.lat = p.coords.latitude;
-      field.lon = p.coords.longitude;
-      field.radius = parseInt(rIn.value, 10) || 100;
-      field.locked = false;
-      save();
-      map.setView([field.lat, field.lon], 16);
-      draw();
-      hereBtn.textContent = "ใช้ตำแหน่งปัจจุบัน";
-      hereBtn.disabled = false;
-    }, function () {
-      hereBtn.textContent = "เปิดสิทธิ์ตำแหน่งก่อน";
-      hereBtn.disabled = false;
-    });
-  };
-
+  paintTools();
   draw();
 };
 
@@ -5054,29 +5131,6 @@ function paintNav() {
       document.getElementById("rail").classList.remove("open");
     };
     nav.appendChild(b);
-  });
-  paintTabs();
-}
-
-// ปลายทางที่ใช้บ่อยที่สุดตอนอยู่หน้างานจริง
-// เลือกจากลำดับงานของเกษตรกร: ดูภาพรวม → ถ่ายใบไปตรวจ → จดบันทึก → ดูอากาศ → ถาม AI
-// ไม่ใส่หน้าตั้งค่ากับผู้ดูแลระบบ เพราะไม่ได้ใช้ตอนยืนอยู่กลางแปลง
-var TAB_IDS = ["overview", "soil", "consult", "diagnose", "weather"];
-
-function paintTabs() {
-  var bar = document.getElementById("tabbar");
-  if (!bar) return;
-  bar.innerHTML = "";
-  TAB_IDS.forEach(function (id) {
-    var p = PAGES.find(function (x) { return x.id === id; });
-    if (!p) return;
-    var b = el("button", "tab" + (p.id === here ? " on" : ""));
-    b.setAttribute("aria-label", p.label);
-    if (p.id === here) b.setAttribute("aria-current", "page");
-    b.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + p.icon + '"/></svg>';
-    b.appendChild(el("span", "", p.label));
-    b.onclick = function () { open(p.id); };
-    bar.appendChild(b);
   });
 }
 
