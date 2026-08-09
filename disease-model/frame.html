@@ -1,45 +1,183 @@
 <!DOCTYPE html>
 <html lang="th">
-<head><meta charset="utf-8"><title>model frame</title></head>
+<head>
+<meta charset="utf-8">
+<title>โมเดลจำแนกโรคข้าว (TensorFlow.js)</title>
+</head>
 <body>
-<script src="edge-impulse-standalone.js"></script>
-<script src="run-impulse.js"></script>
-<script>
-(function () {
-  "use strict";
-  var classifier = null;
+<script type="module">
+/*
+ * โมเดลจำแนกโรคข้าว — MobileNetV2 224x224 (float16 quantized)
+ *
+ * ไฟล์นี้แทนที่ frame.html เดิมที่ใช้ Edge Impulse WASM
+ * โดยพูดโปรโตคอล postMessage ชุดเดิมทุกประการ index.html จึงไม่ต้องแก้แม้แต่บรรทัดเดียว
+ *
+ * โปรโตคอลที่ต้องรักษาไว้:
+ *   ส่งออก  { type:"ready", properties:{ labels, image_input_width, image_input_height,
+ *                                        classification_threshold } }
+ *   ส่งออก  { type:"init-error", message }
+ *   รับเข้า { type:"classify", requestId, features }   features = อาร์เรย์สี RGB อัดเป็นเลขจำนวนเต็ม
+ *   ส่งออก  { type:"result", requestId, result:{ results:[{label, value}] } }
+ *   ส่งออก  { type:"error", requestId, message }
+ *
+ * โครงสร้างไฟล์ที่ต้องมี (วางไว้ระดับเดียวกับ index.html):
+ *   tfjs-model/model.json
+ *   tfjs-model/group1-shard1of2.bin
+ *   tfjs-model/group1-shard2of2.bin
+ *   tfjs-model/labels.json
+ */
+import * as tf from 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/+esm';
 
-  async function init() {
-    try {
-      classifier = new EdgeImpulseClassifier();
-      await classifier.init();
-      var project = classifier.getProjectInfo();
-      var properties = classifier.getProperties();
-      parent.postMessage({ type: 'ready', project: project, properties: properties }, '*');
-    } catch (err) {
-      parent.postMessage({ type: 'init-error', message: (err && err.message) ? err.message : String(err) }, '*');
+const INPUT_SIZE = 224;
+
+/* เกณฑ์นี้ถูกส่งกลับไปให้ index.html ใช้ตัดสินว่าจะเอ่ยชื่อโรคหรือไม่
+   ตั้ง 0.6 ให้ตรงกับค่าที่โค้ดหลักใช้เป็นค่าสำรองอยู่แล้ว จะได้ไม่เปลี่ยนพฤติกรรมเดิม */
+const CONFIDENCE_THRESHOLD = 0.6;
+
+/* path สัมพัทธ์กับไฟล์นี้ ไม่ใช่กับหน้าเว็บ
+   iframe อยู่ใน disease-model/ จึงต้องถอยขึ้นหนึ่งชั้น
+   ใช้ import.meta.url แทนการเขียน "../" ตรงๆ เพื่อให้ย้ายโฟลเดอร์แล้วยังทำงานได้ */
+const MODEL_URL  = new URL('../tfjs-model/model.json',  import.meta.url).href;
+const LABELS_URL = new URL('../tfjs-model/labels.json', import.meta.url).href;
+
+let model = null;
+let labels = null;
+
+/* ── แปลงชื่อคลาสให้ตรงกับคีย์ใน disease-guide.js ──
+ *
+ * โมเดลส่งชื่อแบบ "bacterial_blight" แต่ฐานความรู้ใช้คีย์แบบ "Bacterialblight"
+ * ถ้าไม่แปลง การ์ดแนวทางจัดการจะไม่ขึ้นเลย และผู้ใช้จะเห็นแค่ชื่อโรคลอยๆ
+ * โดยไม่มีวิธีรักษา ซึ่งเป็นส่วนที่มีค่าที่สุดของทั้งหน้า
+ *
+ * ใช้ findDiseaseGuide ของหน้าแม่เป็นตัวตัดสิน แทนการเขียนตารางแปลตายตัวไว้ที่นี่
+ * เพราะถ้าเขียนตารางไว้สองที่ วันหนึ่งจะแก้ที่เดียวแล้วลืมอีกที่
+ * เข้าถึง parent ได้เพราะเป็น origin เดียวกัน (ไฟล์อยู่บนโดเมนเดียวกัน)
+ */
+function toGuideKey(label) {
+  try {
+    const guide = parent.DISEASE_GUIDE;
+    if (!guide) return label;
+
+    const normalize = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const target = normalize(label);
+
+    for (const key of Object.keys(guide)) {
+      if (normalize(key) === target) return key;
     }
+
+    /* ยังไม่ตรง ลองเทียบกับชื่อไทยในฐานความรู้
+       ครอบกรณีอย่าง tungro ที่ฐานความรู้ตั้งคีย์ว่า "Rice Tungro" */
+    for (const key of Object.keys(guide)) {
+      const k = normalize(key);
+      if (k.includes(target) || target.includes(k)) return key;
+    }
+  } catch (err) {
+    /* เข้าถึง parent ไม่ได้ (เช่นเปิดไฟล์นี้ตรงๆ เพื่อทดสอบ) — ใช้ชื่อดิบไปก่อน */
+    console.warn('[โมเดลโรค] เทียบชื่อคลาสกับฐานความรู้ไม่ได้:', err.message);
+  }
+  return label;
+}
+
+/* ── แปลง features กลับเป็นภาพ ──
+ *
+ * index.html ส่ง features มาเป็นอาร์เรย์ที่แต่ละช่องอัด R,G,B ไว้ในเลขเดียว
+ * ด้วยสูตร (r << 16) + (g << 8) + b ซึ่งเป็นรูปแบบที่ Edge Impulse ต้องการ
+ * เราแค่แกะกลับเป็น 3 ช่องสีตามเดิม
+ *
+ * ป้อนค่า 0-255 ตรงๆ เพราะการ normalize เป็นช่วง [-1,1] ฝังอยู่ในกราฟโมเดลแล้ว
+ * ถ้าหารซ้ำที่นี่ ภาพจะถูกแปลงสองครั้งและโมเดลจะทายมั่วโดยไม่มี error ขึ้นเลย
+ */
+function featuresToTensor(features) {
+  const pixels = new Float32Array(INPUT_SIZE * INPUT_SIZE * 3);
+  for (let i = 0, j = 0; i < features.length; i++, j += 3) {
+    const v = features[i];
+    pixels[j]     = (v >> 16) & 0xFF;
+    pixels[j + 1] = (v >> 8)  & 0xFF;
+    pixels[j + 2] = v & 0xFF;
+  }
+  return tf.tensor4d(pixels, [1, INPUT_SIZE, INPUT_SIZE, 3]);
+}
+
+async function init() {
+  const [loadedModel, labelsResponse] = await Promise.all([
+    tf.loadGraphModel(MODEL_URL),
+    fetch(LABELS_URL),
+  ]);
+
+  if (!labelsResponse.ok) {
+    throw new Error(`โหลด labels.json ไม่สำเร็จ (HTTP ${labelsResponse.status})`);
   }
 
-  // Each frame only ever talks to its own parent page, and only runs
-  // classify() on whatever feature array it's handed — it has no notion of
-  // the other model running in the sibling frame. This keeps the two
-  // Edge Impulse WASM runtimes (which both define globals like `Module`
-  // and `EdgeImpulseClassifier`) fully isolated from each other.
-  window.addEventListener('message', function (e) {
-    var msg = e.data;
-    if (!msg || msg.type !== 'classify') return;
-    try {
-      if (!classifier) throw new Error('โมเดลยังไม่พร้อม');
-      var result = classifier.classify(msg.features);
-      parent.postMessage({ type: 'result', requestId: msg.requestId, result: result }, '*');
-    } catch (err) {
-      parent.postMessage({ type: 'error', requestId: msg.requestId, message: (err && err.message) ? err.message : String(err) }, '*');
-    }
-  });
+  model = loadedModel;
+  const rawLabels = await labelsResponse.json();
+  labels = rawLabels.map(toGuideKey);
 
-  init();
-})();
+  /* warm-up: การ predict ครั้งแรกต้องคอมไพล์ WebGL shader ซึ่งกินเวลาเป็นวินาที
+     ทำตั้งแต่ตอนโหลด จะได้ไม่ไปหน่วงตอนเกษตรกรกดตรวจภาพจริง */
+  tf.tidy(() => model.predict(tf.zeros([1, INPUT_SIZE, INPUT_SIZE, 3])));
+
+  console.info('[โมเดลโรค] พร้อมใช้งาน คลาส:', labels);
+
+  parent.postMessage({
+    type: 'ready',
+    project: { name: 'rice-disease-mobilenetv2-224', backend: tf.getBackend() },
+    properties: {
+      labels: labels,
+      image_input_width: INPUT_SIZE,
+      image_input_height: INPUT_SIZE,
+      image_channel_count: 3,
+      classification_threshold: CONFIDENCE_THRESHOLD,
+    },
+  }, '*');
+}
+
+window.addEventListener('message', async (event) => {
+  const msg = event.data;
+  if (!msg || msg.type !== 'classify') return;
+
+  if (!model) {
+    parent.postMessage({
+      type: 'error',
+      requestId: msg.requestId,
+      message: 'โมเดลยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่',
+    }, '*');
+    return;
+  }
+
+  let input = null;
+  try {
+    input = featuresToTensor(msg.features);
+    const output = model.predict(input);
+    const probabilities = await output.data();
+    output.dispose();
+
+    parent.postMessage({
+      type: 'result',
+      requestId: msg.requestId,
+      result: {
+        results: labels.map((label, i) => ({ label, value: probabilities[i] })),
+      },
+    }, '*');
+  } catch (err) {
+    parent.postMessage({
+      type: 'error',
+      requestId: msg.requestId,
+      message: 'ประมวลผลภาพไม่สำเร็จ: ' + err.message,
+    }, '*');
+  } finally {
+    /* ต้องปล่อยเสมอแม้ predict จะ throw
+       ไม่งั้น WebGL memory จะรั่วสะสมจนแท็บค้างหลังตรวจหลายรูป */
+    if (input) input.dispose();
+  }
+});
+
+init().catch((err) => {
+  console.error('[โมเดลโรค] เริ่มต้นไม่สำเร็จ:', err);
+  parent.postMessage({
+    type: 'init-error',
+    message: 'โหลดโมเดลโรคไม่สำเร็จ: ' + err.message,
+  }, '*');
+});
 </script>
 </body>
 </html>
