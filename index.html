@@ -3022,17 +3022,84 @@ function renderMix(host, pre) {
 }
 
 // ตัวรับภาพ ใช้ร่วมกันทุกหน้าที่ต้องอัปโหลดรูป
+//
+// ── เพิ่มการถ่ายภาพในเว็บ (2026-08) ──
+//
+// เดิมมีแค่การเลือกไฟล์ ซึ่งบนมือถือต้องผ่านหน้าเลือกแอปแล้วค่อยเปิดกล้อง
+// และที่สำคัญกว่านั้นคือผู้ใช้ไม่รู้ว่าต้องจัดองค์ประกอบภาพอย่างไร
+// จึงมักถ่ายทั้งกอมา ทำให้ใบเล็กจนโมเดลมองไม่เห็นแผลแล้วตอบว่าระบุไม่ชัดเจน
+//
+// กล้องในเว็บแก้ตรงจุดนั้น เพราะมีกรอบเล็งบอกตั้งแต่ตอนเล็งว่าต้องให้ใบเต็มกรอบ
+// และระบบครอปเฉพาะในกรอบก่อนส่งเข้าโมเดล พื้นหลังที่ไม่เกี่ยวจึงถูกตัดทิ้งไปเลย
+//
+// ยังเก็บปุ่มเลือกจากคลังภาพไว้ เพราะผู้ใช้ที่ถ่ายรูปเก็บไว้แล้วต้องใช้งานได้
+// และบนคอมพิวเตอร์ที่ไม่มีกล้อง ปุ่มถ่ายจะซ่อนตัวเองอัตโนมัติ
 function makeIntake(opts) {
   opts = opts || {};
+
+  // ── สไตล์ของกล้อง ──
+  // ฝังไว้ในฟังก์ชันและใส่ครั้งเดียว เพื่อให้ไฟล์นี้เป็นหน่วยเดียวจบ
+  // ย้ายหรือแก้ทีหลังไม่ต้องตามไปแก้ CSS อีกที่
+  if (!document.getElementById("camStyles")) {
+    var st = document.createElement("style");
+    st.id = "camStyles";
+    st.textContent =
+      ".intake-acts{display:flex;gap:9px;margin-top:11px;flex-wrap:wrap}" +
+      ".intake-acts .act{flex:1;min-width:140px}" +
+      ".cam{position:fixed;inset:0;z-index:95;background:#0B1A12;display:flex;" +
+        "flex-direction:column;align-items:center;justify-content:center}" +
+      ".cam-stage{width:100%;flex:1;min-height:0;" +
+        "display:flex;align-items:center;justify-content:center;overflow:hidden}" +
+      /* กรอบนี้หุ้มวิดีโอพอดีตัว กรอบเล็งจึงทับพื้นที่ภาพจริงเท่านั้น
+         ไม่ใช่ทับพื้นที่ว่างสีดำข้างวิดีโอตอนอัตราส่วนจอไม่ตรงกับกล้อง */
+      ".cam-frame{position:relative;display:inline-flex;max-width:100%;max-height:100%}" +
+      ".cam-frame video{max-width:100%;max-height:100%;display:block}" +
+      /* กรอบเล็งวางทับวิดีโอ ต้อง pointer-events:none ไม่งั้นบังปุ่มที่อยู่ข้างใต้ */
+      ".cam-guide{position:absolute;inset:0;pointer-events:none;" +
+        "display:flex;align-items:center;justify-content:center}" +
+      /* ขนาดกำหนดจาก JS ตามขนาดวิดีโอที่แสดงจริง เพื่อให้ตรงกับพื้นที่ที่ครอป */
+      ".cam-box{position:relative;box-shadow:0 0 0 3000px rgba(11,26,18,.55)}" +
+      ".cam-corner{position:absolute;width:26px;height:26px;border:3px solid #6FBF73}" +
+      ".cam-corner.tl{top:0;left:0;border-right:none;border-bottom:none}" +
+      ".cam-corner.tr{top:0;right:0;border-left:none;border-bottom:none}" +
+      ".cam-corner.bl{bottom:0;left:0;border-right:none;border-top:none}" +
+      ".cam-corner.br{bottom:0;right:0;border-left:none;border-top:none}" +
+      ".cam-hint{position:absolute;left:0;right:0;bottom:-46px;text-align:center;" +
+        "color:#F2EBDD;font-size:.85rem;line-height:1.5;padding:0 18px}" +
+      ".cam-bar{display:flex;align-items:center;justify-content:space-between;" +
+        "gap:18px;width:100%;padding:18px 22px 26px;flex:none}" +
+      ".cam-ghost{background:none;border:1px solid rgba(255,255,255,.35);" +
+        "color:#F2EBDD;border-radius:10px;padding:9px 16px;font-size:.85rem}" +
+      ".cam-shutter{width:72px;height:72px;border-radius:50%;flex:none;" +
+        "background:#FFFFFF;border:4px solid rgba(255,255,255,.35)}" +
+      ".cam-shutter:disabled{opacity:.4}" +
+      ".cam-msg{color:#F2EBDD;text-align:center;padding:28px 24px;max-width:340px;line-height:1.7}";
+    document.head.appendChild(st);
+  }
+
   var wrap = el("div");
+
   var zone = el("div", "intake");
   zone.tabIndex = 0;
   zone.setAttribute("role", "button");
   zone.appendChild(el("div", "intake-lead", opts.lead || "เลือกภาพใบข้าว หรือลากมาวางตรงนี้"));
   zone.appendChild(el("div", "intake-hint", opts.hint || "ถ่ายใกล้ให้เห็นแผลบนใบชัดเจน จะได้ผลแม่นที่สุด"));
+
   var file = el("input", "hidden-file");
   file.type = "file";
   file.accept = "image/*";
+
+  var acts = el("div", "intake-acts");
+  var camBtn = el("button", "act act-go", "ถ่ายรูปด้วยกล้อง");
+  var pickBtn = el("button", "act act-line", "เลือกจากคลังภาพ");
+  acts.appendChild(camBtn);
+  acts.appendChild(pickBtn);
+
+  // ไม่มี getUserMedia แปลว่าเบราว์เซอร์เก่าหรือเปิดผ่าน http ที่ไม่ใช่ localhost
+  // ซ่อนปุ่มดีกว่าปล่อยให้กดแล้ว error เพราะผู้ใช้จะคิดว่าระบบพัง
+  var canCam = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  if (!canCam) camBtn.hidden = true;
+
   var shot = el("div", "shot");
   shot.hidden = true;
   var img = el("img");
@@ -3040,29 +3107,215 @@ function makeIntake(opts) {
   var sweep = el("div", "sweep");
   sweep.hidden = true;
   sweep.appendChild(el("div", "sweep-line"));
-  shot.appendChild(img); shot.appendChild(sweep);
-  wrap.appendChild(zone); wrap.appendChild(file); wrap.appendChild(shot);
+  shot.appendChild(img);
+  shot.appendChild(sweep);
+
+  wrap.appendChild(zone);
+  wrap.appendChild(acts);
+  wrap.appendChild(file);
+  wrap.appendChild(shot);
 
   var current = null;
-  function take(f) {
-    if (!f || f.type.indexOf("image/") !== 0) return;
-    var url = URL.createObjectURL(f);
+
+  // รับภาพเข้าระบบ ใช้ร่วมกันทั้งจากไฟล์และจากกล้อง
+  function useSource(src) {
     var im = new Image();
     im.onload = function () {
       current = im;
-      img.src = url;
+      img.src = src;
       shot.hidden = false;
       opts.onReady && opts.onReady(im);
     };
-    im.onerror = function () { opts.onFail && opts.onFail("เปิดไฟล์ภาพนี้ไม่ได้ ลองไฟล์อื่น"); };
-    im.src = url;
+    im.onerror = function () {
+      opts.onFail && opts.onFail("เปิดภาพนี้ไม่ได้ ลองใหม่อีกครั้ง");
+    };
+    im.src = src;
   }
 
+  function take(f) {
+    if (!f || f.type.indexOf("image/") !== 0) return;
+    useSource(URL.createObjectURL(f));
+  }
+
+  // ══ กล้องในเว็บ ══
+  function openCamera() {
+    var facing = "environment";   // กล้องหลังก่อนเสมอ เพราะถ่ายใบข้าวไม่ใช่เซลฟี่
+    var stream = null;
+
+    var cam = el("div", "cam");
+
+    var stage = el("div", "cam-stage");
+    var frame = el("div", "cam-frame");
+    var video = document.createElement("video");
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;              // จำเป็นบน iOS ไม่งั้นวิดีโอจะเด้งเต็มจอเอง
+    video.setAttribute("playsinline", "");
+    frame.appendChild(video);
+
+    var guide = el("div", "cam-guide");
+    var box = el("div", "cam-box");
+    ["tl", "tr", "bl", "br"].forEach(function (c) {
+      box.appendChild(el("div", "cam-corner " + c));
+    });
+    box.appendChild(el("div", "cam-hint",
+      "จัดใบข้าวให้เต็มกรอบ ให้เห็นแผลชัด · ระบบจะตัดเฉพาะในกรอบไปตรวจ"));
+    guide.appendChild(box);
+    frame.appendChild(guide);
+    stage.appendChild(frame);
+    guide.hidden = true;                   // ซ่อนไว้จนกว่าภาพจะมาจริง
+
+    // ── ขนาดกรอบเล็งต้องตรงกับพื้นที่ที่ครอปเป๊ะ ──
+    //
+    // ถ้ากำหนดกรอบเป็น 78vw แต่ครอป 78% ของภาพจากกล้อง สองค่านี้จะไม่ตรงกัน
+    // ทุกครั้งที่อัตราส่วนจอไม่เท่าอัตราส่วนกล้อง ผู้ใช้จะจัดใบให้พอดีกรอบ
+    // แล้วได้ภาพที่ตัดขอบใบทิ้ง ซึ่งแย่กว่าไม่มีกรอบเสียอีกเพราะเขาเชื่อกรอบ
+    //
+    // จึงวัดขนาดวิดีโอที่แสดงจริงแล้วคำนวณกรอบจากค่านั้น ด้วยสัดส่วนเดียวกับตอนครอป
+    var CROP_RATIO = 0.78;
+    function sizeGuide() {
+      var r = video.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      var s = Math.round(Math.min(r.width, r.height) * CROP_RATIO);
+      box.style.width = s + "px";
+      box.style.height = s + "px";
+    }
+    window.addEventListener("resize", sizeGuide);
+    window.addEventListener("orientationchange", sizeGuide);
+
+    cam.appendChild(stage);
+
+    var bar = el("div", "cam-bar");
+    var closeBtn = el("button", "cam-ghost", "ปิด");
+    var shutter = el("button", "cam-shutter");
+    shutter.setAttribute("aria-label", "ถ่ายภาพ");
+    shutter.disabled = true;
+    var flipBtn = el("button", "cam-ghost", "สลับกล้อง");
+    bar.appendChild(closeBtn);
+    bar.appendChild(shutter);
+    bar.appendChild(flipBtn);
+    cam.appendChild(bar);
+
+    function stopStream() {
+      if (!stream) return;
+      // ต้องหยุดทุก track ไม่งั้นไฟกล้องยังติดและกินแบตต่อแม้ปิดหน้าต่างไปแล้ว
+      stream.getTracks().forEach(function (t) { t.stop(); });
+      stream = null;
+    }
+
+    function close() {
+      stopStream();
+      cam.remove();
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", sizeGuide);
+      window.removeEventListener("orientationchange", sizeGuide);
+    }
+    function onKey(e) { if (e.key === "Escape") close(); }
+
+    function fail(text) {
+      frame.hidden = true;
+      stage.appendChild(el("div", "cam-msg", text));
+      shutter.disabled = true;
+      flipBtn.hidden = true;
+    }
+
+    async function start() {
+      stopStream();
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: facing },
+            // ขอความละเอียดสูงไว้ก่อน เพราะเราจะครอปเหลือแค่ในกรอบ
+            // ถ้าต้นทางเล็ก ภาพที่ครอปแล้วจะเล็กจนโมเดลมองไม่เห็นรายละเอียดแผล
+            width: { ideal: 1920 },
+            height: { ideal: 1920 }
+          },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+        guide.hidden = false;
+        sizeGuide();
+        shutter.disabled = false;
+      } catch (err) {
+        // แยกสาเหตุให้ชัด เพราะทางแก้ต่างกันคนละเรื่อง
+        var name = err && err.name;
+        if (name === "NotAllowedError" || name === "SecurityError") {
+          fail("ยังไม่ได้อนุญาตให้เว็บใช้กล้อง\n\n" +
+               "กดไอคอนรูปกุญแจข้างที่อยู่เว็บ แล้วเปิดสิทธิ์กล้อง " +
+               "จากนั้นกดถ่ายรูปใหม่อีกครั้ง");
+        } else if (name === "NotFoundError" || name === "OverconstrainedError") {
+          fail("ไม่พบกล้องบนอุปกรณ์นี้\n\nใช้ปุ่มเลือกจากคลังภาพแทนได้");
+        } else if (name === "NotReadableError") {
+          fail("กล้องถูกแอปอื่นใช้อยู่\n\nปิดแอปกล้องหรือแอปวิดีโอคอลก่อน แล้วลองใหม่");
+        } else {
+          fail("เปิดกล้องไม่สำเร็จ\n\n" + (err && err.message ? err.message : "ลองใหม่อีกครั้ง"));
+        }
+      }
+    }
+
+    // ── ครอปเฉพาะพื้นที่ในกรอบเล็ง ──
+    //
+    // นี่คือหัวใจของการเพิ่มกล้อง ไม่ใช่แค่ความสะดวก
+    //
+    // โมเดลถูกเทรนจากภาพใบเดี่ยวเต็มเฟรม พอผู้ใช้ถ่ายทั้งกอแล้วระบบย่อทั้งภาพ
+    // เหลือ 224 พิกเซล รอยโรคจะเล็กจนแทบหายไป โมเดลจึงตอบว่าระบุไม่ชัดเจน
+    //
+    // การครอปตามกรอบทำให้สิ่งที่ส่งเข้าโมเดลใกล้เคียงกับภาพที่มันเคยเห็นตอนเทรน
+    // และผู้ใช้เห็นกรอบตั้งแต่ตอนเล็ง จึงจัดองค์ประกอบได้ถูกตั้งแต่แรก
+    // ไม่ต้องมาเดาทีหลังว่าทำไมระบบตอบไม่ชัดเจน
+    function capture() {
+      var vw = video.videoWidth, vh = video.videoHeight;
+      if (!vw || !vh) return;
+
+      // ใช้ CROP_RATIO ตัวเดียวกับที่คำนวณขนาดกรอบบนหน้าจอ
+      // ถ้าแยกเป็นสองค่า วันหนึ่งจะแก้ที่เดียวแล้วลืมอีกที่ ทำให้กรอบกับภาพไม่ตรงกัน
+      var side = Math.round(Math.min(vw, vh) * CROP_RATIO);
+      var sx = Math.round((vw - side) / 2);
+      var sy = Math.round((vh - side) / 2);
+
+      // จำกัดที่ 1400 พอเหลือเฟือสำหรับโมเดล 224-320 และเก็บลงทะเบียน
+      // ใหญ่กว่านี้เปลืองหน่วยความจำและเวลาอัปโหลดโดยไม่ได้ความแม่นเพิ่ม
+      var out = Math.min(side, 1400);
+
+      var c = document.createElement("canvas");
+      c.width = out;
+      c.height = out;
+      c.getContext("2d").drawImage(video, sx, sy, side, side, 0, 0, out, out);
+
+      var data = c.toDataURL("image/jpeg", 0.92);
+      close();
+      useSource(data);
+    }
+
+    shutter.onclick = capture;
+    closeBtn.onclick = close;
+    flipBtn.onclick = function () {
+      facing = (facing === "environment") ? "user" : "environment";
+      guide.hidden = true;
+      shutter.disabled = true;
+      start();
+    };
+
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(cam);
+    start();
+  }
+
+  camBtn.onclick = function (e) { e.preventDefault(); openCamera(); };
+  pickBtn.onclick = function (e) { e.preventDefault(); file.click(); };
+
   zone.onclick = function () { file.click(); };
-  zone.onkeydown = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); file.click(); } };
+  zone.onkeydown = function (e) {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); file.click(); }
+  };
   zone.ondragover = function (e) { e.preventDefault(); zone.classList.add("over"); };
   zone.ondragleave = function () { zone.classList.remove("over"); };
-  zone.ondrop = function (e) { e.preventDefault(); zone.classList.remove("over"); take(e.dataTransfer.files[0]); };
+  zone.ondrop = function (e) {
+    e.preventDefault();
+    zone.classList.remove("over");
+    take(e.dataTransfer.files[0]);
+  };
   file.onchange = function (e) { take(e.target.files[0]); };
 
   return {
