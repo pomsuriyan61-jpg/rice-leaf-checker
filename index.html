@@ -6906,12 +6906,29 @@ function showAuthScreen(message) {
         }));
 
       } else if (mode === "register") {
-        enterApp(await callAuth("/auth/register", {
-          username: val("gaUser").toLowerCase(),
+        var newUser = val("gaUser").toLowerCase();
+        if (!val("gaName") || !newUser || !val("gaMail") ||
+            !document.getElementById("gaPass").value) {
+          throw new Error("กรุณากรอกข้อมูลให้ครบทุกช่อง");
+        }
+
+        await callAuth("/auth/register", {
+          username: newUser,
           email: val("gaMail").toLowerCase(),
           password: document.getElementById("gaPass").value,
           name: val("gaName")
-        }));
+        });
+
+        // ไม่เรียก enterApp() โดยตั้งใจ — สมัครเสร็จให้กลับไปล็อกอินเอง
+        // paint() ล้าง alertHost บรรทัดแรก จึงต้องแจ้งผลหลัง paint() เสมอ
+        mode = "login";
+        paint();
+        document.getElementById("gaId").value = newUser;
+        document.getElementById("gaPass").value = "";
+        alertHost.appendChild(el("div", "flash flash-ok",
+          "สร้างบัญชี " + newUser + " เรียบร้อยแล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่านที่เพิ่งตั้งไว้"));
+        document.getElementById("gaPass").focus();
+        return;
 
       } else if (mode === "forgot") {
         if (!val("gaMail")) throw new Error("กรุณากรอกอีเมล");
