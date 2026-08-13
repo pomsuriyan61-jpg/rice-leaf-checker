@@ -3647,7 +3647,18 @@ views.diagnose = function (root) {
   markBrain();
 };
 
-views.survey = async function (root) {
+views.pest = function (root) {
+         if (typeof window.buildPestPage !== "function") {
+           root.appendChild(stateBlock("!", "ยังโหลดหน้าแมลงไม่ได้",
+             "ไฟล์ pest-page.js ยังไม่ได้อัปโหลด หรือเบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างในแคช"));
+           return;
+         }
+         window.buildPestPage(root, {
+           el: el, plot: plot, bund: bund, fold: fold,
+           more: more, stateBlock: stateBlock, readOut: readOut
+         });
+       };
+  views.survey = async function (root) {
   var logs = await Store.list();
   root.appendChild(bund("บันทึกการสำรวจแปลง"));
 
