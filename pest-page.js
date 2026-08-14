@@ -1,12 +1,15 @@
 /**
  * pest-page.js — หน้า "แมลงศัตรูข้าว" สำหรับ SmartRice AI
  *
- * ทำไมแยกเป็นไฟล์: index.html ยาวหลายพันบรรทัดแล้ว การเพิ่มหน้าใหม่เข้าไปตรงๆ
- * ทำให้ไฟล์โตขึ้นอีกและแก้ยากขึ้นเรื่อยๆ ไฟล์นี้รับตัวช่วยสร้าง UI จาก index.html
- * เข้ามาใช้ จึงหน้าตาเหมือนหน้าอื่นทุกประการโดยไม่ต้องคัดลอกโค้ดซ้ำ
+ * ทำไมไม่มีภาพ: ภาพวาดลายเส้นแยกชนิดที่หน้าตาคล้ายกันไม่ได้เลย
+ * เพลี้ยกระโดดสีน้ำตาลกับหลังขาวรูปร่างเหมือนกันเป๊ะ ต่างที่แถบสีบนหลัง
+ * ภาพวาดจึงทำให้ผู้ใช้สรุปผิดชนิดแล้วซื้อสารผิดตัว
+ * คำบรรยายอย่าง "มีแถบขาวพาดกลางหลัง" แยกได้ตรงกว่าและไฟล์เบากว่ามาก
+ * ซึ่งสำคัญเมื่อเกษตรกรเปิดเว็บกลางนาด้วยสัญญาณอ่อน
  *
- * ข้อมูลทั้งหมดมาจาก window.PEST_GUIDE (pest-guide.js) ไฟล์นี้ไม่เก็บข้อมูลแมลงเอง
- * เพื่อไม่ให้เกิดข้อมูล 2 ชุดที่แก้ที่เดียวแล้วอีกที่ไม่ตาม
+ * ข้อมูลหลักมาจาก window.PEST_GUIDE (pest-guide.js)
+ * ส่วนที่ไฟล์นี้เพิ่มเองมี 2 อย่างคือระดับความอันตรายและคำบรรยายลักษณะ
+ * ทั้งสองอย่างติดป้ายกำกับไว้ในหน้าเว็บ เพื่อให้แยกออกว่าอันไหนมาจากเอกสารทางการ
  *
  * วิธีเชื่อมกับ index.html ดูท้ายไฟล์
  */
@@ -18,190 +21,151 @@
 //
 // pest-guide.js ไม่มีฟิลด์นี้ จึงต้องจัดระดับที่นี่
 // เกณฑ์ที่ใช้ ไม่ใช่ "น่ากลัวแค่ไหน" แต่เป็น 3 ข้อที่วัดได้จากผลเสียจริง
-//   1. ทำให้ข้าวตายทั้งกอหรือทั้งหย่อมได้ไหม (ไม่ใช่แค่ใบเสียหาย)
+//   1. ทำให้ข้าวตายทั้งกอหรือทั้งหย่อมได้ไหม ไม่ใช่แค่ใบเสียหาย
 //   2. เป็นพาหะนำโรคไวรัสที่รักษาไม่ได้ไหม
 //   3. ระบาดข้ามแปลงเร็วจนเพื่อนบ้านเสียหายตามไหม
 //
-// เขียนเหตุผลกำกับทุกตัวโดยตั้งใจ เพื่อให้ผู้ใช้และเจ้าหน้าที่เกษตร
-// ตรวจสอบได้ว่าเห็นด้วยกับการจัดระดับหรือไม่ ระบบที่บอกว่า "อันตรายสูง"
-// เฉยๆ โดยไม่บอกเหตุผล เชื่อถือไม่ได้และแก้ไม่ได้เมื่อมันผิด
+// เขียนเหตุผลกำกับทุกตัวโดยตั้งใจ เพื่อให้ผู้ใช้และเจ้าหน้าที่เกษตรตรวจสอบได้
+// ระบบที่บอกว่า "อันตรายสูง" เฉยๆ โดยไม่บอกเหตุผล เชื่อถือไม่ได้และแก้ไม่ได้เมื่อผิด
 // ══════════════════════════════════════════════════════════
 
 const LEVELS = {
-  high: {
-    word: "อันตรายสูง",
-    tone: "bad",
-    act: "ต้องลงไปดูแปลงภายในวันนี้",
-  },
-  mid: {
-    word: "อันตรายปานกลาง",
-    tone: "warn",
-    act: "เดินสำรวจแปลงสัปดาห์นี้ แล้วนับจำนวนก่อนตัดสินใจ",
-  },
-  low: {
-    word: "อันตรายต่ำ",
-    tone: "ok",
-    act: "เฝ้าดูตามปกติ ยังไม่ต้องทำอะไรเป็นพิเศษ",
-  },
+  high: { word: "อันตรายสูง",      tone: "bad",  act: "ต้องลงไปดูแปลงภายในวันนี้" },
+  mid:  { word: "อันตรายปานกลาง", tone: "warn", act: "เดินสำรวจแปลงสัปดาห์นี้ แล้วนับจำนวนก่อนตัดสินใจ" },
+  low:  { word: "อันตรายต่ำ",      tone: "ok",   act: "เฝ้าดูตามปกติ ยังไม่ต้องทำอะไรเป็นพิเศษ" },
 };
 
 // key ต้องตรงกับ key ใน PEST_GUIDE.pests
-const RATING = {
+//
+// look  = ลักษณะตัวแมลงที่มองเห็นด้วยตาเปล่าในแปลง
+//         เน้นจุดที่ใช้แยกจากชนิดที่คล้ายกันเป็นหลัก ไม่ใช่บรรยายให้ครบทุกส่วน
+//         เพราะเกษตรกรที่ยืนอยู่ในนาต้องการคำที่ชี้เป้าได้ใน 5 วินาที
+// where = ตำแหน่งที่มักเจอตัวมันบนต้นข้าว ซึ่งเป็นตัวแยกที่ดีพอๆ กับรูปร่าง
+const INFO = {
   bph: {
     level: "high",
     why: "ดูดน้ำเลี้ยงจนข้าวแห้งตายเป็นหย่อมทั้งกอ เรียกว่าอาการไหม้เป็นหย่อม " +
-         "และยังเป็นพาหะโรคใบหงิกด้วย ระบาดข้ามแปลงเร็วมาก เป็นแมลงที่สร้างความเสียหาย" +
-         "ให้นาข้าวไทยมากที่สุดในรอบหลายสิบปี",
+         "และยังเป็นพาหะโรคใบหงิกด้วย ระบาดข้ามแปลงเร็วมาก " +
+         "เป็นแมลงที่สร้างความเสียหายให้นาข้าวไทยมากที่สุดในรอบหลายสิบปี",
+    look: "ตัวเล็กมาก ยาวราว 3-4 มิลลิเมตร สีน้ำตาลอ่อนถึงน้ำตาลเข้มทั้งตัว ไม่มีแถบสีอื่น " +
+          "ปีกใสคลุมยาวเลยปลายท้อง กระโดดหนีทันทีเมื่อเอามือแหวกกอ",
+    where: "อยู่ที่โคนต้นเหนือผิวน้ำเล็กน้อย ต้องแหวกกอก้มดูถึงจะเห็น ไม่ได้อยู่บนใบ",
   },
   wbph: {
     level: "high",
     why: "ทำลายแบบเดียวกับเพลี้ยกระโดดสีน้ำตาลคือดูดน้ำเลี้ยงจนต้นแห้ง " +
          "และมักระบาดพร้อมกัน ต้องจัดการเหมือนกัน",
+    look: "ขนาดและรูปร่างเหมือนเพลี้ยกระโดดสีน้ำตาลแทบทุกอย่าง " +
+          "จุดที่ต่างคือมีแถบสีขาวพาดกลางหลังชัดเจน และตัวออกสีเข้มกว่า " +
+          "ถ้าเห็นแถบขาวเมื่อไหร่คือชนิดนี้ ไม่ใช่สีน้ำตาล",
+    where: "โคนต้นเหนือผิวน้ำ ตำแหน่งเดียวกับเพลี้ยกระโดดสีน้ำตาล มักพบปนกันทั้งสองชนิด",
   },
   gsl: {
     level: "high",
     why: "ตัวมันเองกินไม่มาก แต่เป็นพาหะโรคใบสีส้มซึ่งเป็นไวรัส " +
          "ข้าวที่ติดแล้วรักษาไม่ได้เลย ต้องถอนทิ้งอย่างเดียว " +
          "จึงอันตรายกว่าที่เห็นจากความเสียหายโดยตรงมาก",
+    look: "ลำตัวสีเขียวอ่อนสดทั้งตัว ยาวราว 3-5 มิลลิเมตร รูปร่างเรียวคล้ายลิ่ม " +
+          "มักมีจุดสีดำเล็กๆ ที่ปลายปีก บินหนีเป็นระยะสั้นๆ เมื่อถูกรบกวน ไม่ใช่กระโดด",
+    where: "อยู่บนใบและส่วนบนของต้น ต่างจากเพลี้ยกระโดดที่อยู่โคนต้น จึงเห็นได้ง่ายกว่า",
+  },
+  thrips: {
+    level: "mid",
+    why: "ทำให้ใบม้วนและปลายใบแห้ง กระทบหนักเฉพาะระยะกล้าซึ่งข้าวยังฟื้นตัวไม่ไหว " +
+         "แต่จัดการได้ง่ายและถูกที่สุดในบรรดาแมลงทั้งหมด เพราะแค่ปล่อยน้ำเข้าแปลง " +
+         "ประชากรก็ลดลงเองโดยไม่ต้องใช้สารเคมี จึงไม่จัดเป็นระดับสูงทั้งที่พบบ่อย",
+    look: "ตัวเล็กมากจนเกือบมองไม่เห็นด้วยตาเปล่า ยาวเพียง 1-2 มิลลิเมตร " +
+          "ตัวเต็มวัยสีดำหรือน้ำตาลเข้ม ตัวอ่อนสีเหลืองอ่อนใส ลำตัวเรียวยาวคล้ายเส้นด้ายสั้นๆ " +
+          "วิธีดูที่ได้ผลคือเคาะใบลงบนกระดาษขาวแล้วสังเกตจุดเล็กๆ ที่ไหวตัว",
+    where: "อยู่ในใบอ่อนที่ม้วนเป็นหลอดบริเวณยอด ต้องคลี่ใบที่ม้วนออกดูจึงจะเจอ " +
+           "ไม่ได้อยู่ที่โคนต้นหรือรวง",
   },
   stemborer: {
     level: "high",
     why: "เจาะเข้าไปกินในลำต้น ทำให้ยอดเหี่ยวตายหรือรวงเป็นหัวหงอกไม่มีเมล็ด " +
-         "และเมื่อเข้าไปอยู่ในลำต้นแล้ว การพ่นสารทางใบแทบไม่ได้ผก " +
+         "และเมื่อเข้าไปอยู่ในลำต้นแล้ว การพ่นสารทางใบแทบไม่ได้ผล " +
          "จึงต้องจัดการให้ทันก่อนตัวหนอนเจาะเข้าไป",
+    look: "ตัวหนอนสีขาวครีมหรือชมพูอ่อน ลำตัวเรียบเป็นปล้อง ไม่มีขน หัวสีน้ำตาล " +
+          "ตัวเต็มวัยเป็นผีเสื้อกลางคืนสีขาวนวลหรือเหลืองอ่อน มักเห็นบินตอนพลบค่ำ",
+    where: "ตัวหนอนอยู่ในลำต้น มองจากภายนอกไม่เห็น ต้องผ่าลำต้นที่ยอดเหี่ยวดูจึงจะเจอ",
   },
   gallmidge: {
     level: "high",
     why: "ทำให้ยอดข้าวกลายเป็นหลอดคล้ายใบหอม กอนั้นจะไม่ออกรวงเลย " +
          "ความเสียหายจึงเป็นการสูญเสียผลผลิตถาวรของกอนั้น ไม่ใช่แค่ใบเสียหาย",
+    look: "ตัวเต็มวัยคล้ายยุงตัวเล็กมาก ลำตัวสีชมพูหรือส้มอ่อน ขายาวเรียว บินช้า " +
+          "ตัวหนอนสีขาวใสขนาดเล็กมาก อยู่ในหลอดที่ยอดข้าว",
+    where: "สังเกตจากยอดที่กลายเป็นหลอดกลมยาวคล้ายใบหอมได้ง่ายกว่าหาตัวแมลง",
   },
   applesnail: {
     level: "high",
     why: "กัดกินต้นกล้าที่เพิ่งปักดำหรือหว่านจนหมดแปลงได้ภายในไม่กี่วัน " +
          "ระยะกล้าเป็นช่วงที่ข้าวเปราะบางที่สุดและเสียหายแล้วต้องหว่านใหม่ทั้งแปลง",
+    look: "หอยเปลือกกลมสีน้ำตาลเข้ม โตเต็มที่ใหญ่ราวลูกปิงปองถึงกำปั้น " +
+          "จุดที่สังเกตง่ายที่สุดคือไข่สีชมพูสดเป็นกลุ่มก้อน เกาะอยู่เหนือผิวน้ำ " +
+          "ตามต้นข้าว คันนา หรือเสา สีชมพูนั้นเด่นมากจนเห็นแต่ไกล",
+    where: "ตัวหอยอยู่ในน้ำ ส่วนไข่สีชมพูอยู่เหนือน้ำ ให้ไล่เก็บไข่เป็นหลักเพราะเจอง่ายกว่า",
   },
   armyworm: {
     level: "mid",
     why: "กัดกินใบและต้นกล้าเป็นหย่อม ระบาดเป็นกลุ่มใหญ่และกินเร็ว " +
          "แต่ถ้าข้าวโตพ้นระยะกล้าแล้วมักฟื้นตัวได้ ความเสียหายจึงขึ้นกับอายุข้าวเป็นหลัก",
+    look: "หนอนตัวอ้วน สีเทาเข้มถึงน้ำตาลดำ มีแถบสีอ่อนพาดตามยาวข้างลำตัว " +
+          "ตัวใหญ่กว่าหนอนห่อใบมาก โตเต็มที่ยาวได้ถึง 3-4 เซนติเมตร",
+    where: "ซ่อนอยู่ตามโคนกอหรือใต้ก้อนดินตอนกลางวัน ออกกินตอนกลางคืน " +
+           "ถ้าสงสัยให้ออกไปส่องไฟดูตอนค่ำ กลางวันมักหาไม่เจอ",
   },
   leaffolder: {
     level: "mid",
     why: "ห่อใบแล้วแทะผิวใบจนเป็นแถบขาว ข้าวมักชดเชยได้ถ้าไม่ระบาดหนัก " +
          "แต่ถ้าโดนใบธงช่วงตั้งท้องจะกระทบผลผลิตชัดเจน เพราะใบธงคือใบที่สร้างอาหารให้รวง",
+    look: "หนอนตัวเล็กเรียว สีเขียวใสหรือเขียวอมเหลือง ตัวนิ่ม มองทะลุเห็นเป็นเส้นในตัวได้ " +
+          "ยาวไม่เกิน 2 เซนติเมตร ดิ้นถอยหลังเร็วมากเมื่อแกะใบออก",
+    where: "อยู่ในใบที่ม้วนเป็นหลอดตามยาว ต้องแกะใบที่ม้วนออกดูจึงจะเจอตัว",
   },
   ricebug: {
     level: "mid",
     why: "ดูดน้ำนมในเมล็ดช่วงข้าวเป็นน้ำนม ทำให้เมล็ดลีบและมีกลิ่นเหม็นติดข้าว " +
          "กระทบราคาขายมากกว่าปริมาณผลผลิต และเสียหายเฉพาะช่วงสั้นๆ ก่อนเก็บเกี่ยว",
+    look: "ลำตัวยาวเรียวคล้ายกิ่งไม้เล็กๆ สีเขียวอมน้ำตาลหรือน้ำตาลอ่อน " +
+          "ขาและหนวดยาวเด่น ยาวราว 1.5-2 เซนติเมตร " +
+          "จุดที่ยืนยันได้แน่นอนคือกลิ่นเหม็นฉุนเมื่อเข้าใกล้หรือจับตัว",
+    where: "เกาะอยู่ที่รวงข้าวช่วงเป็นน้ำนม ไม่ค่อยลงมาที่ใบหรือโคนต้น",
   },
 };
 
 // แมลงที่ยังไม่ได้จัดระดับ ต้องไม่เดาแทนผู้ใช้
 // บอกตรงๆ ว่ายังไม่มีข้อมูล ดีกว่าใส่ระดับมั่วแล้วผู้ใช้เชื่อ
-const UNRATED = {
+const UNKNOWN = {
   level: null,
-  why: "ยังไม่ได้จัดระดับความอันตรายสำหรับชนิดนี้ในระบบ กรุณาอ่านลักษณะการทำลาย" +
-       "ด้านล่างแล้วปรึกษาเกษตรอำเภอเพื่อประเมินความเร่งด่วน",
+  why: "ยังไม่ได้จัดระดับความอันตรายสำหรับชนิดนี้ในระบบ " +
+       "กรุณาอ่านลักษณะการทำลายด้านล่างแล้วปรึกษาเกษตรอำเภอเพื่อประเมินความเร่งด่วน",
+  look: null,
+  where: null,
 };
 
-function rate(key) {
-  return RATING[key] || UNRATED;
-}
-
-// ══════════════════════════════════════════════════════════
-// ภาพลายเส้นประกอบ
-//
-// วาดเป็น SVG แทนภาพถ่าย ด้วยเหตุผล 2 ข้อ
-//   1. ภาพถ่ายแมลงมีลิขสิทธิ์ การดึงจากเว็บอื่นมาแสดงเป็นการละเมิด
-//   2. ไฟล์ SVG เล็กกว่าภาพถ่ายหลายร้อยเท่า ซึ่งสำคัญมากเมื่อเกษตรกร
-//      เปิดเว็บกลางนาด้วยสัญญาณอ่อน
-//
-// แต่ต้องบอกผู้ใช้ให้ชัดว่าเป็นภาพวาด ใช้แยกกลุ่มได้คร่าวๆ เท่านั้น
-// ใช้ระบุชนิดแทนภาพถ่ายจริงไม่ได้ ถ้าไม่บอก ผู้ใช้จะเทียบภาพวาดกับตัวจริง
-// แล้วสรุปผิดชนิด ซึ่งนำไปสู่การซื้อสารเคมีผิดตัว
-// ══════════════════════════════════════════════════════════
-
-const ART = {
-  // เพลี้ยกระโดด — ลำตัวรูปลิ่ม ปีกคลุมยาว ขาหลังใหญ่ไว้กระโดด
-  hopper:
-    '<ellipse cx="32" cy="34" rx="11" ry="17"/>' +
-    '<path d="M32 18c-7 4-9 14-7 26M32 18c7 4 9 14 7 26"/>' +
-    '<path d="M28 19l-3-6M36 19l3-6"/>' +
-    '<path d="M21 33l-9 4M43 33l9 4M23 44l-8 11M41 44l8 11"/>',
-
-  // หนอน — ลำตัวเป็นปล้องโค้ง มีขาเทียมด้านล่าง
-  caterpillar:
-    '<path d="M14 40c0-9 8-15 18-15s18 6 18 15-8 14-18 14-18-5-18-14z"/>' +
-    '<path d="M22 27v26M30 25v29M38 25v29M46 29v21"/>' +
-    '<circle cx="16" cy="34" r="1.6" fill="currentColor" stroke="none"/>',
-
-  // ผีเสื้อกลางคืน — ปีกกางสองข้าง หนวดเป็นขนนก
-  moth:
-    '<ellipse cx="32" cy="36" rx="4" ry="14"/>' +
-    '<path d="M28 26c-10-8-19-6-21 2s7 16 20 12M36 26c10-8 19-6 21 2s-7 16-20 12"/>' +
-    '<path d="M30 23l-6-9M34 23l6-9"/>',
-
-  // มวน — ลำตัวรูปโล่ห้าเหลี่ยม หนวดยาว
-  bug:
-    '<path d="M32 16l14 9v18l-14 11-14-11V25z"/>' +
-    '<path d="M32 22v30M20 30h24"/>' +
-    '<path d="M26 17l-7-8M38 17l7-8"/>',
-
-  // หอย — เปลือกเกลียว มีตัวโผล่ออกมา
-  snail:
-    '<circle cx="36" cy="32" r="15"/>' +
-    '<path d="M36 32a8 8 0 018-8 8 8 0 018 8 12 12 0 01-12 12"/>' +
-    '<path d="M21 40c-6 0-9 4-9 8h20M14 40l-3-8M18 39l1-9"/>',
-
-  // แมลงวันตัวเล็ก (บั่ว) — ลำตัวเรียว ปีกใส ขายาว
-  fly:
-    '<ellipse cx="32" cy="36" rx="5" ry="13"/>' +
-    '<path d="M29 28c-9-6-16-3-17 3s6 11 16 7M35 28c9-6 16-3 17 3s-6 11-16 7"/>' +
-    '<path d="M30 24l-4-8M34 24l4-8"/>' +
-    '<path d="M28 46l-8 10M36 46l8 10"/>',
-};
-
-// เดาแบบภาพจากข้อมูลที่มีใน pest-guide
-// ใช้ทั้ง key และ field type เพราะ key เชื่อถือได้กว่าแต่ไม่ครอบคลุมชนิดใหม่
-function artFor(key, pest) {
-  const byKey = {
-    bph: "hopper", wbph: "hopper", gsl: "hopper",
-    stemborer: "caterpillar", leaffolder: "caterpillar", armyworm: "caterpillar",
-    gallmidge: "fly", ricebug: "bug", applesnail: "snail",
-  };
-  if (byKey[key]) return ART[byKey[key]];
-
-  const t = (pest && pest.type) || "";
-  if (/หอย/.test(t)) return ART.snail;
-  if (/หนอน|ผีเสื้อ/.test(t)) return ART.caterpillar;
-  if (/เพลี้ย|จักจั่น/.test(t)) return ART.hopper;
-  if (/มวน|แมลงสิง/.test(t)) return ART.bug;
-  if (/บั่ว|แมลงวัน/.test(t)) return ART.fly;
-  return ART.bug;   // ตัวสำรอง ดีกว่าปล่อยช่องว่าง
+function info(key) {
+  return INFO[key] || UNKNOWN;
 }
 
 // ══════════════════════════════════════════════════════════
 // สไตล์ ใส่ครั้งเดียวตอนเปิดหน้าครั้งแรก
 // ทำแบบเดียวกับ camStyles ใน index.html เพื่อให้ไฟล์นี้จบในตัวเอง
-// ย้ายหรือลบทีหลังไม่ต้องตามไปแก้ CSS อีกที่
 // ══════════════════════════════════════════════════════════
 function installStyles() {
   if (document.getElementById("pestStyles")) return;
   const st = document.createElement("style");
   st.id = "pestStyles";
   st.textContent =
-    ".pest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:13px}" +
-    ".pest-card{display:flex;flex-direction:column;gap:9px;padding:15px;text-align:left;" +
+    ".pest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:11px}" +
+    ".pest-card{display:flex;flex-direction:column;gap:7px;padding:15px 16px;text-align:left;" +
       "background:#FFFFFF;border:1px solid var(--rule);border-radius:var(--r);cursor:pointer;" +
       "font-family:var(--f-body);transition:border-color .16s ease,box-shadow .16s ease}" +
     ".pest-card:hover{border-color:var(--blade);box-shadow:0 2px 10px rgba(27,94,58,.09)}" +
     ".pest-card.on{border-color:var(--blade);background:var(--tint-ok)}" +
-    ".pest-art{width:64px;height:64px;flex:none}" +
-    ".pest-art svg{display:block;width:100%;height:100%}" +
-    ".pest-name{font-weight:600;font-size:.95rem;line-height:1.35;color:var(--ink)}" +
+    ".pest-name{font-weight:600;font-size:.97rem;line-height:1.35;color:var(--ink)}" +
     ".pest-sci{font-size:.74rem;color:var(--ink-faint);font-style:italic}" +
-    /* แถบระดับอันตราย เป็นตัวบอกด้วยภาพว่าตัวไหนต้องรีบ */
+    /* ป้ายระดับอันตราย จุดสามจุดอ่านได้เร็วกว่าตัวหนังสือเมื่อกวาดดูหลายตัว */
     ".pest-level{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;" +
       "font-weight:600;padding:3px 10px;border-radius:99px;align-self:flex-start}" +
     ".pest-level.bad{background:var(--tint-bad);color:var(--rust)}" +
@@ -211,11 +175,14 @@ function installStyles() {
     ".pest-dots{display:inline-flex;gap:3px}" +
     ".pest-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.28}" +
     ".pest-dot.lit{opacity:1}" +
-    ".pest-when{font-size:.78rem;color:var(--ink-soft);line-height:1.5}" +
-    /* หัวการ์ดรายละเอียด ให้ภาพใหญ่ขึ้นเพื่อดูลักษณะได้ชัด */
-    ".pest-head{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}" +
-    ".pest-head .pest-art{width:96px;height:96px}" +
-    ".pest-head-mid{flex:1;min-width:190px}";
+    ".pest-quick{font-size:.82rem;color:var(--ink-soft);line-height:1.6}" +
+    ".pest-when{font-size:.78rem;color:var(--ink-faint)}" +
+    /* บล็อกลักษณะเด่น ให้เด่นกว่าย่อหน้าธรรมดาเพราะเป็นสิ่งที่ผู้ใช้มาหา */
+    ".pest-look{background:var(--canopy);border-radius:var(--r-sm);padding:14px 16px;margin-top:11px}" +
+    ".pest-look p{margin:0 0 9px;font-size:.89rem;line-height:1.7}" +
+    ".pest-look p:last-child{margin-bottom:0}" +
+    ".pest-tagsrc{font-size:.7rem;padding:2px 8px;border-radius:99px;font-weight:500;" +
+      "background:var(--canopy);color:var(--ink-faint);border:1px solid var(--rule);margin-left:7px}";
   document.head.appendChild(st);
 }
 
@@ -243,21 +210,16 @@ window.buildPestPage = function (root, ui) {
   // สิ่งที่เขาต้องเห็นก่อนคือตัวที่ทำให้เสียหายหนักที่สุด
   const order = { high: 0, mid: 1, low: 2 };
   keys.sort((a, b) => {
-    const ra = rate(a).level, rb = rate(b).level;
+    const ra = info(a).level, rb = info(b).level;
     return (ra ? order[ra] : 9) - (rb ? order[rb] : 9);
   });
 
-  // ── ภาพระดับอันตราย 3 ระดับ ──
   function levelBadge(key) {
-    const r = rate(key);
-    if (!r.level) {
-      const b = el("span", "pest-level none", "ยังไม่ได้จัดระดับ");
-      return b;
-    }
+    const r = info(key);
+    if (!r.level) return el("span", "pest-level none", "ยังไม่ได้จัดระดับ");
+
     const L = LEVELS[r.level];
     const b = el("span", "pest-level " + L.tone);
-
-    // จุดสามจุดบอกระดับด้วยสายตา อ่านได้เร็วกว่าตัวหนังสือเมื่อกวาดดูหลายตัว
     const dots = el("span", "pest-dots");
     const lit = r.level === "high" ? 3 : r.level === "mid" ? 2 : 1;
     for (let i = 0; i < 3; i++) {
@@ -268,31 +230,14 @@ window.buildPestPage = function (root, ui) {
     return b;
   }
 
-  function artNode(key, pest, cls) {
-    const box = el("div", cls || "pest-art");
-    const r = rate(key);
-    const color = !r.level ? "var(--ink-faint)"
-      : r.level === "high" ? "var(--rust)"
-      : r.level === "mid" ? "var(--grain)" : "var(--blade)";
-    box.innerHTML =
-      '<svg viewBox="0 0 64 64" fill="none" stroke="' + color +
-      '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ' +
-      'role="img" aria-label="ภาพวาดประกอบของ' + (pest.thai || "แมลง") + '">' +
-      artFor(key, pest) + "</svg>";
-    return box;
-  }
-
-  // ══ คำเตือนเรื่องภาพ วางบนสุด ══
-  //
-  // ต้องอยู่ก่อนภาพทั้งหมด ไม่ใช่ท้ายหน้า เพราะผู้ใช้จะเห็นภาพก่อนเลื่อนลงไปอ่านคำเตือน
-  // การเตือนหลังจากที่เขาสรุปไปแล้วไม่ได้ช่วยอะไร
+  // ══ คำนำ ══
   root.appendChild(bund("แมลงและสัตว์ศัตรูข้าว"));
 
   const intro = plot(null);
-  intro.appendChild(el("div", "flash flash-warn",
-    "ภาพในหน้านี้เป็นภาพวาดประกอบ ใช้ดูว่าเป็นกลุ่มเพลี้ย หนอน หรือหอยได้คร่าวๆ เท่านั้น " +
-    "ห้ามใช้เทียบระบุชนิดแทนตัวจริง เพราะแมลงหลายชนิดหน้าตาคล้ายกันมากแต่ใช้สารคนละตัว " +
-    "ให้ยืนยันชนิดกับเกษตรอำเภอหรือศูนย์วิจัยข้าวก่อนซื้อสารเคมีทุกครั้ง"));
+  intro.appendChild(el("div", "read-foot",
+    "หน้านี้ไม่มีภาพประกอบโดยตั้งใจ เพราะแมลงหลายชนิดหน้าตาคล้ายกันมากจนภาพแยกไม่ออก " +
+    "เช่นเพลี้ยกระโดดสีน้ำตาลกับหลังขาวที่ต่างกันแค่แถบสีบนหลัง " +
+    "จึงใช้คำบรรยายลักษณะที่ชี้จุดต่างได้ตรงกว่าแทน"));
   intro.appendChild(el("div", "read-foot",
     "สีและจำนวนจุดบนป้ายบอกระดับความอันตราย · แดงสามจุดคือต้องรีบจัดการ " +
     "ทองสองจุดคือให้เดินสำรวจก่อน เขียวหนึ่งจุดคือเฝ้าดูตามปกติ"));
@@ -331,19 +276,24 @@ window.buildPestPage = function (root, ui) {
   const detail = el("div");
   root.appendChild(detail);
 
-  let picked = null;
-
   keys.forEach((key) => {
     const pest = P.pests[key];
+    const r = info(key);
     const card = el("button", "pest-card");
-    card.appendChild(artNode(key, pest));
+
     card.appendChild(levelBadge(key));
     card.appendChild(el("div", "pest-name", pest.thai));
     if (pest.sci) card.appendChild(el("div", "pest-sci", pest.sci));
+
+    // ใส่ลักษณะเด่นแบบสั้นในการ์ด ให้กวาดตาหาตัวที่ตรงกับที่เจอได้เลย
+    // ไม่ต้องกดเข้าไปทีละตัวแล้วกดกลับ ซึ่งช้ามากเมื่อมี 9 ชนิด
+    if (r.look) {
+      const short = r.look.split(" ").slice(0, 14).join(" ");
+      card.appendChild(el("div", "pest-quick", short + "…"));
+    }
     if (pest.stage) card.appendChild(el("div", "pest-when", "พบระยะ " + pest.stage));
 
     card.onclick = function () {
-      picked = key;
       grid.querySelectorAll(".pest-card").forEach((c) => c.classList.remove("on"));
       card.classList.add("on");
       paintDetail(key);
@@ -355,37 +305,71 @@ window.buildPestPage = function (root, ui) {
   // ══ รายละเอียดของแมลงที่เลือก ══
   function paintDetail(key) {
     const pest = P.pests[key];
-    const r = rate(key);
+    const r = info(key);
     const L = r.level ? LEVELS[r.level] : null;
     detail.innerHTML = "";
 
     detail.appendChild(bund(pest.thai));
 
-    // ── หัวการ์ด: ภาพ ระดับอันตราย และสิ่งที่ต้องทำก่อน ──
+    // ── หัวการ์ด: ระดับอันตรายและสิ่งที่ต้องทำก่อน ──
     const head = plot(null);
-    const row = el("div", "pest-head");
-    row.appendChild(artNode(key, pest));
-
-    const mid = el("div", "pest-head-mid");
-    mid.appendChild(levelBadge(key));
+    head.appendChild(levelBadge(key));
     const nm = el("div", "pest-name", pest.thai);
-    nm.style.cssText = "font-size:1.25rem;margin-top:7px";
-    mid.appendChild(nm);
-    if (pest.sci) mid.appendChild(el("div", "pest-sci", pest.sci));
+    nm.style.cssText = "font-size:1.3rem;margin-top:8px";
+    head.appendChild(nm);
+    if (pest.sci) head.appendChild(el("div", "pest-sci", pest.sci));
+
     if (L) {
       const act = el("div", "", "สิ่งที่ควรทำตอนนี้: " + L.act);
-      act.style.cssText = "margin-top:9px;font-weight:600;font-size:.9rem;color:var(--deep)";
-      mid.appendChild(act);
+      act.style.cssText = "margin-top:11px;font-weight:600;font-size:.93rem;color:var(--deep)";
+      head.appendChild(act);
     }
-    row.appendChild(mid);
-    head.appendChild(row);
 
     // เหตุผลของการจัดระดับ ต้องแสดงเสมอ ไม่ซ่อนไว้ในปุ่มขยาย
     // ผู้ใช้ควรตัดสินใจจากเหตุผล ไม่ใช่จากสีของป้าย
-    head.appendChild(el("div", "rx-sect", "ทำไมถึงจัดระดับนี้"));
-    head.appendChild(el("p", "", r.why));
-    head.querySelector("p").style.cssText = "margin:0;font-size:.88rem";
+    const whyHead = el("div", "rx-sect");
+    whyHead.appendChild(document.createTextNode("ทำไมถึงจัดระดับนี้"));
+    whyHead.appendChild(el("span", "pest-tagsrc", "ระบบประเมิน"));
+    head.appendChild(whyHead);
+    const whyP = el("p", "", r.why);
+    whyP.style.cssText = "margin:0;font-size:.88rem";
+    head.appendChild(whyP);
     detail.appendChild(head);
+
+    // ── ลักษณะที่ใช้ระบุตัว วางเป็นบล็อกแรก ──
+    //
+    // นี่คือสิ่งที่ผู้ใช้เปิดหน้ามาหาเป็นอันดับแรก คือ "ที่ฉันเห็นใช่ตัวนี้ไหม"
+    // ถ้าตอบคำถามนี้ไม่ได้ ข้อมูลวิธีจัดการทั้งหมดด้านล่างก็ไร้ประโยชน์
+    // เพราะเขาอาจกำลังอ่านวิธีจัดการของแมลงคนละตัวกับที่อยู่ในนา
+    if (r.look || pest.sign) {
+      detail.appendChild(bund("ลักษณะที่ใช้ระบุตัว"));
+      const lk = plot(null);
+
+      if (r.look) {
+        const box = el("div", "pest-look");
+        box.appendChild(el("p", "", r.look));
+        if (r.where) box.appendChild(el("p", "", "ตำแหน่งที่มักเจอ: " + r.where));
+        lk.appendChild(box);
+
+        lk.appendChild(el("div", "read-foot",
+          "คำบรรยายลักษณะส่วนนี้ระบบเขียนเสริมจากลักษณะทั่วไปของแมลงชนิดนี้ " +
+          "ไม่ได้อยู่ในเอกสารอ้างอิงต้นทาง ถ้าไม่ตรงกับที่พบในพื้นที่ของคุณ " +
+          "ให้ยึดคำยืนยันของเกษตรอำเภอเป็นหลัก"));
+      }
+
+      // sign มาจาก pest-guide.js จึงเป็นข้อมูลจากเอกสารอ้างอิงจริง
+      // แยกออกมาจากบล็อกด้านบนเพื่อไม่ให้ปนกับส่วนที่ระบบเขียนเอง
+      if (pest.sign) {
+        const sh = el("div", "rx-sect");
+        sh.appendChild(document.createTextNode("สัญญาณที่สังเกตได้ในแปลง"));
+        sh.appendChild(el("span", "pest-tagsrc", "จากเอกสารกรมการข้าว"));
+        lk.appendChild(sh);
+        const sp = el("p", "", pest.sign);
+        sp.style.cssText = "margin:0;font-size:.88rem";
+        lk.appendChild(sp);
+      }
+      detail.appendChild(lk);
+    }
 
     // ── ข้อมูลประกอบแบบย่อ ──
     const facts = [];
@@ -411,19 +395,20 @@ window.buildPestPage = function (root, ui) {
       detail.appendChild(fc);
     }
 
-    // ── วิธีสังเกตและวิธีจัดการ ──
+    // ── อาการและวิธีแก้ไข ──
     detail.appendChild(bund("อาการและวิธีแก้ไข"));
     const box = plot(null);
     let n = 0;
 
     if (pest.damage) {
+      // เปิดอันแรกไว้ ให้เห็นทันทีว่าตรงกับความเสียหายที่เจอในแปลงไหม
       box.appendChild(fold(++n, "ลักษณะการทำลายที่จะเห็น", null, (b) => {
         b.appendChild(el("p", "", pest.damage));
-        if (pest.sign) b.appendChild(el("div", "fold-note", "สัญญาณสังเกต: " + pest.sign));
-      }, true));   // เปิดอันแรกไว้ ให้เห็นทันทีว่าตรงกับที่เจอในแปลงไหม
+      }, true));
     }
 
     if (pest.manage && pest.manage.length) {
+      // เปิดไว้ด้วย เพราะนี่คือสิ่งที่ควรทำก่อนเสมอก่อนคิดถึงสารเคมี
       box.appendChild(fold(++n, "วิธีจัดการโดยไม่ใช้สารเคมี", "ทำได้ทันทีและไม่มีผลข้างเคียง", (b) => {
         const ul = el("ul");
         ul.style.cssText = "margin:0;padding-left:19px";
@@ -433,7 +418,7 @@ window.buildPestPage = function (root, ui) {
           ul.appendChild(li);
         });
         b.appendChild(ul);
-      }, true));   // เปิดไว้ด้วย เพราะนี่คือสิ่งที่ควรทำก่อนเสมอ
+      }, true));
     }
 
     if (pest.threshold) {
@@ -459,9 +444,10 @@ window.buildPestPage = function (root, ui) {
     }
 
     if (pest.avoid) {
+      // ตัวอันตรายสูงเปิดไว้เลย เพราะพลาดแล้วเสียหายหนักและแก้ไม่ทัน
       box.appendChild(fold(++n, "สารที่ห้ามใช้เด็ดขาด", "ความผิดพลาดที่ทำให้เสียหายหนักที่สุด", (b) => {
         b.appendChild(el("div", "flash flash-bad", pest.avoid));
-      }, r.level === "high"));   // ตัวอันตรายสูงเปิดไว้เลย เพราะพลาดแล้วเสียหายหนัก
+      }, r.level === "high"));
     }
 
     if (pest.bio) {
@@ -478,11 +464,12 @@ window.buildPestPage = function (root, ui) {
     const help = plot(null);
     help.style.marginTop = "13px";
     help.appendChild(el("div", "rx-sect", "ยังไม่แน่ใจว่าใช่ตัวนี้หรือไม่"));
-    help.appendChild(el("p", "",
-      "ไปที่หน้าคำแนะนำการดูแล แล้วพิมพ์บรรยายอาการที่เห็นในช่องถาม AI " +
-      "เช่น ข้าวอายุกี่วัน อาการอยู่ที่ใบ ยอด หรือรวง และเห็นตัวแมลงหรือไม่ " +
-      "ระบบจะช่วยเทียบกับแมลงทุกชนิดในฐานข้อมูลแล้วถามกลับเพื่อแยกให้ชัดขึ้น"));
-    help.querySelector("p").style.cssText = "margin:0;font-size:.88rem";
+    const hp = el("p", "",
+      "ไปที่หน้าคำแนะนำการดูแล แล้วพิมพ์บรรยายสิ่งที่เห็นในช่องถาม AI " +
+      "เช่น ข้าวอายุกี่วัน อาการอยู่ที่ใบ ยอด หรือรวง เห็นตัวแมลงไหม สีอะไร ขนาดเท่าไหร่ " +
+      "ระบบจะช่วยเทียบกับแมลงทุกชนิดในฐานข้อมูลแล้วถามกลับเพื่อแยกให้ชัดขึ้น");
+    hp.style.cssText = "margin:0;font-size:.88rem";
+    help.appendChild(hp);
     detail.appendChild(help);
   }
 
@@ -499,9 +486,9 @@ window.buildPestPage = function (root, ui) {
     });
     pc.appendChild(ul);
     pc.appendChild(more("ที่มาและข้อจำกัดของข้อมูลนี้",
-      "ข้อมูลอ้างอิงเอกสารความรู้ Rice Knowledge Bank กรมการข้าว " +
-      "การจัดระดับความอันตรายเป็นการประเมินของระบบจากความเสียหายที่เกิดได้จริง " +
-      "ไม่ใช่การจัดระดับอย่างเป็นทางการของหน่วยงานใด " +
+      "ข้อมูลการทำลาย วิธีจัดการ เกณฑ์ตัดสินใจ และสารเคมี อ้างอิงเอกสารความรู้ " +
+      "Rice Knowledge Bank กรมการข้าว ส่วนการจัดระดับความอันตรายและคำบรรยายลักษณะตัวแมลง " +
+      "เป็นส่วนที่ระบบเขียนเสริมเพื่อให้ใช้งานง่ายขึ้น ไม่ใช่การจัดระดับอย่างเป็นทางการของหน่วยงานใด " +
       "ความรุนแรงจริงขึ้นกับอายุข้าว พันธุ์ที่ปลูก และสภาพแปลงของแต่ละพื้นที่ " +
       "ก่อนใช้สารเคมีทุกครั้งควรปรึกษาเกษตรอำเภอ หมอดินอาสา หรือศูนย์วิจัยข้าวในพื้นที่"));
     root.appendChild(pc);
@@ -514,13 +501,13 @@ window.buildPestPage = function (root, ui) {
    วิธีเชื่อมกับ index.html — แก้ 3 จุด
 
    จุดที่ 1  ใต้บรรทัด <script src="pest-guide.js?v=12"></script> เพิ่ม
-       <script src="pest-page.js?v=1"></script>
+       <script src="pest-page.js?v=2"></script>
 
-   จุดที่ 2  ในตัวแปร PAGES เพิ่มรายการนี้ต่อจากบรรทัดของ diagnose
+   จุดที่ 2  ในตัวแปร PAGES เพิ่มรายการนี้ต่อจากบล็อกของ diagnose
        { id: "pest", label: "แมลงศัตรูข้าว", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
          icon: "M12 4v5m0 0a4 4 0 00-4 4v3a4 4 0 008 0v-3a4 4 0 00-4-4zm-4 5L4 7m4 6H4m4 4l-4 2m12-12l4-2m-4 6h4m-4 4l4 2" },
 
-   จุดที่ 3  ต่อท้ายบรรทัด views.diagnose = ... (ก่อน views.survey) เพิ่ม
+   จุดที่ 3  ก่อนบรรทัด views.survey = async function (root) { เพิ่ม
        views.pest = function (root) {
          if (typeof window.buildPestPage !== "function") {
            root.appendChild(stateBlock("!", "ยังโหลดหน้าแมลงไม่ได้",
