@@ -4467,9 +4467,73 @@ views.fert = async function (root) {
       var raiIn = el("input");
       raiIn.className = "num-in";
       raiIn.inputMode = "decimal";
-      raiIn.placeholder = "เช่น 12.5";
+      raiIn.placeholder = "1";
+
+      // เติมขนาดแปลงจากที่บันทึกไว้ในหน้าที่นาของฉัน
+      // ผู้ใช้กรอกพื้นที่ไว้แล้วครั้งหนึ่ง ไม่ควรต้องจำแล้วพิมพ์ซ้ำทุกหน้า
+      // และการพิมพ์ซ้ำเปิดโอกาสให้พิมพ์ผิดจนได้ปริมาณปุ๋ยคลาดเคลื่อน
+      // ตั้งต้นที่ 1 ไร่เสมอ ไม่เติมขนาดแปลงให้อัตโนมัติ
+      //
+      // เหตุผล: ที่ 1 ไร่ ตัวเลขที่เห็นคืออัตราต่อไร่ตรงๆ ผู้ใช้จึงอ่านออกทันที
+      // ว่าปุ๋ยชนิดนี้ใช้เท่าไหร่ต่อไร่ แล้วคูณเองได้ตามพื้นที่ที่จะใส่จริง
+      //
+      // การเติมขนาดทั้งแปลงให้เลยทำให้เห็นแต่ยอดรวมก้อนใหญ่ ซึ่งเทียบระหว่าง
+      // ปุ๋ยแต่ละชนิดยากกว่า และถ้าผู้ใช้ใส่แค่บางส่วนของแปลงก็ต้องมาลบออกเอง
+      // ปุ่มด้านล่างยังกดดึงขนาดจริงได้ทันทีเมื่อต้องการยอดรวม
+      var deed = readDeed();
       raiIn.value = "1";
       f1.appendChild(raiIn);
+
+      var areaBtns = el("div");
+      areaBtns.style.cssText = "display:flex;gap:7px;flex-wrap:wrap;margin-top:7px";
+
+      if (deed) {
+        var useDeed = el("button", "act act-line act-sm",
+          "ใช้ขนาดจากโฉนด (" + (Math.round(deed.rai * 100) / 100) + " ไร่)");
+        useDeed.onclick = function () {
+          raiIn.value = Math.round(deed.rai * 100) / 100;
+          recalc();
+        };
+        areaBtns.appendChild(useDeed);
+      }
+
+      // พื้นที่ที่เดินวัดด้วย GPS ต่างจากโฉนด เพราะโฉนดรวมคันนา ทางเดิน บ่อน้ำ
+      // และส่วนที่ไม่ได้ปลูกเข้าไปด้วย การคิดปุ๋ยจากโฉนดจึงมักได้มากเกินจริง
+      // ซึ่งนอกจากเปลืองเงินแล้ว ไนโตรเจนที่เกินยังทำให้ต้นอวบและเสี่ยงโรคไหม้
+      var fldForArea = readField();
+      var measuredRai = null;
+      if (fldForArea) {
+        if (fldForArea.mode === "poly" && fldForArea.points && fldForArea.points.length >= 3) {
+          measuredRai = polygonArea(fldForArea.points) / 1600;
+        } else if (fldForArea.lat != null && fldForArea.radius) {
+          measuredRai = (Math.PI * fldForArea.radius * fldForArea.radius) / 1600;
+        }
+      }
+      if (measuredRai && measuredRai > 0) {
+        var useMeasured = el("button", "act act-line act-sm",
+          "ใช้พื้นที่ที่เดินวัด (" + measuredRai.toFixed(2) + " ไร่)");
+        useMeasured.onclick = function () {
+          raiIn.value = measuredRai.toFixed(2);
+          recalc();
+        };
+        areaBtns.appendChild(useMeasured);
+      }
+
+      if (areaBtns.children.length) f1.appendChild(areaBtns);
+
+      var areaFoot = el("div", "read-foot",
+        "ตั้งต้นที่ 1 ไร่ ตัวเลขที่ได้จึงเป็นอัตราต่อไร่ กดปุ่มด้านบนเพื่อคิดทั้งแปลง");
+      areaFoot.style.marginTop = "6px";
+
+      if (deed && measuredRai && measuredRai > 0) {
+        var gap = Math.abs(measuredRai - deed.rai);
+        var gapPct = deed.rai > 0 ? (gap / deed.rai) * 100 : 0;
+        if (gapPct >= 10) {
+          areaFoot.textContent += " · โฉนดกับพื้นที่ที่เดินวัดต่างกัน " + gap.toFixed(2) +
+            " ไร่ โฉนดมักรวมคันนาและส่วนที่ไม่ได้ปลูกไว้ด้วย";
+        }
+      }
+      f1.appendChild(areaFoot);
       inRow.appendChild(f1);
 
       var dateIn = null;
@@ -4481,6 +4545,72 @@ views.fert = async function (root) {
         dateIn.type = "date";
         f2.appendChild(dateIn);
         inRow.appendChild(f2);
+      }
+
+      // ── ตัวเลือกเฉพาะปุ๋ยเคมี ──
+      //
+      // ปุ๋ยเคมีต่างจากปุ๋ยหมักและปุ๋ยพืชสดตรงที่ไม่มีอัตราเดียวใช้ได้ทุกกรณี
+      // ตัวแปรสามตัวเปลี่ยนคำตอบ คือพันธุ์ข้าว สูตรที่เลือก และชนิดดิน
+      // ครั้งที่ 1 ต่างกัน 20-25 กับ 30-35 กก./ไร่ ตามความไวต่อช่วงแสง
+      // ครั้งที่ 2 ต่างกันถึงเท่าตัว คือ 10 กับ 20 กก./ไร่
+      // ถ้าให้อัตราเดียวกับทุกคนจะผิดทันทีกับผู้ใช้ครึ่งหนึ่ง
+      var formulaIn = null, soilIn = null;
+      if (t.calc.mode === "chem") {
+        var f3 = el("div", "inp");
+        f3.style.cssText = "flex:1;min-width:150px";
+        f3.appendChild(el("label", "", "สูตรปุ๋ยครั้งที่ 1"));
+        formulaIn = el("select");
+        t.calc.formulas.forEach(function (code) {
+          var o = el("option", "", code);
+          o.value = code;
+          formulaIn.appendChild(o);
+        });
+        f3.appendChild(formulaIn);
+        inRow.appendChild(f3);
+
+        var f4 = el("div", "inp");
+        f4.style.cssText = "flex:1;min-width:150px";
+        f4.appendChild(el("label", "", "ชนิดดิน"));
+        soilIn = el("select");
+        [["clay", "ดินเหนียว"], ["loam", "ดินร่วน"], ["sand", "ดินทราย / ร่วนทราย"]].forEach(function (s) {
+          var o = el("option", "", s[1]);
+          o.value = s[0];
+          soilIn.appendChild(o);
+        });
+
+        // ดึงชนิดดินที่ผู้ใช้เลือกไว้ในหน้าเตรียมดิน จะได้ไม่ต้องตอบซ้ำ
+        var soilPicked = null;
+        try {
+          var soilKey = "smartrice-soil:" + (Session.user ? Session.user.username : "guest");
+          var soilSaved = JSON.parse(localStorage.getItem(soilKey) || "{}");
+          if (soilSaved.soil) { soilIn.value = soilSaved.soil; soilPicked = soilSaved.soil; }
+        } catch (e) { /* ไม่มีค่าเดิมก็ใช้ค่าตั้งต้น */ }
+
+        f4.appendChild(soilIn);
+        inRow.appendChild(f4);
+
+        // เลือกสูตรตั้งต้นให้ตรงกับชนิดดิน แทนที่จะให้ตัวแรกในรายการเสมอ
+        //
+        // ดินทรายอุ้มโพแทสเซียมไม่อยู่ ถ้าเลือกสูตรที่ลงท้ายด้วยศูนย์
+        // ต้องไปซื้อ 0-0-60 มาผสมเองอีกกระสอบ ซึ่งเป็นขั้นตอนที่คนมักข้าม
+        // สูตรที่มีโพแทสเซียมมาแล้วอย่าง 16-16-8 จบในกระสอบเดียว
+        //
+        // ส่วนดินเหนียวมีโพแทสเซียมพออยู่แล้ว การจ่ายเงินซื้อสูตรที่มีโพแทสเซียม
+        // คือจ่ายค่าธาตุที่ดินมีอยู่แล้ว สูตร 16-20-0 จึงคุ้มกว่า
+        //
+        // เป็นแค่ค่าตั้งต้น ผู้ใช้เปลี่ยนได้ตลอด ระบบไม่ได้บังคับ
+        if (soilPicked === "sand") {
+          for (var fi = 0; fi < formulaIn.options.length; fi++) {
+            if (formulaIn.options[fi].value === "16-16-8") { formulaIn.value = "16-16-8"; break; }
+          }
+        }
+
+        var pickFoot = el("div", "read-foot",
+          soilPicked === "sand"
+            ? "เลือก 16-16-8 ให้แล้วเพราะดินทรายต้องการโพแทสเซียม สูตรนี้มีมาให้ในกระสอบเดียว ไม่ต้องซื้อ 0-0-60 แยก"
+            : "ดินของคุณมักมีโพแทสเซียมพออยู่แล้ว สูตรที่ลงท้ายด้วย 0 จึงคุ้มกว่า เพราะไม่ต้องจ่ายค่าธาตุที่ดินมีอยู่");
+        pickFoot.style.cssText = "flex-basis:100%;margin-top:2px";
+        inRow.appendChild(pickFoot);
       }
       calcCard.appendChild(inRow);
 
@@ -4503,7 +4633,65 @@ views.fert = async function (root) {
         var grid = el("div");
         grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px";
 
-        if (t.calc.perRai != null) {
+        // ── ปุ๋ยเคมี ──
+        //
+        // ใช้พันธุ์ข้าวของแปลงที่บันทึกไว้ ไม่ให้เลือกซ้ำในหน้านี้
+        // เพราะพันธุ์เป็นคุณสมบัติของแปลง ไม่ใช่ตัวเลือกของการคำนวณ
+        // และผู้ใช้จำนวนมากไม่รู้ว่าข้าวตัวเองไวต่อช่วงแสงหรือไม่
+        // การให้เลือกเองที่นี่เสี่ยงเลือกผิดจนปุ๋ยครั้งที่ 2 คลาดไปเท่าตัว
+        if (t.calc.mode === "chem") {
+          var isPhoto = fieldVariety() !== "nonphoto";
+          var vKey = isPhoto ? "sensitive" : "nonsensitive";
+          var first = t.calc.first[vKey];
+          var second = t.calc.second[vKey];
+          var bagKg = t.calc.bagKg || 50;
+          var formula = formulaIn.value;
+
+          function bags(kg) { return Math.ceil(kg / bagKg); }
+
+          grid.appendChild(readOut("ครั้งที่ 1 · " + formula,
+            fmt(rai * first.min) + "-" + fmt(rai * first.max) + " กก.",
+            first.min + "-" + first.max + " กก./ไร่ · " + bags(rai * first.min) + "-" + bags(rai * first.max) + " กระสอบ"));
+
+          // เสริมโพแทสเซียมต้องเข้าเงื่อนไขครบสองข้อ ไม่ใช่ดูชนิดดินอย่างเดียว
+          // ตัวเลขตัวท้ายของสูตรคือโพแทสเซียม ถ้าไม่เป็นศูนย์แปลว่ามีมาให้แล้ว
+          // การเสริม 0-0-60 ซ้ำจะได้เกินความต้องการเกินเท่าตัวโดยไม่ได้ผลผลิตเพิ่ม
+          var kInFormula = parseFloat(String(formula).split("-")[2]);
+          var hasK = !(kInFormula === 0);
+          var sandy = soilIn.value === "sand";
+
+          if (hasK) {
+            grid.appendChild(readOut("เสริมโพแทสเซียม", "ไม่ต้องเสริม",
+              "สูตร " + formula + " มีโพแทสเซียมอยู่แล้ว เสริมซ้ำจะเกินเท่าตัว"));
+          } else if (!sandy) {
+            grid.appendChild(readOut("เสริมโพแทสเซียม", "ไม่ต้องเสริม",
+              "ดินเหนียวและดินร่วนมักมีโพแทสเซียมเพียงพออยู่แล้ว"));
+          } else {
+            grid.appendChild(readOut("เสริม 0-0-60",
+              fmt(rai * t.calc.potash.min) + "-" + fmt(rai * t.calc.potash.max) + " กก.",
+              t.calc.potash.min + "-" + t.calc.potash.max + " กก./ไร่ · ใส่พร้อมครั้งที่ 1"));
+          }
+
+          grid.appendChild(readOut("ครั้งที่ 2 · ยูเรีย 46-0-0",
+            fmt(rai * second.urea) + " กก.",
+            second.urea + " กก./ไร่ · " + bags(rai * second.urea) + " กระสอบ"));
+
+          outHost.appendChild(grid);
+
+          var chemNote = el("div");
+          chemNote.style.marginTop = "16px";
+          chemNote.appendChild(el("div", "rx-sect", "จังหวะที่ต้องใส่"));
+          chemNote.appendChild(el("p", "", "ครั้งที่ 1 — " + t.calc.first.timing));
+          chemNote.appendChild(el("p", "", "ครั้งที่ 2 — " + second.timing));
+          chemNote.appendChild(el("div", "read-foot", t.calc.second.check));
+          outHost.appendChild(chemNote);
+
+          outHost.appendChild(el("div", "flash flash-warn",
+            "คำนวณจากพันธุ์ที่บันทึกไว้ในแปลง คือ" +
+            (isPhoto ? "ข้าวไวต่อช่วงแสง เช่น ขาวดอกมะลิ 105 กข6" : "ข้าวไม่ไวต่อช่วงแสง เช่น พันธุ์นาปรัง") +
+            " ถ้าไม่ตรงให้แก้ที่หน้าที่นาของฉันก่อน เพราะปุ๋ยครั้งที่ 2 ของสองกลุ่มต่างกันเท่าตัว"));
+
+        } else if (t.calc.perRai != null) {
           var total = rai * t.calc.perRai;
           grid.appendChild(readOut("ปุ๋ยหมักที่ต้องใช้", fmt(total) + " " + t.calc.unit, t.calc.perRaiText));
           var piles = Math.ceil(total);
