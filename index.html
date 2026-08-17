@@ -1108,6 +1108,8 @@ var PAGES = [
     icon: "M3 17h18M5 17V9m5 8V6m5 11v-7m5 7v-4" },
   { id: "fert",     label: "ปุ๋ยและการบำรุง", kicker: "ก่อนปลูก", group: "1 · ก่อนปลูก",
     icon: "M12 21c-4-3-6-6-6-9a6 6 0 0112 0c0 3-2 6-6 9zm0-12v3m-2-1h4" },
+  { id: "shop",     label: "ร้านค้า",        kicker: "ก่อนปลูก", group: "1 · ก่อนปลูก",
+    icon: "M4 8h16l-1 11a2 2 0 01-2 2H7a2 2 0 01-2-2zm4 0V6a4 4 0 018 0v2" },
 
   // ── ช่วงที่ 2 ดูแลระหว่างปลูก ──
   { id: "consult",  label: "คำแนะนำการดูแล", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
@@ -4152,8 +4154,23 @@ views.soil = async function (root) {
   // วางไว้ต่อจากการแปลผล pH ทันที เพราะเป็นคำถามถัดไปที่ผู้ใช้จะถามเสมอ
   // ถ้าบอกว่า "ดินเปรี้ยวจัด" แล้วไม่บอกวิธีแก้ ผู้ใช้จะไปหาข้อมูลที่อื่นแทน
   if (G.problems) {
-    root.appendChild(bund("วิธีแก้ปัญหาดิน"));
-    var probCard = plot(null, "ไม่แน่ใจว่าเป็นปัญหาไหน ให้ดูจากอาการที่เห็นในแปลง");
+    // แสดงเฉพาะปัญหาที่ค่า pH บอกได้จริง คือดินเปรี้ยวกับดินด่าง
+    //
+    // pH วัดได้แค่ความเป็นกรดกับด่างเท่านั้น
+    // ดินเค็มต้องวัดค่าการนำไฟฟ้า ดินทรายดูจากเนื้อดิน ดินดานต้องขุดดู
+    // สามอย่างนั้นค่า pH บอกไม่ได้เลย
+    //
+    // เดิมแสดงทั้ง 5 ปัญหาต่อจากผลวัด pH ทันที ซึ่งทำให้เข้าใจผิดว่า
+    // ค่าที่วัดได้บอกได้ทุกปัญหา ผู้ใช้อาจเลือกดินเค็มทั้งที่ pH ไม่ได้ชี้ไปทางนั้น
+    // แล้วไปแก้ผิดเรื่อง ซึ่งเสียทั้งเงินและฤดู
+    //
+    // ดินเค็ม ดินทราย ดินดาน จึงไม่แสดงในหน้านี้
+    // ข้อมูลยังอยู่ครบใน soil-guide.js ถ้าวันหลังมีวิธีวัดที่เหมาะสมค่อยนำกลับมา
+    var PH_PROBLEMS = ["acid", "alkaline"];
+    var phKeys = PH_PROBLEMS.filter(function (k) { return G.problems[k]; });
+
+    root.appendChild(bund("วิธีแก้ปัญหาดินจากค่า pH"));
+    var probCard = plot(null, "สองปัญหานี้ดูจากค่า pH ที่วัดได้โดยตรง");
     var probBody = el("div");
 
     // ถ้ามีค่า pH แล้วและอยู่ในเกณฑ์ที่มีปัญหา ให้เปิดหัวข้อนั้นไว้เลย
@@ -4161,18 +4178,18 @@ views.soil = async function (root) {
     var openKey = null;
     if (phs.length) {
       var b0 = window.readSoilPh(phs[0].ph);
-      if (b0 && b0.problem) openKey = b0.problem;
+      if (b0 && b0.problem && phKeys.indexOf(b0.problem) !== -1) openKey = b0.problem;
     }
-    if (!openKey) openKey = Object.keys(G.problems)[0];
+    if (!openKey) openKey = phKeys[0];
 
     function paintProblems() {
       probCard.innerHTML = "";
       probCard.appendChild(el("div", "plot-note",
-        "เลือกปัญหาที่ตรงกับแปลงของคุณ ถ้าไม่แน่ใจให้ดูจากอาการที่สังเกตได้"));
+        "ค่า pH บอกได้แค่ว่าดินเปรี้ยวหรือด่าง เลือกอันที่ตรงกับค่าที่วัดได้"));
 
       var row = el("div");
       row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-top:11px";
-      Object.keys(G.problems).forEach(function (k) {
+      phKeys.forEach(function (k) {
         var b = el("button", "act act-sm " + (k === openKey ? "act-go" : "act-line"), G.problems[k].thai);
         b.onclick = function () { openKey = k; paintProblems(); };
         row.appendChild(b);
@@ -4203,6 +4220,7 @@ views.soil = async function (root) {
     root.appendChild(probCard);
     root.appendChild(probBody);
     paintProblems();
+
   }
 
   // ══ ตัวเลือกบริบทแปลง ══
@@ -5158,6 +5176,385 @@ views.fert = async function (root) {
   root.appendChild(body);
   repaint();
 };
+
+// ─── หน้าร้านค้า ───────────────────────────────
+//
+// เป็นตารางราคาอ้างอิงสำหรับวางแผนซื้อของ ไม่ใช่ร้านที่ขายจริง
+// ระบบไม่ได้ขายอะไรและไม่ได้เชื่อมกับร้านค้าใด
+//
+// ── หลักที่ยึดในหน้านี้ ──
+//
+// แสดงเฉพาะราคาที่มีแหล่งอ้างอิงจริงในระบบ ไม่แต่งตัวเลขขึ้นเอง
+// ราคาปุ๋ยเคมีกับราคาข้าวเปลือกมาจาก cost-guide.js ซึ่งอ้างอิงสำนักงานเศรษฐกิจการเกษตร
+// ส่วนของอย่างอื่น เช่นเมล็ดพันธุ์ ปูน ยา อุปกรณ์ ระบบยังไม่มีราคาอ้างอิง
+// จึงเปิดให้ผู้ใช้จดราคาที่เจอในร้านแถวบ้านเอง แล้วเก็บไว้เทียบครั้งหน้า
+//
+// การเดาราคาให้เกษตรกรใช้วางแผนเงินเป็นความเสียหายที่ป้องกันได้ด้วยการไม่เดา
+// ราคาที่ผิดไม่กี่บาทต่อกระสอบ เมื่อคูณสิบกระสอบก็กลายเป็นเงินหลักพัน
+views.shop = async function (root) {
+  var C = window.COST_GUIDE;
+
+  // ── รูปประกอบ ──
+  //
+  // วาดเป็น SVG ในโค้ดแทนการใช้ภาพถ่ายสินค้า
+  // เพราะภาพถ่ายกระสอบปุ๋ยยี่ห้อใดยี่ห้อหนึ่งจะกลายเป็นการเชียร์ยี่ห้อนั้นโดยไม่ตั้งใจ
+  // และภาพจากเน็ตมีเรื่องลิขสิทธิ์ ส่วน SVG โหลดเร็วและใช้ได้ตอนเน็ตช้าในนา
+  function pic(kind) {
+    var art = {
+      bag:   { d: "M7 8h10l1.5 12H5.5zM9 8V6a3 3 0 016 0v2M9 13h6", c: "var(--blade)" },
+      grain: { d: "M12 4c3 3 4 6 4 9a4 4 0 01-8 0c0-3 1-6 4-9zm0 5v8", c: "var(--grain)" },
+      seed:  { d: "M12 20c-4 0-7-3-7-7s3-9 7-9 7 5 7 9-3 7-7 7zm0-13v13", c: "var(--blade)" },
+      tool:  { d: "M14 4l6 6-3 3-6-6zM11 7L4 14v6h6l7-7", c: "var(--ink-soft)" },
+      lime:  { d: "M5 18h14l-2-9H7zM9 9V7a3 3 0 016 0v2", c: "var(--ink-soft)" }
+    };
+    var a = art[kind] || art.bag;
+    var wrap = el("div");
+    wrap.style.cssText = "width:46px;height:46px;flex:none;border-radius:var(--r-sm);" +
+      "background:var(--paper-up);display:flex;align-items:center;justify-content:center";
+    wrap.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" ' +
+      'stroke="' + a.c + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="' + a.d + '"/></svg>';
+    return wrap;
+  }
+
+  function priceRow(kind, name, sub, priceText, unitText) {
+    var row = el("div");
+    row.style.cssText = "display:flex;gap:13px;align-items:center;padding:11px 0;" +
+      "border-bottom:1px solid var(--rule-soft)";
+    row.appendChild(pic(kind));
+
+    var mid = el("div");
+    mid.style.cssText = "flex:1;min-width:0";
+    mid.appendChild(el("div", "", name));
+    if (sub) mid.appendChild(el("div", "read-foot", sub));
+    row.appendChild(mid);
+
+    var right = el("div");
+    right.style.cssText = "text-align:right;flex:none";
+    right.appendChild(el("div", "num", priceText));
+    if (unitText) right.appendChild(el("div", "read-foot", unitText));
+    row.appendChild(right);
+    return row;
+  }
+
+  function baht(n) { return Math.round(n).toLocaleString("th-TH"); }
+
+  root.appendChild(el("div", "flash flash-warn",
+    "หน้านี้เป็นตารางราคาไว้ดูก่อนไปซื้อของ ระบบไม่ได้ขายสินค้าและไม่ได้ติดต่อกับร้านไหน " +
+    "ราคาจริงแต่ละร้านไม่เท่ากัน ถามร้านแถวบ้านอีกทีก่อนตัดสินใจ"));
+
+  if (!C) {
+    root.appendChild(stateBlock("!", "ไม่พบไฟล์ฐานข้อมูล",
+      "ไฟล์ cost-guide.js ยังไม่ได้อัปโหลด จึงยังไม่มีราคาอ้างอิงมาแสดง"));
+    return;
+  }
+
+  // ══ ปุ๋ยเคมี ══
+  if (C.fertPrices && C.fertPrices.items) {
+    root.appendChild(bund("ปุ๋ยเคมี"));
+    var fCard = plot(null, C.fertPrices.unit || "");
+    C.fertPrices.items.forEach(function (x) {
+      fCard.appendChild(priceRow("bag", x.formula, x.name,
+        x.low === x.high ? baht(x.low) : baht(x.low) + "-" + baht(x.high), "บาท"));
+    });
+    fCard.appendChild(el("div", "read-foot", C.fertPrices.asOf + " · " + C.fertPrices.note));
+    root.appendChild(fCard);
+  }
+
+  // ══ ราคาข้าวเปลือกวันนี้ จากกระทรวงพาณิชย์ ══
+  //
+  // ดึงจาก API เปิดของกรมการค้าภายใน กระทรวงพาณิชย์ ซึ่งเก็บราคารายวัน
+  // https://dataapi.moc.go.th/gis-product-price
+  //
+  // เป็นราคาจริงที่สำรวจจากตลาด ไม่ใช่ค่าตั้งต้นที่ฝังไว้ในไฟล์
+  // จึงแม่นกว่าตัวเลขในหัวข้อถัดไปมาก ควรดูอันนี้ก่อนตัดสินใจขาย
+  //
+  // ── เรื่อง CORS ──
+  // เบราว์เซอร์อาจบล็อกการเรียกข้ามโดเมนไปที่ moc.go.th โดยตรง
+  // จึงลองผ่าน Worker ของแอปก่อน ถ้าไม่มี endpoint นั้นค่อยยิงตรง
+  // ถ้าทั้งสองทางไม่ผ่าน จะบอกผู้ใช้ตรงๆ พร้อมลิงก์ให้ไปดูเองที่เว็บกรม
+  var RICE_CODES = [
+    { id: "R11055", name: "ข้าวเปลือกหอมมะลิ" },
+    { id: "R11056", name: "ข้าวเปลือกหอมมะลินอกพื้นที่" },
+    { id: "R11057", name: "ข้าวเปลือกเจ้า" },
+    { id: "R11058", name: "ข้าวเปลือกปทุมธานี" },
+    { id: "R11059", name: "ข้าวเปลือกเหนียวเมล็ดยาว" }
+  ];
+
+  root.appendChild(bund("ราคาข้าวเปลือกล่าสุด"));
+  var liveCard = plot(null, "ราคาสำรวจจริงจากกรมการค้าภายใน กระทรวงพาณิชย์");
+  var liveBtn = el("button", "act act-go act-wide", "ดึงราคาล่าสุด");
+  var liveOut = el("div");
+  liveOut.style.marginTop = "13px";
+  liveCard.appendChild(liveBtn);
+  liveCard.appendChild(liveOut);
+  liveCard.appendChild(el("div", "read-foot",
+    "ข้อมูลจาก data.moc.go.th อัปเดตรายวัน เป็นราคาที่สำรวจจากตลาดจริง " +
+    "ถ้าดึงไม่ได้ให้เปิดดูเองที่เว็บกรมการค้าภายใน"));
+  root.appendChild(liveCard);
+
+  function ymd(d) {
+    return d.getFullYear() + "-" +
+      String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      String(d.getDate()).padStart(2, "0");
+  }
+
+  async function fetchOne(code) {
+    // ย้อนหลัง 14 วัน เพราะบางสินค้าไม่ได้สำรวจทุกวัน
+    // ถ้าขอแค่วันนี้แล้วไม่มีข้อมูล จะดูเหมือนระบบพังทั้งที่แค่ยังไม่ถึงรอบสำรวจ
+    var to = new Date();
+    var from = new Date();
+    from.setDate(from.getDate() - 14);
+    var qs = "product_id=" + code.id + "&from_date=" + ymd(from) + "&to_date=" + ymd(to);
+
+    // ลองผ่าน Worker ของแอปก่อน เผื่อเจ้าของแอปทำ endpoint กันชนไว้แล้ว
+    try {
+      var viaWorker = await fetch(API_BASE + "/moc-price?" + qs);
+      if (viaWorker.ok) return await viaWorker.json();
+    } catch (e) { /* ไม่มี endpoint ก็ไม่เป็นไร ลองทางตรงต่อ */ }
+
+    var direct = await fetch("https://dataapi.moc.go.th/gis-product-price?" + qs);
+    if (!direct.ok) throw new Error("HTTP " + direct.status);
+    return await direct.json();
+  }
+
+  liveBtn.onclick = async function () {
+    liveBtn.disabled = true;
+    liveBtn.textContent = "กำลังดึงราคา";
+    liveOut.innerHTML = "";
+
+    var got = 0, failed = 0;
+    var box = el("div");
+
+    for (var i = 0; i < RICE_CODES.length; i++) {
+      var code = RICE_CODES[i];
+      try {
+        var data = await fetchOne(code);
+        var list = (data && data.price_list) || [];
+        if (!list.length) { failed++; continue; }
+
+        // เอารายการล่าสุด ซึ่งอาจไม่ใช่วันนี้ถ้ายังไม่ถึงรอบสำรวจ
+        // ต้องแสดงวันที่กำกับเสมอ ไม่งั้นผู้ใช้จะคิดว่าเป็นราคาวันนี้ทั้งที่เป็นของสัปดาห์ก่อน
+        var latest = list[list.length - 1];
+        var lo = latest.price_min, hi = latest.price_max;
+        box.appendChild(priceRow("grain", code.name,
+          "สำรวจเมื่อ " + latest.date + (data.unit ? " · " + data.unit : ""),
+          lo === hi ? baht(lo) : baht(lo) + "-" + baht(hi), "บาท"));
+        got++;
+      } catch (err) {
+        failed++;
+      }
+    }
+
+    if (got) {
+      liveOut.appendChild(box);
+      if (failed) {
+        liveOut.appendChild(el("div", "read-foot",
+          "ดึงได้ " + got + " รายการ อีก " + failed + " รายการยังไม่มีข้อมูลในช่วง 14 วันที่ผ่านมา"));
+      }
+    } else {
+      // บอกสาเหตุที่เป็นไปได้ตรงๆ ไม่ใช่แค่ "เกิดข้อผิดพลาด" ซึ่งผู้ใช้ทำอะไรต่อไม่ได้
+      liveOut.appendChild(el("div", "flash flash-warn",
+        "ดึงราคาไม่สำเร็จ อาจเป็นเพราะเน็ตไม่ถึง หรือเบราว์เซอร์บล็อกการเรียกข้ามเว็บ " +
+        "เปิดดูเองได้ที่ data.moc.go.th หัวข้อข้อมูลราคาสินค้าเกษตร"));
+      var lnk = el("a", "", "เปิดเว็บกรมการค้าภายใน");
+      lnk.href = "https://data.moc.go.th/OpenData/GISProductPrice";
+      lnk.target = "_blank";
+      lnk.rel = "noopener";
+      lnk.style.cssText = "display:inline-block;margin-top:9px;font-size:.87rem";
+      liveOut.appendChild(lnk);
+    }
+
+    liveBtn.disabled = false;
+    liveBtn.textContent = "ดึงราคาล่าสุดอีกครั้ง";
+  };
+
+  // ══ ราคาข้าวเปลือก (ค่าตั้งต้นในระบบ) ══
+  //
+  // ใส่ไว้เพราะคนที่มาดูราคาปุ๋ยมักอยากรู้ด้วยว่าขายข้าวได้เท่าไหร่
+  // การเห็นสองอย่างคู่กันช่วยให้ตัดสินใจได้ว่าลงทุนปุ๋ยเพิ่มแล้วคุ้มไหม
+  if (C.varieties && C.varieties.length) {
+    root.appendChild(bund("ราคาข้าวเปลือกที่ใช้ในระบบ"));
+    var vCard = plot(null, "ค่าตั้งต้นสำหรับคำนวณกำไร ไม่ใช่ราคาวันนี้");
+    C.varieties.forEach(function (v) {
+      vCard.appendChild(priceRow("grain", v.thai,
+        "ผลผลิตเฉลี่ย " + v.yieldPerRai + " กก./ไร่",
+        baht(v.price), "บาท/กก."));
+    });
+    vCard.appendChild(el("div", "read-foot",
+      "ข้อมูล " + C.asOf + " · ราคาข้าวขึ้นลงทุกสัปดาห์ ถามโรงสีในพื้นที่ก่อนตัดสินใจขาย"));
+    root.appendChild(vCard);
+  }
+
+  // ══ ค่าใช้จ่ายอื่นต่อไร่ ══
+  if (C.costItems && C.costItems.length) {
+    root.appendChild(bund("ค่าใช้จ่ายอื่นต่อไร่"));
+    var cCard = plot(null, "ค่ากลางที่ใช้เป็นตัวตั้งต้นในหน้าต้นทุนและกำไร");
+    C.costItems.forEach(function (it) {
+      var row = el("div");
+      row.style.cssText = "display:flex;gap:13px;align-items:center;padding:11px 0;" +
+        "border-bottom:1px solid var(--rule-soft)";
+      row.appendChild(pic("tool"));
+
+      var mid = el("div");
+      mid.style.cssText = "flex:1;min-width:0";
+      var nm = el("div");
+      nm.style.cssText = "display:flex;align-items:center;gap:7px;flex-wrap:wrap";
+      nm.appendChild(document.createTextNode(it.name));
+      // บอกให้ชัดว่าตัวไหนมีแหล่งอ้างอิงตรง ตัวไหนเป็นค่าประมาณ
+      // ถ้าแสดงเหมือนกันหมด ผู้ใช้จะเข้าใจว่าทุกตัวเลขแม่นเท่ากัน
+      nm.appendChild(el("span", it.cited ? "tag-yes" : "tag-wait", it.cited ? "มีอ้างอิง" : "ค่าประมาณ"));
+      mid.appendChild(nm);
+      if (it.note) mid.appendChild(el("div", "read-foot", it.note));
+      row.appendChild(mid);
+
+      var right = el("div");
+      right.style.cssText = "text-align:right;flex:none";
+      right.appendChild(el("div", "num", baht(it.perRai)));
+      right.appendChild(el("div", "read-foot", "บาท/ไร่"));
+      row.appendChild(right);
+      cCard.appendChild(row);
+    });
+    root.appendChild(cCard);
+  }
+
+  // ══ ราคาที่จดเอง ══
+  //
+  // ของหลายอย่างที่ต้องซื้อจริง เช่นเมล็ดพันธุ์ ปูน ยา อุปกรณ์
+  // ระบบไม่มีราคาอ้างอิง เพราะไม่มีแหล่งข้อมูลกลางที่เชื่อถือได้และอัปเดตทัน
+  //
+  // แทนที่จะเดาให้ เปิดช่องให้จดเองแล้วเก็บไว้ ประโยชน์คือครั้งหน้าจะได้เทียบว่า
+  // ราคาขึ้นหรือลง และเทียบระหว่างร้านได้ ซึ่งเป็นสิ่งที่ตัวเลขกลางทำให้ไม่ได้อยู่แล้ว
+  root.appendChild(bund("ราคาที่คุณจดไว้เอง"));
+  var myKey = "smartrice-shop:" + (Session.user ? Session.user.username : "guest");
+  var myList = [];
+  try { myList = JSON.parse(localStorage.getItem(myKey) || "[]"); } catch (e) { myList = []; }
+
+  var myCard = plot(null, "จดราคาที่เจอในร้านแถวบ้าน เก็บไว้เทียบครั้งหน้า");
+  var myHost = el("div");
+  myCard.appendChild(myHost);
+
+  function saveMy() {
+    try { localStorage.setItem(myKey, JSON.stringify(myList)); } catch (e) { /* พื้นที่เต็ม */ }
+  }
+
+  function paintMy() {
+    myHost.innerHTML = "";
+    if (!myList.length) {
+      myHost.appendChild(el("div", "read-foot",
+        "ยังไม่ได้จดอะไรไว้ ลองเพิ่มของที่ซื้อบ่อย เช่นเมล็ดพันธุ์ ปูนโดโลไมท์ หรือค่าจ้างรถไถ"));
+      return;
+    }
+    myList.forEach(function (item, i) {
+      var row = el("div");
+      row.style.cssText = "display:flex;gap:13px;align-items:center;padding:11px 0;" +
+        "border-bottom:1px solid var(--rule-soft)";
+      row.appendChild(pic(item.kind || "seed"));
+
+      var mid = el("div");
+      mid.style.cssText = "flex:1;min-width:0";
+      mid.appendChild(el("div", "", item.name));
+      var meta = [];
+      if (item.shop) meta.push("ร้าน " + item.shop);
+      if (item.date) meta.push(item.date);
+      if (meta.length) mid.appendChild(el("div", "read-foot", meta.join(" · ")));
+      row.appendChild(mid);
+
+      var right = el("div");
+      right.style.cssText = "text-align:right;flex:none";
+      right.appendChild(el("div", "num", baht(item.price)));
+      right.appendChild(el("div", "read-foot", item.unit || "บาท"));
+      row.appendChild(right);
+
+      var del = el("button", "act act-line act-sm", "ลบ");
+      del.style.flex = "none";
+      del.onclick = function () {
+        myList.splice(i, 1);
+        saveMy();
+        paintMy();
+      };
+      row.appendChild(del);
+
+      myHost.appendChild(row);
+    });
+  }
+
+  var addRow = el("div");
+  addRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap;margin-top:15px";
+
+  function mkField(label, ph, wide) {
+    var f = el("div", "inp");
+    f.style.cssText = "flex:" + (wide ? "2" : "1") + ";min-width:120px";
+    f.appendChild(el("label", "", label));
+    var i = el("input");
+    i.placeholder = ph || "";
+    f.appendChild(i);
+    return { box: f, input: i };
+  }
+
+  var nameF = mkField("ชื่อของ", "เช่น เมล็ดปอเทือง", true);
+  var priceF = mkField("ราคา", "0");
+  priceF.input.className = "num-in";
+  priceF.input.inputMode = "decimal";
+  var unitF = mkField("หน่วย", "บาท/กก.");
+  var shopF = mkField("ร้าน", "ไม่ใส่ก็ได้");
+
+  addRow.appendChild(nameF.box);
+  addRow.appendChild(priceF.box);
+  addRow.appendChild(unitF.box);
+  addRow.appendChild(shopF.box);
+  myCard.appendChild(addRow);
+
+  var addMsg = el("div");
+  myCard.appendChild(addMsg);
+
+  var addBtn = el("button", "act act-go act-wide", "เพิ่มลงรายการ");
+  addBtn.style.marginTop = "13px";
+  addBtn.onclick = function () {
+    addMsg.innerHTML = "";
+    var nm = nameF.input.value.trim();
+    var pr = parseFloat(priceF.input.value);
+
+    if (!nm) {
+      addMsg.appendChild(el("div", "flash flash-warn", "ใส่ชื่อของก่อน"));
+      return;
+    }
+    if (!isFinite(pr) || pr <= 0) {
+      addMsg.appendChild(el("div", "flash flash-warn", "ใส่ราคาเป็นตัวเลขมากกว่า 0"));
+      return;
+    }
+
+    // เดาชนิดรูปจากชื่อ เพื่อให้รายการดูแยกออกจากกันได้เร็วขึ้น
+    // เดาผิดก็ไม่เสียหาย เพราะเป็นแค่ไอคอนประกอบ ไม่ใช่ข้อมูล
+    var kind = "seed";
+    if (/ปุ๋ย|ยูเรีย|\d+-\d+-\d+/.test(nm)) kind = "bag";
+    else if (/ปูน|โดโลไมท|ยิปซัม|มาร์ล/.test(nm)) kind = "lime";
+    else if (/ข้าว|เปลือก/.test(nm)) kind = "grain";
+    else if (/รถ|จ้าง|ค่าแรง|เครื่อง|ไถ|สูบ/.test(nm)) kind = "tool";
+
+    myList.unshift({
+      name: nm,
+      price: pr,
+      unit: unitF.input.value.trim() || "บาท",
+      shop: shopF.input.value.trim(),
+      date: todayStamp(),
+      kind: kind
+    });
+    saveMy();
+    paintMy();
+
+    nameF.input.value = "";
+    priceF.input.value = "";
+    shopF.input.value = "";
+  };
+  myCard.appendChild(addBtn);
+  myCard.appendChild(el("div", "read-foot",
+    "รายการนี้เก็บไว้ในเครื่องของคุณเท่านั้น ไม่ได้ส่งขึ้นระบบ ถ้าเปลี่ยนเครื่องหรือล้างข้อมูลเบราว์เซอร์จะหายไป"));
+
+  paintMy();
+  root.appendChild(myCard);
+};
+
 
 // ─── หน้าต้นทุนและกำไร ─────────────────────────
 //
@@ -6497,10 +6894,18 @@ views.map = async function (root) {
     var vCard = plot("พันธุ์ข้าวที่ปลูกฤดูนี้",
       "ระบบใช้ค่านี้กำหนดปฏิทินการใส่ปุ๋ย เลือกผิดจะได้จังหวะปุ๋ยครั้งที่ 2 ผิดไปเป็นเดือน");
 
+    // อธิบายความต่างด้วยสิ่งที่ชาวนาสังเกตได้เอง คือฤดูปลูกกับแหล่งน้ำ
+    // แทนการใช้คำว่าไวหรือไม่ไวต่อช่วงแสง ซึ่งถูกต้องทางวิชาการแต่คนส่วนใหญ่ไม่คุ้น
+    // ศัพท์วิชาการยังอยู่ในคำอธิบายรายพันธุ์ด้านล่างสำหรับคนที่อยากรู้ลึก
+    vCard.appendChild(el("div", "read-foot",
+      "นาปี คือปลูกตามฤดูฝน เก็บเกี่ยวปลายปีพร้อมกันทั้งอำเภอไม่ว่าจะหว่านเร็วหรือช้า " +
+      "เช่น ขาวดอกมะลิ 105 กข6 · นาปรัง คือปลูกนอกฤดูโดยใช้น้ำชลประทาน " +
+      "เก็บเกี่ยวตามอายุข้าวนับจากวันหว่าน เช่น กข41 ปทุมธานี 1"));
+
     var vRow = el("div");
     vRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap";
     var vLab = el("div");
-    vLab.appendChild(el("div", "read-foot", "กลุ่มพันธุ์"));
+    vLab.appendChild(el("div", "read-foot", "ปลูกแบบไหน"));
     var vSelect = el("select");
     vSelect.style.cssText = "padding:9px 12px;border:1px solid var(--rule);border-radius:var(--r-sm);background:#FFFFFF;min-width:230px";
     window.CARE_GUIDE.varieties.forEach(function (v) {
@@ -6563,7 +6968,7 @@ views.map = async function (root) {
       kSel.appendChild(oNone);
       // จัดกลุ่มในเมนูให้เห็นชัดว่าพันธุ์ไหนอยู่กลุ่มไหน
       // เพราะผู้ใช้จำนวนมากไม่รู้ว่าพันธุ์ที่ตัวเองปลูกไวต่อช่วงแสงหรือไม่
-      [["photo", "ไวต่อช่วงแสง (นาปี)"], ["nonphoto", "ไม่ไวต่อช่วงแสง (นาปรัง)"]].forEach(function (g) {
+      [["photo", "ข้าวนาปี"], ["nonphoto", "ข้าวนาปรัง"]].forEach(function (g) {
         var grp = document.createElement("optgroup");
         grp.label = g[1];
         window.VARIETY_GUIDE.varieties
@@ -6721,11 +7126,40 @@ views.map = async function (root) {
     "ถ้ามีเฉพาะตัวเลขไร่ กรอกช่องแรกช่องเดียวก็พอ"));
   root.appendChild(deedCard);
 
+  // ══ แผนที่ ══
+  //
+  // ซ่อนไว้ก่อน ไม่ได้ลบทิ้ง
+  //
+  // เหตุผล: ผู้ใช้ส่วนใหญ่กรอกขนาดจากโฉนดก็พอแล้ว แผนที่มีไว้สำหรับคนที่
+  // อยากเดินวัดขอบแปลงจริง ซึ่งเป็นส่วนน้อย การเปิดค้างไว้ทำให้หน้ารกโดยไม่จำเป็น
+  // และภาพดาวเทียมโหลดช้าในพื้นที่สัญญาณอ่อน ซึ่งเป็นที่ที่แปลงนาอยู่พอดี
+  //
+  // ต้องสร้าง element ไว้ตั้งแต่แรกเพราะ Leaflet ต้องการ container ที่มีอยู่จริง
+  // แต่ตั้ง display:none ไว้ แล้วเรียก invalidateSize() ตอนเปิด
+  // ไม่งั้นแผนที่จะวาดผิดขนาดเพราะตอนสร้างมันวัดความกว้างได้ศูนย์
   var mapCard = plot(null);
+  var mapToggle = el("button", "act act-line act-wide", "เปิดแผนที่เพื่อปักหมุดหรือเดินวัดขอบแปลง");
+  mapCard.appendChild(mapToggle);
+  mapCard.appendChild(el("div", "read-foot",
+    "ถ้ากรอกขนาดจากโฉนดไว้แล้ว ไม่จำเป็นต้องเปิดแผนที่"));
+
   var canvasHost = el("div");
   canvasHost.id = "map";
+  canvasHost.style.display = "none";
+  canvasHost.style.marginTop = "13px";
   mapCard.appendChild(canvasHost);
   root.appendChild(mapCard);
+
+  var mapShown = false;
+  mapToggle.onclick = function () {
+    mapShown = !mapShown;
+    canvasHost.style.display = mapShown ? "" : "none";
+    mapToggle.textContent = mapShown ? "ซ่อนแผนที่" : "เปิดแผนที่เพื่อปักหมุดหรือเดินวัดขอบแปลง";
+    if (mapShown) {
+      // ต้องรอให้เบราว์เซอร์วาดกล่องเสร็จก่อน ไม่งั้นวัดขนาดได้ศูนย์
+      setTimeout(function () { map.invalidateSize(); }, 60);
+    }
+  };
 
   // ══ แผนที่ ══
   var center = field ? [field.lat, field.lon]
