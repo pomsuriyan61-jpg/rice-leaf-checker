@@ -3654,7 +3654,7 @@ views.diagnose = function (root) {
         });
 
         showFlash(Store.isOffline()
-          ? "บันทึกลงเครื่องแล้ว จะซิงก์ขึ้นเซิร์ฟเวอร์เมื่อเชื่อมต่อได้"
+          ? "เก็บไว้ในเครื่องแล้ว จะส่งขึ้นระบบให้เองเมื่อต่อเน็ตได้"
           : "บันทึกผลลงทะเบียนแล้ว", "ok");
 
         // ให้ผู้ใช้ยืนยันว่า AI ทายถูกไหม ข้อมูลนี้ใช้วัดความแม่นยำจริง
@@ -3954,7 +3954,7 @@ views.soil = async function (root) {
   // หรือตรงที่น้ำขังประจำต่างจากจุดอื่นได้เป็นหน่วยเต็ม
   // ถ้าสองหน้าใช้จำนวนจุดไม่เท่ากัน ค่าที่ได้จะเทียบกันไม่ได้เพราะวิธีได้มาต่างกัน
   root.appendChild(bund("วัดค่า pH ดิน"));
-  var phForm = plot("บันทึกค่าที่วัดได้", "วัด 5 จุดกระจายทั่วแปลง ระบบเฉลี่ยให้เอง");
+  var phForm = plot("บันทึกค่าที่วัดได้", "วัด 5 จุดให้ทั่วแปลง ระบบเฉลี่ยให้เอง");
 
   function phInput(label, id, placeholder, readonly) {
     var f = el("div", "inp");
@@ -4010,7 +4010,7 @@ views.soil = async function (root) {
     var bad = vals.filter(function (v) { return v < 3 || v > 10; });
     if (bad.length) {
       avgField.value = "";
-      phHint.textContent = "ค่า pH ควรอยู่ระหว่าง 3 ถึง 10 ลองตรวจเครื่องวัดอีกครั้ง";
+      phHint.textContent = "ค่า pH ควรอยู่ระหว่าง 3 ถึง 10 ลองเช็กเครื่องวัดดูอีกที";
       return;
     }
 
@@ -4025,8 +4025,8 @@ views.soil = async function (root) {
     // ไม่ใช่ใส่ปูนเท่ากันทั้งแปลงจนโซนหนึ่งเกินอีกโซนขาด
     var spread = Math.max.apply(null, vals) - Math.min.apply(null, vals);
     if (vals.length >= 2 && spread >= 1.0) {
-      parts.push("จุดต่ำสุดกับสูงสุดต่างกัน " + spread.toFixed(1) +
-        " หน่วย แปลงนี้สภาพดินไม่สม่ำเสมอ ควรจดไว้ว่าจุดไหนต่างจากจุดอื่นแล้วปรึกษาหมอดินอาสาเรื่องการจัดการแยกโซน");
+      parts.push("จุดที่ต่ำสุดกับสูงสุดต่างกัน " + spread.toFixed(1) +
+        " หน่วย แสดงว่าดินในแปลงไม่เหมือนกันทุกจุด จดไว้ว่าตรงไหนต่าง แล้วถามหมอดินอาสาว่าควรแยกดูแลยังไง");
     }
 
     // เทียบกับค่าที่เคยบันทึกไว้ล่าสุด จุดนี้คือคุณค่าจริงของการวัดซ้ำ
@@ -4037,14 +4037,14 @@ views.soil = async function (root) {
       var diff = avg - prev;
       if (Math.abs(diff) < 0.3) {
         parts.push("ใกล้เคียงค่าเดิม " + prev.toFixed(1) +
-          " ความต่างอยู่ในระดับความคลาดเคลื่อนของเครื่องวัด ยังสรุปว่าดินเปลี่ยนไปไม่ได้");
+          " ต่างกันน้อยมาก อาจเป็นความคลาดเคลื่อนของเครื่องวัด ยังบอกไม่ได้ว่าดินเปลี่ยน");
       } else {
         function offIdeal(p) { return p < 5.5 ? 5.5 - p : (p > 6.5 ? p - 6.5 : 0); }
         var verdict = offIdeal(avg) < offIdeal(prev)
-          ? "เข้าใกล้ช่วงที่เหมาะกับข้าวมากขึ้น ถ้าเพิ่งปรับปรุงดินไปแสดงว่าได้ผล"
+          ? "ขยับเข้าใกล้ช่วงที่ข้าวชอบมากขึ้น ถ้าเพิ่งปรับปรุงดินไป แสดงว่าได้ผล"
           : (offIdeal(avg) > offIdeal(prev)
-            ? "ออกห่างจากช่วงที่เหมาะกับข้าว ควรทบทวนว่าช่วงที่ผ่านมาใส่ปูนหรือปุ๋ยไนโตรเจนมากเกินไปหรือไม่"
-            : "ยังอยู่ในช่วงที่เหมาะกับข้าวทั้งสองครั้ง");
+            ? "ห่างจากช่วงที่ข้าวชอบมากขึ้น ลองย้อนดูว่าช่วงที่ผ่านมาใส่ปูนหรือปุ๋ยไนโตรเจนมากไปหรือเปล่า"
+            : "ยังอยู่ในช่วงที่ข้าวชอบทั้งสองครั้ง");
         parts.push("ครั้งก่อนวัดได้ " + prev.toFixed(1) + " — " +
           (diff > 0 ? "สูงขึ้น" : "ต่ำลง") + " " + Math.abs(diff).toFixed(1) + " หน่วย " + verdict);
       }
@@ -4068,11 +4068,11 @@ views.soil = async function (root) {
     phMsg.innerHTML = "";
 
     if (!vals.length) {
-      phMsg.appendChild(el("div", "flash flash-warn", "กรอกค่า pH อย่างน้อย 1 จุดก่อนบันทึก"));
+      phMsg.appendChild(el("div", "flash flash-warn", "ใส่ค่า pH อย่างน้อย 1 จุดก่อนกดบันทึก"));
       return;
     }
     if (vals.filter(function (v) { return v < 3 || v > 10; }).length) {
-      phMsg.appendChild(el("div", "flash flash-warn", "มีค่าที่อยู่นอกช่วง 3 ถึง 10 แก้ก่อนบันทึก"));
+      phMsg.appendChild(el("div", "flash flash-warn", "มีค่าที่เกินช่วง 3 ถึง 10 แก้ก่อนแล้วค่อยบันทึก"));
       return;
     }
 
@@ -4092,15 +4092,15 @@ views.soil = async function (root) {
       });
 
       phMsg.appendChild(el("div", "flash flash-ok", Store.isOffline()
-        ? "บันทึกลงเครื่องแล้ว จะซิงก์ขึ้นเซิร์ฟเวอร์เมื่อเชื่อมต่อได้"
-        : "บันทึกแล้ว กำลังอัปเดตสภาพดินด้านล่าง"));
+        ? "เก็บไว้ในเครื่องแล้ว จะส่งขึ้นระบบให้เองเมื่อต่อเน็ตได้"
+        : "บันทึกแล้ว กำลังอัปเดตสภาพดินข้างล่าง"));
 
       // วาดหน้าใหม่เพื่อให้บล็อกสภาพดินและวิธีแก้ปัญหาใช้ค่าล่าสุดทันที
       // ไม่ต้องให้ผู้ใช้กดรีเฟรชเอง ซึ่งเป็นขั้นตอนที่คนมักไม่รู้ว่าต้องทำ
       setTimeout(function () { open("soil"); }, 900);
     } catch (err) {
       phMsg.appendChild(el("div", "flash flash-warn",
-        (err && err.message) || "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง"));
+        (err && err.message) || "บันทึกไม่ได้ ลองกดใหม่อีกครั้ง"));
     }
 
     phSave.disabled = false;
@@ -4114,7 +4114,7 @@ views.soil = async function (root) {
   var phCard = plot(null);
   if (!phs.length) {
     phCard.appendChild(stateBlock("◇", "ยังไม่เคยวัดค่า pH ดิน",
-      "กรอกค่าที่วัดได้ในช่องด้านบน หรือไปที่หน้าบันทึกสำรวจ ระบบจะแปลผลให้ที่นี่"));
+      "ใส่ค่าที่วัดได้ในช่องข้างบน หรือจะไปใส่ที่หน้าบันทึกสำรวจก็ได้ ระบบจะแปลผลมาแสดงตรงนี้"));
   } else {
     var latest = phs[0];
     var band = window.readSoilPh(latest.ph);
@@ -4518,7 +4518,7 @@ views.fert = async function (root) {
       var mRateIn = el("input");
       mRateIn.className = "num-in";
       mRateIn.inputMode = "decimal";
-      mRateIn.placeholder = "จากหมอดินอาสา";
+      mRateIn.placeholder = "ถามหมอดินอาสาได้";
       mf2.appendChild(mRateIn);
       mRow.appendChild(mf2);
 
@@ -4532,7 +4532,7 @@ views.fert = async function (root) {
       var mPriceIn = el("input");
       mPriceIn.className = "num-in";
       mPriceIn.inputMode = "decimal";
-      mPriceIn.placeholder = "เว้นว่างถ้าได้ฟรี";
+      mPriceIn.placeholder = "ถ้าได้ฟรีไม่ต้องใส่";
       try {
         var mpv = localStorage.getItem(mPriceKey);
         if (mpv) mPriceIn.value = mpv;
@@ -4551,13 +4551,13 @@ views.fert = async function (root) {
         var rate = parseFloat(mRateIn.value);
 
         if (!rai || rai <= 0) {
-          mOut.appendChild(el("div", "read-foot", "กรอกพื้นที่เป็นตัวเลขมากกว่า 0"));
+          mOut.appendChild(el("div", "read-foot", "ใส่พื้นที่เป็นตัวเลขมากกว่า 0"));
           return;
         }
         // ช่องอัตราว่างไม่ใช่ความผิดพลาด ผู้ใช้อาจยังไม่รู้ตัวเลข
         // จึงบอกเงียบๆ ว่าต้องกรอกอะไร ไม่ขึ้นข้อความเตือนให้ตกใจ
         if (!rate || rate <= 0) {
-          mOut.appendChild(el("div", "read-foot", "กรอกอัตราต่อไร่เพื่อดูปริมาณรวม"));
+          mOut.appendChild(el("div", "read-foot", "ใส่ว่าจะใช้กี่กิโลต่อไร่ เพื่อดูยอดรวม"));
           return;
         }
 
@@ -4572,7 +4572,7 @@ views.fert = async function (root) {
         // ปุ๋ยคอกใช้ปริมาณมากจนหน่วยกิโลกรัมอ่านยาก และการจ้างรถขนคิดเป็นตัน
         if (totalKg >= 1000) {
           mGrid.appendChild(readOut("คิดเป็น", (totalKg / 1000).toFixed(1) + " ตัน",
-            "ใช้ประมาณการค่าขนส่งได้"));
+            "ใช้บอกคนขับรถได้ว่าต้องขนกี่ตัน"));
         }
 
         mOut.appendChild(mGrid);
@@ -4595,12 +4595,12 @@ views.fert = async function (root) {
             Math.round(mCost / rai).toLocaleString("th-TH") + " บาท/ไร่"));
           mCostBox.appendChild(mCostGrid);
           mCostBox.appendChild(el("div", "read-foot",
-            "ยังไม่รวมค่าขนส่งและค่าแรงหว่าน ซึ่งมักเป็นส่วนใหญ่ของต้นทุนปุ๋ยคอกเพราะต้องใช้ปริมาณมาก"));
+            "ยังไม่รวมค่ารถขนกับค่าจ้างหว่าน ซึ่งบางทีแพงกว่าค่าปุ๋ยเอง เพราะต้องขนทีละหลายตัน"));
           mOut.appendChild(mCostBox);
         }
 
         mOut.appendChild(el("div", "read-foot",
-          "ต้องเป็นมูลที่ผ่านการหมักจนสลายตัวดีแล้ว ใส่ช่วงเตรียมดินแล้วไถกลบขณะดินมีความชื้นพอเพียง"));
+          "ต้องเป็นมูลที่หมักจนเปื่อยดีแล้ว ใส่ตอนเตรียมดินแล้วไถกลบขณะดินยังชื้น"));
       }
 
       mRaiIn.oninput = mRecalc;
@@ -4672,15 +4672,15 @@ views.fert = async function (root) {
       if (areaBtns.children.length) f1.appendChild(areaBtns);
 
       var areaFoot = el("div", "read-foot",
-        "ตั้งต้นที่ 1 ไร่ ตัวเลขที่ได้จึงเป็นอัตราต่อไร่ กดปุ่มด้านบนเพื่อคิดทั้งแปลง");
+        "ตอนนี้คิดที่ 1 ไร่ ตัวเลขที่เห็นคือใช้ต่อไร่ ถ้าอยากรู้ยอดทั้งแปลง กดปุ่มด้านบน");
       areaFoot.style.marginTop = "6px";
 
       if (deed && measuredRai && measuredRai > 0) {
         var gap = Math.abs(measuredRai - deed.rai);
         var gapPct = deed.rai > 0 ? (gap / deed.rai) * 100 : 0;
         if (gapPct >= 10) {
-          areaFoot.textContent += " · โฉนดกับพื้นที่ที่เดินวัดต่างกัน " + gap.toFixed(2) +
-            " ไร่ โฉนดมักรวมคันนาและส่วนที่ไม่ได้ปลูกไว้ด้วย";
+          areaFoot.textContent += " · ขนาดในโฉนดกับที่เดินวัดจริงต่างกัน " + gap.toFixed(2) +
+            " ไร่ เพราะโฉนดนับคันนาและที่ไม่ได้ปลูกรวมไปด้วย";
         }
       }
       f1.appendChild(areaFoot);
@@ -4757,8 +4757,8 @@ views.fert = async function (root) {
 
         var pickFoot = el("div", "read-foot",
           soilPicked === "sand"
-            ? "เลือก 16-16-8 ให้แล้วเพราะดินทรายต้องการโพแทสเซียม สูตรนี้มีมาให้ในกระสอบเดียว ไม่ต้องซื้อ 0-0-60 แยก"
-            : "ดินของคุณมักมีโพแทสเซียมพออยู่แล้ว สูตรที่ลงท้ายด้วย 0 จึงคุ้มกว่า เพราะไม่ต้องจ่ายค่าธาตุที่ดินมีอยู่");
+            ? "เลือก 16-16-8 ไว้ให้แล้ว เพราะดินทรายต้องการโพแทสเซียม สูตรนี้มีให้ในกระสอบเดียว ไม่ต้องซื้อ 0-0-60 เพิ่ม"
+            : "ดินแบบนี้มักมีโพแทสเซียมพออยู่แล้ว เลือกสูตรที่ลงท้ายด้วย 0 จะคุ้มกว่า ไม่ต้องจ่ายเพิ่มในสิ่งที่ดินมีอยู่");
         pickFoot.style.cssText = "flex-basis:100%;margin-top:2px";
         inRow.appendChild(pickFoot);
       }
@@ -4776,7 +4776,7 @@ views.fert = async function (root) {
         outHost.innerHTML = "";
         var rai = parseFloat(raiIn.value);
         if (!rai || rai <= 0) {
-          outHost.appendChild(el("div", "read-foot", "กรอกขนาดแปลงเป็นตัวเลขมากกว่า 0"));
+          outHost.appendChild(el("div", "read-foot", "ใส่ขนาดแปลงเป็นตัวเลขมากกว่า 0"));
           return;
         }
 
@@ -4895,12 +4895,12 @@ views.fert = async function (root) {
 
               if (missing.length) {
                 costBox.appendChild(el("div", "read-foot",
-                  "ยังไม่มีราคาอ้างอิงของ " + missing.join(", ") + " จึงไม่ได้รวมในยอด"));
+                  "ยังไม่มีราคาของ " + missing.join(", ") + " ในระบบ จึงยังไม่ได้รวมในยอดนี้"));
               }
 
               costBox.appendChild(el("div", "flash flash-warn",
                 "ราคาอ้างอิง " + (CG.fertPrices.asOf || CG.asOf) + " " + (CG.fertPrices.unit || "") +
-                " · ราคาปุ๋ยเปลี่ยนตามฤดูและร้านค้า ควรถามราคาจริงจากร้านในพื้นที่ก่อนวางแผนเงิน " +
+                " · ราคาปุ๋ยขึ้นลงตามฤดูและแต่ละร้านไม่เท่ากัน ถามราคาจริงจากร้านแถวบ้านก่อนวางแผนเงิน " +
                 "ดูราคาล่าสุดได้ที่หน้าต้นทุนและกำไร"));
 
               outHost.appendChild(costBox);
@@ -4976,8 +4976,8 @@ views.fert = async function (root) {
           mat.appendChild(sumRow);
 
           var sumFoot = el("div", "read-foot",
-            "กรอกเฉพาะรายการที่ต้องซื้อ เว้นว่างแปลว่าใช้ของที่มีอยู่แล้วในแปลง " +
-            "สารเร่งซุปเปอร์ พด.1 ขอฟรีได้ที่สถานีพัฒนาที่ดินจังหวัดหรือหมอดินอาสาประจำตำบล");
+            "กรอกเฉพาะของที่ต้องซื้อ ช่องไหนไม่ได้ซื้อก็เว้นว่างไว้ " +
+            "ส่วนสารเร่ง พด.1 ขอฟรีได้ที่สถานีพัฒนาที่ดินจังหวัด หรือถามหมอดินอาสาในตำบล");
           mat.appendChild(sumFoot);
 
           function sumMaterials() {
@@ -4994,7 +4994,7 @@ views.fert = async function (root) {
 
             sumVal.textContent = Math.round(totalCost).toLocaleString("th-TH") + " บาท";
             if (!filled) {
-              sumVal.textContent = "ยังไม่ได้กรอกราคา";
+              sumVal.textContent = "ยังไม่ได้ใส่ราคา";
             } else if (rai > 0) {
               sumVal.textContent = Math.round(totalCost).toLocaleString("th-TH") + " บาท · " +
                 Math.round(totalCost / rai).toLocaleString("th-TH") + " บาท/ไร่";
@@ -5034,7 +5034,7 @@ views.fert = async function (root) {
           var seedIn = el("input");
           seedIn.className = "num-in";
           seedIn.inputMode = "decimal";
-          seedIn.placeholder = "เว้นว่างถ้าได้ฟรี";
+          seedIn.placeholder = "ถ้าได้ฟรีไม่ต้องใส่";
           try {
             var sv = localStorage.getItem(seedKey);
             if (sv) seedIn.value = sv;
@@ -5047,7 +5047,7 @@ views.fert = async function (root) {
           seedOut.style.marginTop = "10px";
           seedBox.appendChild(seedOut);
           seedBox.appendChild(el("div", "read-foot",
-            "บางปีกรมพัฒนาที่ดินแจกเมล็ดปอเทืองฟรีในโครงการส่งเสริม ลองถามหมอดินอาสาประจำตำบลก่อนซื้อ"));
+            "บางปีกรมพัฒนาที่ดินแจกเมล็ดปอเทืองฟรี ลองถามหมอดินอาสาในตำบลก่อนไปซื้อ"));
 
           function sumSeed() {
             seedOut.innerHTML = "";
@@ -5058,7 +5058,7 @@ views.fert = async function (root) {
             } catch (e) { /* พื้นที่เต็ม */ }
 
             if (!isFinite(pr) || pr <= 0) {
-              seedOut.appendChild(el("div", "read-foot", "กรอกราคาเมล็ดเพื่อดูค่าใช้จ่ายรวม"));
+              seedOut.appendChild(el("div", "read-foot", "ใส่ราคาเมล็ดเพื่อดูว่าต้องใช้เงินเท่าไหร่"));
               return;
             }
             var costLo = lo * pr, costHi = hi * pr;
