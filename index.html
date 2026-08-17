@@ -4522,6 +4522,24 @@ views.fert = async function (root) {
       mf2.appendChild(mRateIn);
       mRow.appendChild(mf2);
 
+      // ราคาปุ๋ยคอกต่างกันมากตามแหล่ง คนที่เลี้ยงสัตว์เองได้ฟรี
+      // คนที่ซื้อจากฟาร์มใกล้บ้านจ่ายแค่ค่าขน ส่วนคนที่ซื้อแบบบรรจุกระสอบจ่ายแพงสุด
+      // จึงไม่ใส่ราคาให้ ปล่อยให้กรอกตามที่จ่ายจริง เว้นว่างแปลว่าได้ฟรี
+      var mPriceKey = "smartrice-manurecost:" + (Session.user ? Session.user.username : "guest");
+      var mf3 = el("div", "inp");
+      mf3.style.cssText = "flex:1;min-width:150px";
+      mf3.appendChild(el("label", "", "ราคา (บาท/กก.)"));
+      var mPriceIn = el("input");
+      mPriceIn.className = "num-in";
+      mPriceIn.inputMode = "decimal";
+      mPriceIn.placeholder = "เว้นว่างถ้าได้ฟรี";
+      try {
+        var mpv = localStorage.getItem(mPriceKey);
+        if (mpv) mPriceIn.value = mpv;
+      } catch (e) { /* อ่านไม่ได้ก็ปล่อยว่าง */ }
+      mf3.appendChild(mPriceIn);
+      mRow.appendChild(mf3);
+
       calcCard.appendChild(mRow);
 
       var mOut = el("div");
@@ -4558,12 +4576,36 @@ views.fert = async function (root) {
         }
 
         mOut.appendChild(mGrid);
+
+        var mPrice = parseFloat(mPriceIn.value);
+        try {
+          if (isFinite(mPrice) && mPrice > 0) localStorage.setItem(mPriceKey, String(mPrice));
+          else localStorage.removeItem(mPriceKey);
+        } catch (e) { /* พื้นที่เต็ม */ }
+
+        if (isFinite(mPrice) && mPrice > 0) {
+          var mCost = totalKg * mPrice;
+          var mCostBox = el("div");
+          mCostBox.style.marginTop = "16px";
+          mCostBox.appendChild(el("div", "rx-sect", "ค่าใช้จ่าย"));
+          var mCostGrid = el("div");
+          mCostGrid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px";
+          mCostGrid.appendChild(readOut("ค่าปุ๋ยคอกรวม",
+            Math.round(mCost).toLocaleString("th-TH") + " บาท",
+            Math.round(mCost / rai).toLocaleString("th-TH") + " บาท/ไร่"));
+          mCostBox.appendChild(mCostGrid);
+          mCostBox.appendChild(el("div", "read-foot",
+            "ยังไม่รวมค่าขนส่งและค่าแรงหว่าน ซึ่งมักเป็นส่วนใหญ่ของต้นทุนปุ๋ยคอกเพราะต้องใช้ปริมาณมาก"));
+          mOut.appendChild(mCostBox);
+        }
+
         mOut.appendChild(el("div", "read-foot",
           "ต้องเป็นมูลที่ผ่านการหมักจนสลายตัวดีแล้ว ใส่ช่วงเตรียมดินแล้วไถกลบขณะดินมีความชื้นพอเพียง"));
       }
 
       mRaiIn.oninput = mRecalc;
       mRateIn.oninput = mRecalc;
+      mPriceIn.oninput = mRecalc;
       mRecalc();
     } else {
       var inRow = el("div");
@@ -4786,6 +4828,86 @@ views.fert = async function (root) {
 
           outHost.appendChild(grid);
 
+          // ── ค่าใช้จ่ายรวม ──
+          //
+          // ดึงราคาจาก COST_GUIDE.fertPrices ซึ่งเป็นชุดเดียวกับหน้าต้นทุนและกำไร
+          // ถ้าเก็บราคาไว้สองที่ ตัวเลขจะเพี้ยนกันทันทีที่แก้ที่เดียว
+          //
+          // แสดงเป็นช่วงต่ำ-สูงตามที่ฐานข้อมูลให้มา ไม่ยุบเป็นค่ากลางค่าเดียว
+          // เพราะราคาปุ๋ยต่างกันมากตามร้าน ยี่ห้อ และช่วงเวลา
+          // การให้ตัวเลขเดียวทำให้ดูแม่นกว่าความจริง แล้วผู้ใช้ไปวางแผนเงินผิด
+          var CG = window.COST_GUIDE;
+          if (CG && CG.fertPrices && CG.fertPrices.items) {
+            function baht(n) { return Math.round(n).toLocaleString("th-TH"); }
+            function priceOf(code) {
+              return CG.fertPrices.items.filter(function (x) { return x.formula === code; })[0] || null;
+            }
+
+            var lines = [], sumLow = 0, sumHigh = 0, missing = [];
+
+            // คิดจากจำนวนกระสอบที่ต้องซื้อจริง ไม่ใช่จากน้ำหนักที่ใช้
+            // เพราะร้านไม่ขายเศษกระสอบ ผู้ใช้ต้องจ่ายเต็มกระสอบอยู่ดี
+            // ใช้ปลายสูงของช่วงอัตราเป็นฐาน เพื่อไม่ให้ประเมินงบต่ำกว่าที่จ่ายจริง
+            function addLine(label, code, bagCount) {
+              var p = priceOf(code);
+              if (!p) { missing.push(code); return; }
+              sumLow += p.low * bagCount;
+              sumHigh += p.high * bagCount;
+              lines.push({ label: label, bags: bagCount, low: p.low * bagCount, high: p.high * bagCount });
+            }
+
+            addLine("ครั้งที่ 1 · " + formula, formula, bags(rai * first.max));
+            if (!hasK && sandy) {
+              addLine("เสริม 0-0-60", "0-0-60", Math.ceil(rai * t.calc.potash.max / bagKg));
+            }
+            addLine("ครั้งที่ 2 · ยูเรีย", "46-0-0", bags(rai * second.urea));
+
+            if (lines.length) {
+              var costBox = el("div");
+              costBox.style.marginTop = "16px";
+              costBox.appendChild(el("div", "rx-sect", "ค่าปุ๋ยโดยประมาณ"));
+
+              lines.forEach(function (ln) {
+                var row = el("div");
+                row.style.cssText = "display:flex;justify-content:space-between;gap:12px;padding:8px 0;" +
+                  "border-bottom:1px solid var(--rule-soft);font-size:.87rem";
+                var lf = el("div");
+                lf.appendChild(el("span", "", ln.label));
+                var qty = el("span", "", "  " + ln.bags + " กระสอบ");
+                qty.style.color = "var(--ink-soft)";
+                lf.appendChild(qty);
+                row.appendChild(lf);
+                row.appendChild(el("span", "num",
+                  ln.low === ln.high ? baht(ln.low) : baht(ln.low) + "-" + baht(ln.high)));
+                costBox.appendChild(row);
+              });
+
+              var totalRow = el("div");
+              totalRow.style.cssText = "display:flex;justify-content:space-between;gap:12px;padding:12px 0 4px;font-weight:500";
+              totalRow.appendChild(el("span", "", "รวมทั้งฤดู"));
+              totalRow.appendChild(el("span", "num",
+                (sumLow === sumHigh ? baht(sumLow) : baht(sumLow) + "-" + baht(sumHigh)) + " บาท"));
+              costBox.appendChild(totalRow);
+
+              costBox.appendChild(el("div", "read-foot", "เฉลี่ย " +
+                (sumLow === sumHigh ? baht(sumLow / rai) : baht(sumLow / rai) + "-" + baht(sumHigh / rai)) +
+                " บาทต่อไร่"));
+
+              if (missing.length) {
+                costBox.appendChild(el("div", "read-foot",
+                  "ยังไม่มีราคาอ้างอิงของ " + missing.join(", ") + " จึงไม่ได้รวมในยอด"));
+              }
+
+              costBox.appendChild(el("div", "flash flash-warn",
+                "ราคาอ้างอิง " + (CG.fertPrices.asOf || CG.asOf) + " " + (CG.fertPrices.unit || "") +
+                " · ราคาปุ๋ยเปลี่ยนตามฤดูและร้านค้า ควรถามราคาจริงจากร้านในพื้นที่ก่อนวางแผนเงิน " +
+                "ดูราคาล่าสุดได้ที่หน้าต้นทุนและกำไร"));
+
+              outHost.appendChild(costBox);
+            }
+          }
+
+
           var chemNote = el("div");
           chemNote.style.marginTop = "16px";
           chemNote.appendChild(el("div", "rx-sect", "จังหวะที่ต้องใส่"));
@@ -4809,14 +4931,79 @@ views.fert = async function (root) {
           var mat = el("div");
           mat.style.marginTop = "16px";
           mat.appendChild(el("div", "rx-sect", "วัตถุดิบรวมทั้งหมดที่ต้องเตรียม"));
-          t.calc.inputs.forEach(function (x) {
+          // ── วัตถุดิบพร้อมช่องกรอกราคา ──
+          //
+          // ไม่ใส่ราคาตั้งต้นให้ เพราะวัตถุดิบปุ๋ยหมักส่วนใหญ่เป็นของที่มีอยู่แล้วในแปลง
+          // เศษพืชแห้งกับมูลสัตว์มักได้ฟรีจากนาและคอกตัวเอง ส่วนสารเร่ง พด.1 ขอฟรีได้
+          // ถ้าใส่ราคากลางให้ ระบบจะบอกว่าต้นทุนหลายพันทั้งที่หลายคนจ่ายศูนย์บาท
+          // ซึ่งทำให้ปุ๋ยหมักดูแพงกว่าความจริงจนคนเลิกสนใจ ทั้งที่เป็นทางที่ถูกที่สุด
+          //
+          // เว้นว่างไว้แปลว่าไม่มีต้นทุน ใครต้องซื้อจริงก็กรอกเฉพาะรายการนั้น
+          var priceKey = "smartrice-fertcost:" + (Session.user ? Session.user.username : "guest");
+          var savedPrices = {};
+          try { savedPrices = JSON.parse(localStorage.getItem(priceKey) || "{}"); } catch (e) { savedPrices = {}; }
+
+          var priceIns = [];
+          t.calc.inputs.forEach(function (x, xi) {
             var line = el("div");
-            line.style.cssText = "display:flex;justify-content:space-between;gap:12px;padding:8px 0;" +
-              "border-bottom:1px solid var(--rule-soft);font-size:.88rem";
-            line.appendChild(el("span", "", x.name));
-            line.appendChild(el("span", "num", fmt(x.per * total) + " " + x.unit));
+            line.style.cssText = "display:flex;justify-content:space-between;gap:12px;align-items:center;" +
+              "padding:9px 0;border-bottom:1px solid var(--rule-soft);font-size:.88rem;flex-wrap:wrap";
+
+            var left = el("div");
+            left.style.cssText = "flex:1;min-width:140px";
+            left.appendChild(el("div", "", x.name));
+            var qty = el("div", "read-foot", fmt(x.per * total) + " " + x.unit);
+            left.appendChild(qty);
+            line.appendChild(left);
+
+            var pIn = el("input");
+            pIn.className = "num-in";
+            pIn.inputMode = "decimal";
+            pIn.placeholder = "บาท/" + x.unit;
+            pIn.style.cssText = "max-width:120px";
+            if (savedPrices[x.name] != null) pIn.value = savedPrices[x.name];
+            line.appendChild(pIn);
+
+            priceIns.push({ name: x.name, qty: x.per * total, unit: x.unit, input: pIn });
             mat.appendChild(line);
           });
+
+          var sumRow = el("div");
+          sumRow.style.cssText = "display:flex;justify-content:space-between;gap:12px;padding:12px 0 4px;font-weight:500";
+          sumRow.appendChild(el("span", "", "ค่าวัตถุดิบรวม"));
+          var sumVal = el("span", "num", "0 บาท");
+          sumRow.appendChild(sumVal);
+          mat.appendChild(sumRow);
+
+          var sumFoot = el("div", "read-foot",
+            "กรอกเฉพาะรายการที่ต้องซื้อ เว้นว่างแปลว่าใช้ของที่มีอยู่แล้วในแปลง " +
+            "สารเร่งซุปเปอร์ พด.1 ขอฟรีได้ที่สถานีพัฒนาที่ดินจังหวัดหรือหมอดินอาสาประจำตำบล");
+          mat.appendChild(sumFoot);
+
+          function sumMaterials() {
+            var totalCost = 0, filled = 0, store = {};
+            priceIns.forEach(function (it) {
+              var v = parseFloat(it.input.value);
+              if (isFinite(v) && v > 0) {
+                totalCost += v * it.qty;
+                filled++;
+                store[it.name] = v;
+              }
+            });
+            try { localStorage.setItem(priceKey, JSON.stringify(store)); } catch (e) { /* พื้นที่เต็ม */ }
+
+            sumVal.textContent = Math.round(totalCost).toLocaleString("th-TH") + " บาท";
+            if (!filled) {
+              sumVal.textContent = "ยังไม่ได้กรอกราคา";
+            } else if (rai > 0) {
+              sumVal.textContent = Math.round(totalCost).toLocaleString("th-TH") + " บาท · " +
+                Math.round(totalCost / rai).toLocaleString("th-TH") + " บาท/ไร่";
+            }
+          }
+
+          priceIns.forEach(function (it) { it.input.oninput = sumMaterials; });
+          sumMaterials();
+
           outHost.appendChild(mat);
 
         } else {
@@ -4828,6 +5015,65 @@ views.fert = async function (root) {
             : fmt(lo) + "-" + fmt(hi) + " " + t.calc.unit;
           grid.appendChild(readOut("เมล็ดที่ต้องซื้อ", seedText, t.calc.perRaiText));
           outHost.appendChild(grid);
+
+          // ── ค่าเมล็ดพันธุ์ ──
+          //
+          // ไม่ใส่ราคาตั้งต้นเพราะราคาเมล็ดปอเทืองต่างกันมากตามแหล่งที่ซื้อ
+          // และบางปีกรมพัฒนาที่ดินแจกฟรีในโครงการส่งเสริม ซึ่งทำให้ต้นทุนเป็นศูนย์
+          // การใส่ราคากลางให้จะทำให้คนที่ขอฟรีได้เข้าใจผิดว่าต้องจ่าย
+          var seedKey = "smartrice-seedcost:" + (Session.user ? Session.user.username : "guest");
+          var seedBox = el("div");
+          seedBox.style.marginTop = "16px";
+          seedBox.appendChild(el("div", "rx-sect", "ค่าเมล็ดพันธุ์"));
+
+          var seedRow = el("div");
+          seedRow.style.cssText = "display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap";
+          var seedF = el("div", "inp");
+          seedF.style.cssText = "flex:1;min-width:150px";
+          seedF.appendChild(el("label", "", "ราคาเมล็ด (บาท/" + t.calc.unit + ")"));
+          var seedIn = el("input");
+          seedIn.className = "num-in";
+          seedIn.inputMode = "decimal";
+          seedIn.placeholder = "เว้นว่างถ้าได้ฟรี";
+          try {
+            var sv = localStorage.getItem(seedKey);
+            if (sv) seedIn.value = sv;
+          } catch (e) { /* อ่านไม่ได้ก็ปล่อยว่าง */ }
+          seedF.appendChild(seedIn);
+          seedRow.appendChild(seedF);
+          seedBox.appendChild(seedRow);
+
+          var seedOut = el("div");
+          seedOut.style.marginTop = "10px";
+          seedBox.appendChild(seedOut);
+          seedBox.appendChild(el("div", "read-foot",
+            "บางปีกรมพัฒนาที่ดินแจกเมล็ดปอเทืองฟรีในโครงการส่งเสริม ลองถามหมอดินอาสาประจำตำบลก่อนซื้อ"));
+
+          function sumSeed() {
+            seedOut.innerHTML = "";
+            var pr = parseFloat(seedIn.value);
+            try {
+              if (isFinite(pr) && pr > 0) localStorage.setItem(seedKey, String(pr));
+              else localStorage.removeItem(seedKey);
+            } catch (e) { /* พื้นที่เต็ม */ }
+
+            if (!isFinite(pr) || pr <= 0) {
+              seedOut.appendChild(el("div", "read-foot", "กรอกราคาเมล็ดเพื่อดูค่าใช้จ่ายรวม"));
+              return;
+            }
+            var costLo = lo * pr, costHi = hi * pr;
+            var txt = (t.calc.perRaiMin === t.calc.perRaiMax)
+              ? Math.round(costHi).toLocaleString("th-TH")
+              : Math.round(costLo).toLocaleString("th-TH") + "-" + Math.round(costHi).toLocaleString("th-TH");
+            var perRai = (t.calc.perRaiMin === t.calc.perRaiMax)
+              ? Math.round(costHi / rai).toLocaleString("th-TH")
+              : Math.round(costLo / rai).toLocaleString("th-TH") + "-" + Math.round(costHi / rai).toLocaleString("th-TH");
+            seedOut.appendChild(readOut("ค่าเมล็ดรวม", txt + " บาท", perRai + " บาท/ไร่"));
+          }
+
+          seedIn.oninput = sumSeed;
+          sumSeed();
+          outHost.appendChild(seedBox);
         }
 
         // ── ปฏิทินนับถอยหลัง ──
