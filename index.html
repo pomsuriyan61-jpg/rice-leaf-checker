@@ -3956,6 +3956,17 @@ views.soil = async function (root) {
   // หรือตรงที่น้ำขังประจำต่างจากจุดอื่นได้เป็นหน่วยเต็ม
   // ถ้าสองหน้าใช้จำนวนจุดไม่เท่ากัน ค่าที่ได้จะเทียบกันไม่ได้เพราะวิธีได้มาต่างกัน
   root.appendChild(bund("วัดค่า pH ดิน"));
+
+  // บอกที่มาตั้งแต่ต้นหน้า ไม่ใช่ซ่อนไว้ท้ายสุด
+  //
+  // ผู้ใช้ควรรู้ก่อนอ่านว่าเกณฑ์ที่ระบบใช้มาจากไหน
+  // เพราะเป็นข้อมูลที่เขาจะเอาไปตัดสินใจใช้เงินจริง
+  // และเวลานำเสนอ คนดูจะเห็นทันทีว่าตัวเลขไม่ได้แต่งขึ้นเอง
+  var srcLine = el("div", "read-foot",
+    "เกณฑ์แปลผลค่า pH ในหน้านี้อ้างอิงการจัดชั้นปฏิกิริยาดินของกรมพัฒนาที่ดิน · " +
+    "ขั้นตอนเตรียมดินอ้างอิงคู่มือกรมพัฒนาที่ดินและกรมการข้าว");
+  srcLine.style.cssText = "margin:-6px 0 13px";
+  root.appendChild(srcLine);
   var phForm = plot("บันทึกค่าที่วัดได้", "วัด 5 จุดให้ทั่วแปลง ระบบเฉลี่ยให้เอง");
 
   function phInput(label, id, placeholder, readonly) {
@@ -4111,6 +4122,34 @@ views.soil = async function (root) {
 
   root.appendChild(phForm);
 
+  // ══ ตัวเลือกบริบทแปลง ══
+  //
+  // ย้ายขึ้นมาไว้ต่อจากฟอร์ม pH เพื่อให้ทุกอย่างที่ต้องกดอยู่บนสุดด้วยกัน
+  // ส่วนล่างของหน้าจึงเป็นผลลัพธ์ล้วน ไม่ต้องเลื่อนขึ้นลงสลับไปมา
+  //
+  // เดิมอยู่กลางหน้า ผู้ใช้ต้องเลื่อนผ่านผลวัด pH กับวิธีแก้ปัญหาดินไปก่อน
+  // แล้วค่อยเจอปุ่มเลือก ทั้งที่การเลือกส่งผลกับเนื้อหาที่อยู่ใต้มันลงไปอีก
+  root.appendChild(bund("เลือกให้ตรงกับแปลงของคุณ"));
+  var pickCard = plot(null, "ขั้นตอนด้านล่างจะเปลี่ยนตามที่เลือก");
+
+  function chooser(label, dict, current, onPick) {
+    var box = el("div");
+    box.style.marginBottom = "14px";
+    box.appendChild(el("div", "read-label", label));
+    var row = el("div");
+    row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap";
+    Object.keys(dict).forEach(function (k) {
+      var b = el("button", "act act-sm " + (k === current ? "act-go" : "act-line"), dict[k].thai);
+      b.onclick = function () { onPick(k); };
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+    return box;
+  }
+
+  root.appendChild(pickCard);
+
+
   // ══ สภาพดินจากค่าที่บันทึกไว้ ══
   root.appendChild(bund("สภาพดินของแปลงคุณ"));
   var phCard = plot(null);
@@ -4189,8 +4228,15 @@ views.soil = async function (root) {
 
       var row = el("div");
       row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-top:11px";
+      // ใช้ชื่อสั้นให้ตรงกับคำที่ผลวัด pH แสดง
+      //
+      // ผลวัดขึ้นว่า "ดินเป็นกรด" แต่ปุ่มเขียนว่า "ดินเปรี้ยวหรือดินกรดจัด"
+      // ผู้ใช้ต้องมานั่งเดาเองว่าสองอันนี้คืออันเดียวกันไหม
+      // การใช้คำเดียวกันทั้งหน้าทำให้ไม่ต้องเดา
+      var PROB_LABEL = { acid: "ดินเป็นกรด", alkaline: "ดินเป็นด่าง" };
       phKeys.forEach(function (k) {
-        var b = el("button", "act act-sm " + (k === openKey ? "act-go" : "act-line"), G.problems[k].thai);
+        var b = el("button", "act act-sm " + (k === openKey ? "act-go" : "act-line"),
+          PROB_LABEL[k] || G.problems[k].thai);
         b.onclick = function () { openKey = k; paintProblems(); };
         row.appendChild(b);
       });
@@ -4207,8 +4253,40 @@ views.soil = async function (root) {
 
       var fixBox = plot("วิธีแก้ เรียงจากต้นทุนต่ำไปสูง");
       fixBox.style.marginTop = "13px";
+
+      // ── แยกความรุนแรง ไม่เหมารวมว่ากรดคือกรดจัด ──
+      //
+      // ค่า pH 5.2 กับ 4.0 เป็นกรดทั้งคู่ แต่ต้องแก้คนละระดับ
+      // วิธีหว่านปูน 1-4 ตันต่อไร่ เป็นของดินกรดจัดที่ pH ต่ำกว่า 4.5
+      // ถ้าดินแค่เป็นกรดแล้วใส่ปูนขนาดนั้น จะดันขึ้นไปเป็นด่าง
+      // ซึ่งแก้ยากกว่าดินกรดมาก และเสียค่าปูนหลายพันบาทต่อไร่โดยไม่จำเป็น
+      //
+      // จึงติดป้ายกำกับไว้ที่วิธีที่ใช้ปูนปริมาณมาก แทนการซ่อนทิ้ง
+      // เพราะคนที่ดินกรดจัดจริงยังต้องใช้ และคนที่ยังไม่ถึงขั้นนั้นจะได้ไม่เผลอทำตาม
+      var latestPh = phs.length ? phs[0].ph : null;
+      var isSevereAcid = (openKey === "acid" && latestPh !== null && latestPh < 4.5);
+
+      if (openKey === "acid" && latestPh !== null && !isSevereAcid) {
+        fixBox.appendChild(el("div", "flash flash-warn",
+          "ค่าที่วัดได้ " + latestPh.toFixed(1) + " อยู่ในระดับเป็นกรด ยังไม่ถึงขั้นที่ต้องใส่ปูนปริมาณมาก " +
+          "ให้เริ่มจากวิธีที่ไม่ใช้ปูนก่อน แล้ววัดซ้ำในฤดูถัดไป"));
+      }
+
       pr.fixes.forEach(function (fx, i) {
-        fixBox.appendChild(fold(i + 1, fx.title, fx.cost, function (body) {
+        // ตรวจว่าวิธีนี้เกี่ยวกับการใส่ปูนปริมาณมากหรือไม่
+        // ดูจากทั้งชื่อและรายละเอียด เพราะบางวิธีชื่อไม่มีคำว่าปูนแต่เนื้อหามี
+        var usesLime = /ปูน/.test(fx.title + " " + fx.detail) &&
+                       /ตันต่อไร่|กิโลกรัมต่อไร่/.test(fx.detail);
+        var costLabel = fx.cost;
+        if (openKey === "acid" && usesLime && !isSevereAcid) {
+          costLabel = "สำหรับดินที่ pH ต่ำกว่า 4.5 · " + fx.cost;
+        }
+        fixBox.appendChild(fold(i + 1, fx.title, costLabel, function (body) {
+          if (openKey === "acid" && usesLime && !isSevereAcid) {
+            body.appendChild(el("div", "flash flash-warn",
+              "วิธีนี้เป็นของดินกรดจัด ค่าที่วัดได้ยังไม่ถึงเกณฑ์นั้น " +
+              "การใส่ปูนเกินจะทำให้ดินกลายเป็นด่าง ซึ่งแก้ยากกว่า ควรปรึกษาหมอดินอาสาก่อนตัดสินใจ"));
+          }
           body.appendChild(el("p", "", fx.detail));
         }, false));
       });
@@ -4221,25 +4299,6 @@ views.soil = async function (root) {
     root.appendChild(probBody);
     paintProblems();
 
-  }
-
-  // ══ ตัวเลือกบริบทแปลง ══
-  root.appendChild(bund("เลือกให้ตรงกับแปลงของคุณ"));
-  var pickCard = plot(null, "ขั้นตอนด้านล่างจะเปลี่ยนตามที่เลือก");
-
-  function chooser(label, dict, current, onPick) {
-    var box = el("div");
-    box.style.marginBottom = "14px";
-    box.appendChild(el("div", "read-label", label));
-    var row = el("div");
-    row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap";
-    Object.keys(dict).forEach(function (k) {
-      var b = el("button", "act act-sm " + (k === current ? "act-go" : "act-line"), dict[k].thai);
-      b.onclick = function () { onPick(k); };
-      row.appendChild(b);
-    });
-    box.appendChild(row);
-    return box;
   }
 
   var stepsHost = el("div");
@@ -4323,7 +4382,6 @@ views.soil = async function (root) {
       "ก่อนลงมือจริงควรปรึกษาเกษตรอำเภอ หมอดินอาสาประจำตำบล หรือศูนย์วิจัยข้าวในพื้นที่"));
   }
 
-  root.appendChild(pickCard);
   root.appendChild(stepsHost);
   repaint();
 };
@@ -6908,8 +6966,12 @@ views.map = async function (root) {
     vLab.appendChild(el("div", "read-foot", "ปลูกแบบไหน"));
     var vSelect = el("select");
     vSelect.style.cssText = "padding:9px 12px;border:1px solid var(--rule);border-radius:var(--r-sm);background:#FFFFFF;min-width:230px";
+    // แสดงเป็นคำที่ชาวนาใช้จริง ไม่ใช้คำว่าไวหรือไม่ไวต่อช่วงแสง
+    // ซึ่งถูกต้องทางวิชาการแต่คนส่วนใหญ่ไม่คุ้น
+    // ค่า key ที่เก็บยังเป็น photo/nonphoto เหมือนเดิม ตรรกะปฏิทินจึงไม่กระทบ
+    var VARIETY_LABEL = { photo: "ข้าวนาปี", nonphoto: "ข้าวนาปรัง" };
     window.CARE_GUIDE.varieties.forEach(function (v) {
-      var o = el("option", null, v.thai + " (" + v.short + ")");
+      var o = el("option", null, VARIETY_LABEL[v.key] || v.thai);
       o.value = v.key;
       vSelect.appendChild(o);
     });
@@ -6928,7 +6990,7 @@ views.map = async function (root) {
 
     function paintVariety() {
       var v = window.careVariety(vSelect.value);
-      vNote.textContent = "ตัวอย่างพันธุ์: " + v.examples + " — " + v.note;
+      vNote.textContent = "ตัวอย่างพันธุ์: " + v.examples;
       vWarn.textContent = fieldVarietyChosen()
         ? ""
         : "ยังไม่ได้ยืนยันพันธุ์ ระบบใช้ค่าเริ่มต้นเป็นข้าวไวต่อช่วงแสงไปก่อน ถ้าปลูกนาปรังให้เปลี่ยนแล้วกดบันทึก";
