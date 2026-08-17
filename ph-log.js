@@ -1,69 +1,48 @@
 // ============================================================
-// ph-log.js — บันทึกค่า pH สองรอบและเปรียบเทียบแนวโน้ม
+// ph-log.js — วัดค่า pH ดิน 5 จุด ในหน้าเตรียมดิน
 // ============================================================
 //
 // วิธีใช้: อัปไฟล์นี้ขึ้น repo แล้วเพิ่มใน index.html หลัง soil-guide.js
 //
-//   <script src="ph-log.js?v=1"></script>
+//   <script src="ph-log.js?v=3"></script>
 //
 // ------------------------------------------------------------
-// แนวคิด
+// ทำไมต้อง 5 จุด ไม่ใช่จุดเดียว
 // ------------------------------------------------------------
-// รอบที่ 1 วัดตอนเตรียมดิน ก่อนปลูก — เป็นค่าตั้งต้นของฤดู
-// รอบที่ 2 วัดตอนบันทึกสำรวจ ระหว่างปลูก — เทียบกับรอบแรกเพื่อดูว่าเปลี่ยนไปไหม
+// ดินในแปลงเดียวกันค่า pH ไม่เท่ากันทุกจุด ตรงที่เคยเป็นคอกสัตว์ ตรงที่น้ำขังประจำ
+// หรือตรงที่เคยใส่ปูนไปแล้ว จะต่างจากจุดอื่นได้เป็นหน่วยเต็มๆ
+// การวัดจุดเดียวแล้วสรุปทั้งแปลงจึงให้ภาพที่ผิด และอาจนำไปสู่การใส่ปูนผิดอัตรา
 //
-// คุณค่าจริงของฟีเจอร์นี้อยู่ที่การเทียบสองรอบ ไม่ใช่การวัดครั้งเดียว
-// ดินเปรี้ยวที่ใส่ปูนไปแล้ว pH ขยับขึ้นจริงหรือเปล่า
-// ดินที่ใส่ยูเรียหนักติดต่อกันเป็นกรดลงหรือไม่
-// การวัดครั้งเดียวตอบคำถามพวกนี้ไม่ได้เลย
+// หน้าบันทึกสำรวจของระบบใช้ 5 จุดเฉลี่ยอยู่แล้ว ไฟล์นี้ทำให้หน้าเตรียมดินตรงกัน
+// เพื่อให้ค่าที่บันทึกจากสองหน้าเทียบกันได้จริง ถ้าหน้าหนึ่งวัดจุดเดียวอีกหน้าวัด 5 จุด
+// การเอามาเทียบแนวโน้มจะไม่มีความหมาย เพราะวิธีได้มาต่างกัน
 //
 // ------------------------------------------------------------
 // สิ่งที่ไฟล์นี้จงใจไม่ทำ
 // ------------------------------------------------------------
-// 1. ไม่คำนวณอัตราปูนขาวจากค่า pH
-//    ตามที่คอมเมนต์ใน soil-guide.js เขียนไว้ว่าอัตราที่ถูกต้องขึ้นกับ
-//    ค่าความต้องการปูนซึ่งต้องส่งดินไปวิเคราะห์ การเดาจาก pH อย่างเดียว
-//    อาจทำให้ใส่เกินจนดินกลายเป็นด่าง ซึ่งแก้ยากกว่าดินเปรี้ยวมาก
-//
-// 2. ไม่แนะนำสูตรปุ๋ยจากค่า pH
-//    ตามที่คอมเมนต์ในบล็อก chem ของ fertilizer-guide.js ห้ามไว้
-//    เพราะ pH บอกไม่ได้เลยว่าดินขาดธาตุอะไร ต้องมีผลวิเคราะห์ N-P-K จริง
-//
-// ทั้งสองข้อนี้ระบบเดิมตั้งใจไว้แล้ว ไฟล์นี้แค่ไม่ทำลายมัน
-// ข้อความแปลผลทั้งหมดดึงมาจาก SOIL_GUIDE.phBands โดยตรง ไม่มีการเขียนใหม่
-//
-// ------------------------------------------------------------
-// เรื่องที่เก็บข้อมูล อ่านก่อนใช้จริง
-// ------------------------------------------------------------
-// ค่าเริ่มต้นเก็บใน localStorage ของเครื่องผู้ใช้ ซึ่งหายเมื่อเปลี่ยนเครื่อง
-// ล้างข้อมูลเบราว์เซอร์ หรือเปิดจากมือถืออีกเครื่อง
-//
-// ถ้าจะใช้จริงจัง ควรต่อกับที่เดียวกับบันทึกสำรวจ (Cloudflare Worker Field Log)
-// โดยกำหนด window.PH_STORAGE ก่อนโหลดไฟล์นี้ ต้องมีสองเมธอด
-//
-//   window.PH_STORAGE = {
-//     load: function (fieldId) { return Promise.resolve(objectหรือnull); },
-//     save: function (fieldId, data) { return Promise.resolve(); }
-//   };
-//
-// รูปแบบ data คือ { r1: {ph, date}, r2: {ph, date} }
+// ไม่คำนวณอัตราปูนขาวจากค่า pH ตามที่คอมเมนต์ใน soil-guide.js เขียนไว้
+// และไม่แนะนำสูตรปุ๋ยจาก pH ตามที่คอมเมนต์ใน fertilizer-guide.js ห้ามไว้
+// ข้อความแปลผลทั้งหมดดึงจาก SOIL_GUIDE.phBands โดยตรง ไม่มีการเขียนใหม่
 
 (function (global) {
   'use strict';
 
-  var ROUND_LABELS = {
-    r1: 'รอบที่ 1 · ก่อนปลูก',
-    r2: 'รอบที่ 2 · ระหว่างปลูก'
-  };
+  var POINT_COUNT = 5;
+  var PAGE_TITLE = 'เตรียมดิน';
+  var SLOT_ID = 'ph-log-1';
 
   // ค่า pH ที่เป็นไปได้จริงในดินนา นอกช่วงนี้คือกรอกผิดหรือเครื่องวัดเพี้ยน
   var PH_MIN = 3;
   var PH_MAX = 10;
 
   // ความต่างที่ถือว่าเปลี่ยนจริง ไม่ใช่ความคลาดเคลื่อนของเครื่องวัด
-  // ชุดวัดแบบน้ำยาเทียบสีอ่านละเอียดได้ราว 0.5 หน่วย เครื่องวัดแบบเข็มดีกว่านั้น
-  // ตั้งไว้ที่ 0.3 เพื่อไม่ให้รายงานว่า "ดีขึ้น" จากความคลาดเคลื่อนล้วนๆ
+  // ชุดวัดแบบน้ำยาเทียบสีอ่านละเอียดได้ราว 0.5 หน่วย
+  // ตั้งไว้ที่ 0.3 เพื่อไม่ให้รายงานว่าดีขึ้นจากความคลาดเคลื่อนล้วนๆ
   var MEANINGFUL_DIFF = 0.3;
+
+  // ช่วงที่ข้าวดูดธาตุอาหารได้ดีที่สุด ใช้วัดว่าค่าใหม่เข้าใกล้หรือออกห่าง
+  var IDEAL_LOW = 5.5;
+  var IDEAL_HIGH = 6.5;
 
   function esc(text) {
     return String(text == null ? '' : text)
@@ -93,23 +72,14 @@
   // ที่เก็บข้อมูล — ใช้ Store เดียวกับบันทึกสำรวจ
   // ------------------------------------------------------------
   //
-  // ตอนแรกตั้งใจเขียนที่เก็บแยกด้วย localStorage แต่พอดูโค้ดเดิมแล้วไม่ควรทำ
-  // เพราะ Store.add() มีของที่เขียนเองแล้วจะได้ไม่ครบอยู่หลายอย่าง
-  //   - ยิงขึ้น Cloudflare Worker ให้ ข้อมูลจึงไม่หายเมื่อเปลี่ยนเครื่อง
-  //   - ถ้าเน็ตล่ม เก็บลงเครื่องไว้ก่อนแล้วค่อยส่งทีหลังอัตโนมัติ
-  //   - จัดการ session หมดอายุและเด้งไปหน้าล็อกอินให้
-  //
-  // ที่สำคัญคือ entry ของบันทึกสำรวจมีช่อง ph: null เผื่อไว้อยู่แล้ว
-  // แปลว่า schema เดิมออกแบบรองรับไว้ตั้งแต่แรก ไฟล์นี้แค่เติมค่าลงช่องที่มีอยู่
-  // ไม่ได้สร้างที่เก็บใหม่ซ้อนขึ้นมา ค่า pH จึงไปโผล่ในทะเบียนบันทึกเหมือนข้อมูลอื่น
-  //
-  // ถ้าวันหลังอยากเปลี่ยนที่เก็บ กำหนด window.PH_STORAGE ที่มี load/save
-  // ก่อนโหลดไฟล์นี้ ระบบจะใช้ตัวนั้นแทน
+  // ไม่เขียนที่เก็บใหม่ เพราะ Store.add() มีของที่เขียนเองแล้วจะได้ไม่ครบ
+  // คือยิงขึ้น Cloudflare Worker, เก็บลงเครื่องไว้ก่อนถ้าเน็ตล่ม
+  // และจัดการ session หมดอายุให้ ค่า pH จึงไปอยู่ในทะเบียนบันทึกเหมือนข้อมูลอื่น
   function storeApi() {
     return global.Store || null;
   }
 
-  function readProfileName() {
+  function profileName() {
     var store = storeApi();
     try {
       return (store && store.profile && store.profile().name) || '';
@@ -118,71 +88,65 @@
     }
   }
 
-  // อ่านค่า pH ที่เคยบันทึกไว้ทั้งสองรอบจากรายการบันทึกเดิม
-  // ดูเฉพาะรายการที่มี phRound กำกับ เพื่อไม่ให้ปนกับรายการวินิจฉัยโรค
-  // ที่อาจมีค่า ph ติดมาด้วยแต่ไม่ได้ตั้งใจบันทึกเป็นรอบวัด
-  function loadRecord() {
+  // หาค่า pH ที่บันทึกไว้ล่าสุดก่อนหน้านี้ เพื่อเอามาเทียบแนวโน้ม
+  // ดูทุกรายการที่มีค่า pH ไม่ว่าจะบันทึกจากหน้าไหน เพราะทั้งสองหน้าใช้ 5 จุดเหมือนกัน
+  // จึงเทียบกันได้ตรงๆ ไม่ต้องแยกว่ามาจากหน้าเตรียมดินหรือบันทึกสำรวจ
+  function loadLatest() {
     var store = storeApi();
-    if (!store || typeof store.list !== 'function') return Promise.resolve({ r1: null, r2: null });
+    if (!store) return Promise.resolve(null);
+
+    var getList = store.list || store.all || store.entries;
+    if (typeof getList !== 'function') return Promise.resolve(null);
 
     return Promise.resolve()
-      .then(function () { return store.list(); })
+      .then(function () { return getList.call(store); })
       .then(function (entries) {
-        var record = { r1: null, r2: null };
-        if (!Array.isArray(entries)) return record;
-
-        // ไล่จากใหม่ไปเก่า เก็บอันแรกที่เจอของแต่ละรอบ คือค่าล่าสุดของรอบนั้น
+        if (!Array.isArray(entries)) return null;
         for (var i = 0; i < entries.length; i++) {
           var e = entries[i];
-          if (!e || typeof e.ph !== 'number') continue;
-          if (e.phRound === 'r1' && !record.r1) record.r1 = { ph: e.ph, date: e.date };
-          if (e.phRound === 'r2' && !record.r2) record.r2 = { ph: e.ph, date: e.date };
-          if (record.r1 && record.r2) break;
+          if (e && typeof e.ph === 'number' && e.ph > 0) {
+            return { ph: e.ph, date: e.date };
+          }
         }
-        return record;
+        return null;
       })['catch'](function (err) {
         console.warn('[ph-log] อ่านบันทึกเดิมไม่สำเร็จ', err);
-        return { r1: null, r2: null };
+        return null;
       });
   }
 
-  function saveReading(round, ph, date) {
+  function saveReading(avg, points, date) {
     var store = storeApi();
     if (!store || typeof store.add !== 'function') {
-      return Promise.reject(new Error('ยังไม่พร้อมบันทึก'));
+      return Promise.reject(new Error('ยังไม่พร้อมบันทึก ลองรีเฟรชหน้าอีกครั้ง'));
     }
-
     // ใส่ฟิลด์ให้ตรงกับ entry ของบันทึกสำรวจ เพื่อให้แสดงในทะเบียนได้เหมือนกัน
-    // disease กับ score เว้นว่างเพราะรายการนี้ไม่ใช่การวินิจฉัยโรค
     return Promise.resolve(store.add({
       date: date,
-      owner: readProfileName(),
+      owner: profileName(),
       gps: '',
-      ph: ph,
-      phRound: round,
-      disease: 'วัดค่า pH ดิน — ' + ROUND_LABELS[round],
+      ph: avg,
+      phPoints: points,
+      disease: 'วัดค่า pH ดิน — ก่อนปลูก',
       score: null,
       image: null
     }));
-  }
-
-  // ถ้ามีที่เก็บของตัวเองกำหนดไว้ ให้ใช้ตัวนั้นแทนทั้งหมด
-  function customStorage() {
-    return global.PH_STORAGE || null;
   }
 
   // ------------------------------------------------------------
   // สไตล์
   // ------------------------------------------------------------
   var CSS = [
-    '.ph-card{background:#fff;border:1px solid #e3e3e0;border-radius:12px;padding:20px;margin:16px 0}',
+    '.ph-card{background:#fff;border:1px solid #e3e3e0;border-radius:12px;padding:20px;margin-bottom:20px}',
     '.ph-head{font-size:17px;font-weight:500;color:#1a1a1a;margin-bottom:4px}',
     '.ph-sub{font-size:13px;color:#6b6b6b;margin-bottom:16px}',
-    '.ph-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end;margin-bottom:14px}',
+    '.ph-points{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:14px}',
     '.ph-field{display:flex;flex-direction:column}',
     '.ph-label{font-size:13px;color:#6b6b6b;margin-bottom:6px}',
     '.ph-input{width:100%;height:40px;padding:0 12px;font-size:15px;font-family:inherit;color:#1a1a1a;background:#fff;border:1px solid #e3e3e0;border-radius:8px;box-sizing:border-box}',
     '.ph-input:focus{outline:none;border-color:#1f7a4d;box-shadow:0 0 0 3px #eaf5ee}',
+    '.ph-input:disabled{background:#f2f2ef;color:#1a1a1a;font-weight:500}',
+    '.ph-bottom{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;align-items:end;margin-bottom:14px}',
     '.ph-btn{height:40px;padding:0 20px;font-size:15px;font-family:inherit;font-weight:500;color:#fff;background:#1f7a4d;border:none;border-radius:8px;cursor:pointer}',
     '.ph-btn:hover{background:#186139}',
     '.ph-btn:disabled{background:#c8c8c4;cursor:not-allowed}',
@@ -211,7 +175,7 @@
   }
 
   // ------------------------------------------------------------
-  // แปลผลและแสดง
+  // แปลผลและเทียบแนวโน้ม
   // ------------------------------------------------------------
   function bandHtml(ph, band) {
     if (!band) return '';
@@ -224,72 +188,77 @@
     '</div>';
   }
 
-  // เทียบสองรอบ — จุดที่ฟีเจอร์นี้มีค่าจริง
-  //
-  // ไม่สรุปว่า "ดีขึ้น" หรือ "แย่ลง" จากทิศทางของตัวเลขอย่างเดียว
+  // ระยะห่างจากช่วงที่เหมาะสม ถ้าอยู่ในช่วงถือว่าเป็นศูนย์
+  function distanceFromIdeal(ph) {
+    if (ph < IDEAL_LOW) return IDEAL_LOW - ph;
+    if (ph > IDEAL_HIGH) return ph - IDEAL_HIGH;
+    return 0;
+  }
+
+  // ไม่สรุปว่าดีขึ้นหรือแย่ลงจากทิศทางตัวเลขอย่างเดียว
   // เพราะ pH ขึ้นจาก 5.0 เป็น 6.0 คือดีขึ้น แต่ขึ้นจาก 7.0 เป็น 8.0 คือแย่ลง
-  // จึงต้องดูว่าเข้าใกล้หรือออกห่างจากช่วงที่เหมาะสม 5.5-6.5
-  function trendHtml(before, after) {
-    var diff = after - before;
+  function trendHtml(prev, now) {
+    var diff = now.ph !== undefined ? now.ph - prev.ph : 0;
+    var when = prev.date ? ' เมื่อ ' + thaiDate(prev.date) : '';
+
     if (Math.abs(diff) < MEANINGFUL_DIFF) {
       return '<div class="ph-trend">' +
-        '<div class="ph-trend-head">เทียบกับรอบก่อน</div>' +
-        '<div class="ph-trend-body">ค่าใกล้เคียงเดิม (' + before.toFixed(1) + ' → ' + after.toFixed(1) + ') ' +
-        'ความต่างน้อยกว่า ' + MEANINGFUL_DIFF + ' หน่วย ซึ่งอยู่ในระดับความคลาดเคลื่อนของเครื่องวัด ยังสรุปว่าดินเปลี่ยนไปไม่ได้</div>' +
+        '<div class="ph-trend-head">เทียบกับครั้งก่อน</div>' +
+        '<div class="ph-trend-body">ครั้งก่อนวัดได้ ' + prev.ph.toFixed(1) + when +
+        ' — ค่าใกล้เคียงเดิม ความต่างน้อยกว่า ' + MEANINGFUL_DIFF +
+        ' หน่วย ซึ่งอยู่ในระดับความคลาดเคลื่อนของเครื่องวัด ยังสรุปว่าดินเปลี่ยนไปไม่ได้</div>' +
       '</div>';
     }
 
-    // ระยะห่างจากช่วงเหมาะสม 5.5-6.5 ถ้าอยู่ในช่วงถือว่าระยะเป็นศูนย์
-    function distanceFromIdeal(ph) {
-      if (ph < 5.5) return 5.5 - ph;
-      if (ph > 6.5) return ph - 6.5;
-      return 0;
-    }
-
-    var wasOff = distanceFromIdeal(before);
-    var nowOff = distanceFromIdeal(after);
+    var wasOff = distanceFromIdeal(prev.ph);
+    var nowOff = distanceFromIdeal(now.ph);
     var direction = diff > 0 ? 'สูงขึ้น' : 'ต่ำลง';
     var verdict;
 
     if (nowOff < wasOff) {
       verdict = 'เข้าใกล้ช่วงที่เหมาะกับข้าวมากขึ้น เป็นแนวโน้มที่ดี ถ้าเพิ่งปรับปรุงดินไปแสดงว่าสิ่งที่ทำได้ผล';
     } else if (nowOff > wasOff) {
-      verdict = 'ออกห่างจากช่วงที่เหมาะกับข้าวมากขึ้น ควรทบทวนว่าระหว่างฤดูทำอะไรที่อาจกระทบดิน เช่นใส่ปูนหรือปุ๋ยไนโตรเจนปริมาณมาก';
+      verdict = 'ออกห่างจากช่วงที่เหมาะกับข้าวมากขึ้น ควรทบทวนว่าช่วงที่ผ่านมาทำอะไรที่อาจกระทบดิน เช่นใส่ปูนหรือปุ๋ยไนโตรเจนปริมาณมาก';
     } else {
-      verdict = 'ยังอยู่ในช่วงที่เหมาะกับข้าวทั้งสองรอบ';
+      verdict = 'ยังอยู่ในช่วงที่เหมาะกับข้าวทั้งสองครั้ง';
     }
 
     return '<div class="ph-trend">' +
-      '<div class="ph-trend-head">เทียบกับรอบก่อน</div>' +
-      '<div class="ph-trend-body">' + direction + ' ' + Math.abs(diff).toFixed(1) + ' หน่วย (' +
-      before.toFixed(1) + ' → ' + after.toFixed(1) + ') — ' + verdict + '</div>' +
+      '<div class="ph-trend-head">เทียบกับครั้งก่อน</div>' +
+      '<div class="ph-trend-body">ครั้งก่อนวัดได้ ' + prev.ph.toFixed(1) + when + ' — ' +
+      direction + ' ' + Math.abs(diff).toFixed(1) + ' หน่วย (' +
+      prev.ph.toFixed(1) + ' → ' + now.ph.toFixed(1) + ') ' + verdict + '</div>' +
     '</div>';
   }
 
   // ------------------------------------------------------------
   // วาดฟอร์ม
   // ------------------------------------------------------------
-  function render(container, options) {
+  function render(container) {
     if (!container) return;
-    options = options || {};
-    var round = options.round === 'r2' ? 'r2' : 'r1';
-    var fieldId = options.fieldId || 'default';
+    injectStyle();
     var uid = 'ph' + Math.random().toString(36).slice(2, 8);
 
-    injectStyle();
+    var pointFields = '';
+    for (var i = 1; i <= POINT_COUNT; i++) {
+      pointFields +=
+        '<div class="ph-field">' +
+          '<label class="ph-label">pH จุดที่ ' + i + '</label>' +
+          '<input type="number" id="' + uid + '-p' + i + '" class="ph-input ' + uid + '-pt" ' +
+          'min="' + PH_MIN + '" max="' + PH_MAX + '" step="0.1" placeholder="0.0">' +
+        '</div>';
+    }
 
     container.innerHTML =
       '<div class="ph-card">' +
-        '<div class="ph-head">วัดค่า pH ดิน — ' + esc(ROUND_LABELS[round]) + '</div>' +
-        '<div class="ph-sub">' +
-          (round === 'r1'
-            ? 'วัดก่อนเริ่มเตรียมดิน เพื่อใช้เป็นค่าตั้งต้นของฤดูนี้'
-            : 'วัดซ้ำระหว่างปลูก แล้วเทียบกับค่าที่บันทึกไว้ตอนเตรียมดิน') +
-        '</div>' +
-        '<div class="ph-grid">' +
+        '<div class="ph-head">วัดค่า pH ดิน — ก่อนปลูก</div>' +
+        '<div class="ph-sub">วัด 5 จุดกระจายทั่วแปลง ระบบเฉลี่ยให้เอง ' +
+        'ดินในแปลงเดียวกันค่าไม่เท่ากันทุกจุด การวัดจุดเดียวจึงให้ภาพที่ผิด</div>' +
+        '<div class="ph-points">' + pointFields + '</div>' +
+        '<div class="ph-bottom">' +
           '<div class="ph-field">' +
-            '<label class="ph-label">ค่า pH ที่วัดได้</label>' +
-            '<input type="number" id="' + uid + '-ph" class="ph-input" min="' + PH_MIN + '" max="' + PH_MAX + '" step="0.1" placeholder="เช่น 5.8">' +
+            '<label class="ph-label">ค่าเฉลี่ย</label>' +
+            '<input type="text" id="' + uid + '-avg" class="ph-input" disabled placeholder="คำนวณให้อัตโนมัติ">' +
           '</div>' +
           '<div class="ph-field">' +
             '<label class="ph-label">วันที่วัด</label>' +
@@ -306,82 +275,119 @@
         'ถ้าต้องการอัตราปูนหรือสูตรปุ๋ยที่แม่นยำ ต้องส่งดินไปวิเคราะห์ที่สถานีพัฒนาที่ดินจังหวัด</div>' +
       '</div>';
 
-    var phInput = container.querySelector('#' + uid + '-ph');
+    var pointInputs = container.querySelectorAll('.' + uid + '-pt');
+    var avgInput = container.querySelector('#' + uid + '-avg');
     var dateInput = container.querySelector('#' + uid + '-date');
     var saveBtn = container.querySelector('#' + uid + '-save');
     var errBox = container.querySelector('#' + uid + '-err');
     var msgBox = container.querySelector('#' + uid + '-msg');
     var outBox = container.querySelector('#' + uid + '-out');
 
-    var record = { r1: null, r2: null };
+    var previous = null;
 
-    function showResult(ph) {
-      var reader = global.readSoilPh;
-      if (typeof reader !== 'function') {
-        outBox.innerHTML = '<div class="ph-note">ยังโหลด soil-guide.js ไม่สำเร็จ จึงแปลผลค่า pH ไม่ได้</div>';
-        return;
+    // เฉลี่ยเฉพาะจุดที่กรอกแล้ว ไม่นับช่องว่างเป็นศูนย์
+    // ถ้านับช่องว่างเป็นศูนย์ คนที่วัดได้แค่ 3 จุดจะได้ค่าเฉลี่ยต่ำผิดจนดูเหมือนดินเปรี้ยวจัด
+    function currentValues() {
+      var values = [];
+      for (var i = 0; i < pointInputs.length; i++) {
+        var v = parseFloat(pointInputs[i].value);
+        if (isFinite(v) && v > 0) values.push(v);
       }
-      var band = reader(ph);
-      var html = bandHtml(ph, band);
-
-      // เทียบสองรอบเฉพาะเมื่อเป็นรอบสองและมีค่ารอบแรกอยู่แล้ว
-      if (round === 'r2' && record.r1 && typeof record.r1.ph === 'number') {
-        html += trendHtml(record.r1.ph, ph);
-      } else if (round === 'r2') {
-        html += '<div class="ph-note">ยังไม่มีค่ารอบที่ 1 จากหน้าเตรียมดิน จึงยังเทียบแนวโน้มไม่ได้</div>';
-      }
-      outBox.innerHTML = html;
+      return values;
     }
 
-    // แสดงผลทันทีระหว่างพิมพ์ ไม่ต้องรอกดบันทึก
-    // เพราะผู้ใช้ควรเห็นว่าค่าที่วัดได้แปลว่าอะไรก่อนตัดสินใจว่าจะเก็บไว้ไหม
-    phInput.addEventListener('input', function () {
+    function average(values) {
+      var sum = 0;
+      for (var i = 0; i < values.length; i++) sum += values[i];
+      return sum / values.length;
+    }
+
+    function update() {
       msgBox.hidden = true;
-      var ph = parseFloat(phInput.value);
-      if (!isFinite(ph)) {
+      var values = currentValues();
+
+      if (!values.length) {
+        avgInput.value = '';
         errBox.hidden = true;
         outBox.innerHTML = '';
         return;
       }
-      if (ph < PH_MIN || ph > PH_MAX) {
+
+      var outOfRange = values.some(function (v) { return v < PH_MIN || v > PH_MAX; });
+      if (outOfRange) {
+        avgInput.value = '';
         errBox.textContent = 'ค่า pH ควรอยู่ระหว่าง ' + PH_MIN + ' ถึง ' + PH_MAX + ' ลองตรวจเครื่องวัดอีกครั้ง';
         errBox.hidden = false;
         outBox.innerHTML = '';
         return;
       }
+
       errBox.hidden = true;
-      showResult(ph);
-    });
+      var avg = average(values);
+      avgInput.value = avg.toFixed(1) + (values.length < POINT_COUNT ? ' (จาก ' + values.length + ' จุด)' : '');
+
+      var reader = global.readSoilPh;
+      if (typeof reader !== 'function') {
+        outBox.innerHTML = '<div class="ph-note">ยังโหลด soil-guide.js ไม่สำเร็จ จึงแปลผลค่า pH ไม่ได้</div>';
+        return;
+      }
+
+      var html = bandHtml(avg, reader(avg));
+
+      // เตือนเมื่อจุดต่างๆ กระจายกันมาก ซึ่งค่าเฉลี่ยเดียวอธิบายไม่ได้
+      // ดินที่ต่างกันเกิน 1 หน่วยระหว่างจุด ควรแยกจัดการเป็นโซน ไม่ใช่ใส่ปูนเท่ากันทั้งแปลง
+      if (values.length >= 2) {
+        var spread = Math.max.apply(null, values) - Math.min.apply(null, values);
+        if (spread >= 1.0) {
+          html += '<div class="ph-trend">' +
+            '<div class="ph-trend-head">จุดวัดต่างกันมาก</div>' +
+            '<div class="ph-trend-body">ค่าต่ำสุดกับสูงสุดต่างกัน ' + spread.toFixed(1) + ' หน่วย ' +
+            'แปลงนี้สภาพดินไม่สม่ำเสมอ การใช้ค่าเฉลี่ยเดียวตัดสินทั้งแปลงอาจทำให้บางโซนได้รับการแก้ไม่ตรงกับปัญหาจริง ' +
+            'ควรจดไว้ว่าจุดไหนต่างจากจุดอื่น แล้วปรึกษาหมอดินอาสาเรื่องการจัดการแยกโซน</div>' +
+          '</div>';
+        }
+      }
+
+      if (previous && typeof previous.ph === 'number') {
+        html += trendHtml(previous, { ph: avg });
+      }
+
+      outBox.innerHTML = html;
+    }
+
+    for (var j = 0; j < pointInputs.length; j++) {
+      pointInputs[j].addEventListener('input', update);
+    }
 
     saveBtn.addEventListener('click', function () {
-      var ph = parseFloat(phInput.value);
-      if (!isFinite(ph) || ph < PH_MIN || ph > PH_MAX) {
-        errBox.textContent = 'กรอกค่า pH ระหว่าง ' + PH_MIN + ' ถึง ' + PH_MAX + ' ก่อนบันทึก';
+      var values = currentValues();
+      if (!values.length) {
+        errBox.textContent = 'กรอกค่า pH อย่างน้อย 1 จุดก่อนบันทึก';
         errBox.hidden = false;
         return;
       }
+      if (values.some(function (v) { return v < PH_MIN || v > PH_MAX; })) {
+        errBox.textContent = 'มีค่าที่อยู่นอกช่วง ' + PH_MIN + ' ถึง ' + PH_MAX + ' แก้ก่อนบันทึก';
+        errBox.hidden = false;
+        return;
+      }
+
       errBox.hidden = true;
+      var avg = Math.round(average(values) * 10) / 10;
       var date = dateInput.value || todayStr();
-      record[round] = { ph: ph, date: date };
 
       saveBtn.disabled = true;
       saveBtn.textContent = 'กำลังบันทึก';
 
-      var custom = customStorage();
-      var job = custom
-        ? Promise.resolve(custom.save(fieldId, record))
-        : saveReading(round, ph, date);
-
-      job.then(function () {
-        // แจ้งให้ตรงกับความจริง ถ้าเน็ตล่ม Store จะเก็บลงเครื่องไว้ก่อน
-        // การบอกว่า "บันทึกแล้ว" เฉยๆ ทั้งที่ยังไม่ขึ้นเซิร์ฟเวอร์ทำให้เข้าใจผิด
+      saveReading(avg, values, date).then(function () {
         var store = storeApi();
         var offline = store && typeof store.isOffline === 'function' && store.isOffline();
+        // บอกให้ตรงความจริง ถ้ายังไม่ขึ้นเซิร์ฟเวอร์ต้องไม่บอกว่าบันทึกเสร็จแล้วเฉยๆ
         msgBox.textContent = offline
           ? 'บันทึกลงเครื่องแล้ว จะซิงก์ขึ้นเซิร์ฟเวอร์เมื่อเชื่อมต่อได้'
           : 'บันทึกลงทะเบียนบันทึกแล้ว';
         msgBox.hidden = false;
-        showResult(ph);
+        previous = { ph: avg, date: date };
       })['catch'](function (err) {
         errBox.textContent = (err && err.message) || 'บันทึกไม่สำเร็จ ค่าที่กรอกยังดูผลได้แต่จะหายเมื่อปิดหน้า';
         errBox.hidden = false;
@@ -391,75 +397,77 @@
       });
     });
 
-    // โหลดค่าเดิมมาเติมให้ ผู้ใช้จะได้ไม่ต้องกรอกซ้ำและเห็นของเก่าที่เคยบันทึก
-    var custom = customStorage();
-    var loader = custom ? Promise.resolve(custom.load(fieldId)) : loadRecord();
-
-    loader.then(function (data) {
-      if (data && typeof data === 'object') {
-        record.r1 = data.r1 || null;
-        record.r2 = data.r2 || null;
-      }
-      var mine = record[round];
-      if (mine && typeof mine.ph === 'number') {
-        phInput.value = mine.ph;
-        if (mine.date) dateInput.value = mine.date;
-        showResult(mine.ph);
-        msgBox.textContent = 'ค่าที่บันทึกไว้เมื่อ ' + thaiDate(mine.date);
-        msgBox.hidden = false;
-      }
-    })['catch'](function (err) {
-      console.warn('[ph-log] โหลดค่าเดิมไม่สำเร็จ', err);
+    loadLatest().then(function (found) {
+      previous = found;
+      if (found) update();
     });
   }
 
   // ------------------------------------------------------------
-  // ติดตั้งอัตโนมัติ
+  // ติดตั้ง — เฉพาะหน้าเตรียมดินเท่านั้น
   // ------------------------------------------------------------
   //
-  // วิธีที่แน่นอนที่สุดคือวาง div ไว้เองในหน้า แล้วไฟล์นี้จะเจอ
-  //   <div id="ph-log-1"></div>   ในหน้าเตรียมดิน
-  //   <div id="ph-log-2"></div>   ในหน้าบันทึกสำรวจ
-  //
-  // ถ้าไม่ได้วางไว้ จะใช้วิธีสำรองคือหาหัวข้อหน้าแล้วต่อท้ายเนื้อหา
-  // ซึ่งพึ่งข้อความบนหน้าจอ จึงเปราะกว่าและอาจวางผิดที่ถ้าโครงสร้างหน้าเปลี่ยน
-  function currentFieldId() {
-    return global.CURRENT_FIELD_ID || 'default';
+  // แอปเป็นหน้าเดียวที่วาดเนื้อหาใหม่ในคอนเทนเนอร์เดิมทุกครั้งที่เปลี่ยนเมนู
+  // ถ้าแค่ต่อการ์ดเข้าไปแล้วไม่ลบออก การ์ดจะค้างอยู่ทุกหน้าที่กดต่อจากนั้น
+  // จึงต้องเช็คหัวข้อหน้าทุกครั้ง และถอดการ์ดออกเมื่อออกจากหน้าเตรียมดิน
+  var mountedCard = null;
+
+  function pageTitleText() {
+    var nodes = document.querySelectorAll('h1');
+    for (var i = 0; i < nodes.length; i++) {
+      var text = (nodes[i].textContent || '').trim();
+      if (text) return text;
+    }
+    return '';
   }
 
-  function findByHeading(titleText) {
-    var nodes = document.querySelectorAll('h1,h2');
+  function findHeading() {
+    var nodes = document.querySelectorAll('h1');
     for (var i = 0; i < nodes.length; i++) {
-      if ((nodes[i].textContent || '').trim() === titleText) return nodes[i];
+      if ((nodes[i].textContent || '').trim() === PAGE_TITLE) return nodes[i];
     }
     return null;
   }
 
-  function mountRound(round, anchorTitle, slotId) {
-    var slot = document.getElementById(slotId);
-    if (slot) {
-      if (slot.dataset.phMounted === '1') return;
-      slot.dataset.phMounted = '1';
-      render(slot, { round: round, fieldId: currentFieldId() });
-      return;
+  function removeCard() {
+    if (mountedCard && mountedCard.parentElement) {
+      mountedCard.parentElement.removeChild(mountedCard);
     }
-
-    var heading = findByHeading(anchorTitle);
-    if (!heading) return;
-
-    // หาคอนเทนเนอร์เนื้อหาของหน้า แล้วต่อท้าย
-    var host = heading.closest('main, section, article') || heading.parentElement;
-    if (!host || host.dataset.phMounted === '1') return;
-    host.dataset.phMounted = '1';
-
-    var box = document.createElement('div');
-    host.appendChild(box);
-    render(box, { round: round, fieldId: currentFieldId() });
+    mountedCard = null;
   }
 
   function tryMount() {
-    mountRound('r1', 'เตรียมดิน', 'ph-log-1');
-    mountRound('r2', 'บันทึกสำรวจ', 'ph-log-2');
+    // ออกจากหน้าเตรียมดินแล้ว ต้องเก็บการ์ดออกก่อนอย่างอื่น
+    if (pageTitleText() !== PAGE_TITLE) {
+      removeCard();
+      return;
+    }
+
+    // ถ้าการ์ดยังอยู่ในหน้าจริงๆ ไม่ต้องวาดซ้ำ
+    if (mountedCard && document.body.contains(mountedCard)) return;
+    mountedCard = null;
+
+    // ถ้ามีช่องที่วางไว้เอง ใช้ช่องนั้นก่อนเสมอ แน่นอนกว่าการเดาตำแหน่ง
+    var slot = document.getElementById(SLOT_ID);
+    if (slot) {
+      mountedCard = document.createElement('div');
+      slot.innerHTML = '';
+      slot.appendChild(mountedCard);
+      render(mountedCard);
+      return;
+    }
+
+    var heading = findHeading();
+    if (!heading) return;
+
+    // วางไว้ใต้หัวข้อหน้าโดยตรง ไม่ใช่ต่อท้ายเนื้อหาทั้งหมด
+    // เพราะเนื้อหาด้านล่างมีบล็อกสภาพดินอยู่แล้ว การ์ดควรอยู่เหนือมัน
+    var anchor = heading.parentElement;
+    if (!anchor || !anchor.parentElement) return;
+
+    mountedCard = document.createElement('div');
+    anchor.parentElement.insertBefore(mountedCard, anchor.nextSibling);
+    render(mountedCard);
   }
 
   function start() {
