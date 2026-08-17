@@ -51,7 +51,6 @@
 (function (global) {
   'use strict';
 
-  var STORAGE_PREFIX = 'smartrice.ph.';
   var ROUND_LABELS = {
     r1: 'รอบที่ 1 · ก่อนปลูก',
     r2: 'รอบที่ 2 · ระหว่างปลูก'
@@ -91,33 +90,85 @@
   }
 
   // ------------------------------------------------------------
-  // ที่เก็บข้อมูล
+  // ที่เก็บข้อมูล — ใช้ Store เดียวกับบันทึกสำรวจ
   // ------------------------------------------------------------
-  // localStorage อาจใช้ไม่ได้ในโหมดส่วนตัวของบางเบราว์เซอร์ และจะโยน exception
-  // ต้องจับไว้ ไม่งั้นหน้าทั้งหน้าพังเพราะเรื่องบันทึกค่าอย่างเดียว
-  var defaultStorage = {
-    load: function (fieldId) {
-      try {
-        var raw = localStorage.getItem(STORAGE_PREFIX + fieldId);
-        return Promise.resolve(raw ? JSON.parse(raw) : null);
-      } catch (err) {
-        console.warn('[ph-log] อ่านข้อมูลเดิมไม่ได้', err);
-        return Promise.resolve(null);
-      }
-    },
-    save: function (fieldId, data) {
-      try {
-        localStorage.setItem(STORAGE_PREFIX + fieldId, JSON.stringify(data));
-        return Promise.resolve();
-      } catch (err) {
-        console.warn('[ph-log] บันทึกไม่ได้', err);
-        return Promise.reject(err);
-      }
-    }
-  };
+  //
+  // ตอนแรกตั้งใจเขียนที่เก็บแยกด้วย localStorage แต่พอดูโค้ดเดิมแล้วไม่ควรทำ
+  // เพราะ Store.add() มีของที่เขียนเองแล้วจะได้ไม่ครบอยู่หลายอย่าง
+  //   - ยิงขึ้น Cloudflare Worker ให้ ข้อมูลจึงไม่หายเมื่อเปลี่ยนเครื่อง
+  //   - ถ้าเน็ตล่ม เก็บลงเครื่องไว้ก่อนแล้วค่อยส่งทีหลังอัตโนมัติ
+  //   - จัดการ session หมดอายุและเด้งไปหน้าล็อกอินให้
+  //
+  // ที่สำคัญคือ entry ของบันทึกสำรวจมีช่อง ph: null เผื่อไว้อยู่แล้ว
+  // แปลว่า schema เดิมออกแบบรองรับไว้ตั้งแต่แรก ไฟล์นี้แค่เติมค่าลงช่องที่มีอยู่
+  // ไม่ได้สร้างที่เก็บใหม่ซ้อนขึ้นมา ค่า pH จึงไปโผล่ในทะเบียนบันทึกเหมือนข้อมูลอื่น
+  //
+  // ถ้าวันหลังอยากเปลี่ยนที่เก็บ กำหนด window.PH_STORAGE ที่มี load/save
+  // ก่อนโหลดไฟล์นี้ ระบบจะใช้ตัวนั้นแทน
+  function storeApi() {
+    return global.Store || null;
+  }
 
-  function storage() {
-    return global.PH_STORAGE || defaultStorage;
+  function readProfileName() {
+    var store = storeApi();
+    try {
+      return (store && store.profile && store.profile().name) || '';
+    } catch (err) {
+      return '';
+    }
+  }
+
+  // อ่านค่า pH ที่เคยบันทึกไว้ทั้งสองรอบจากรายการบันทึกเดิม
+  // ดูเฉพาะรายการที่มี phRound กำกับ เพื่อไม่ให้ปนกับรายการวินิจฉัยโรค
+  // ที่อาจมีค่า ph ติดมาด้วยแต่ไม่ได้ตั้งใจบันทึกเป็นรอบวัด
+  function loadRecord() {
+    var store = storeApi();
+    if (!store || typeof store.list !== 'function') return Promise.resolve({ r1: null, r2: null });
+
+    return Promise.resolve()
+      .then(function () { return store.list(); })
+      .then(function (entries) {
+        var record = { r1: null, r2: null };
+        if (!Array.isArray(entries)) return record;
+
+        // ไล่จากใหม่ไปเก่า เก็บอันแรกที่เจอของแต่ละรอบ คือค่าล่าสุดของรอบนั้น
+        for (var i = 0; i < entries.length; i++) {
+          var e = entries[i];
+          if (!e || typeof e.ph !== 'number') continue;
+          if (e.phRound === 'r1' && !record.r1) record.r1 = { ph: e.ph, date: e.date };
+          if (e.phRound === 'r2' && !record.r2) record.r2 = { ph: e.ph, date: e.date };
+          if (record.r1 && record.r2) break;
+        }
+        return record;
+      })['catch'](function (err) {
+        console.warn('[ph-log] อ่านบันทึกเดิมไม่สำเร็จ', err);
+        return { r1: null, r2: null };
+      });
+  }
+
+  function saveReading(round, ph, date) {
+    var store = storeApi();
+    if (!store || typeof store.add !== 'function') {
+      return Promise.reject(new Error('ยังไม่พร้อมบันทึก'));
+    }
+
+    // ใส่ฟิลด์ให้ตรงกับ entry ของบันทึกสำรวจ เพื่อให้แสดงในทะเบียนได้เหมือนกัน
+    // disease กับ score เว้นว่างเพราะรายการนี้ไม่ใช่การวินิจฉัยโรค
+    return Promise.resolve(store.add({
+      date: date,
+      owner: readProfileName(),
+      gps: '',
+      ph: ph,
+      phRound: round,
+      disease: 'วัดค่า pH ดิน — ' + ROUND_LABELS[round],
+      score: null,
+      image: null
+    }));
+  }
+
+  // ถ้ามีที่เก็บของตัวเองกำหนดไว้ ให้ใช้ตัวนั้นแทนทั้งหมด
+  function customStorage() {
+    return global.PH_STORAGE || null;
   }
 
   // ------------------------------------------------------------
@@ -310,23 +361,41 @@
         return;
       }
       errBox.hidden = true;
-      record[round] = { ph: ph, date: dateInput.value || todayStr() };
+      var date = dateInput.value || todayStr();
+      record[round] = { ph: ph, date: date };
 
       saveBtn.disabled = true;
-      storage().save(fieldId, record).then(function () {
-        msgBox.textContent = 'บันทึกแล้ว';
+      saveBtn.textContent = 'กำลังบันทึก';
+
+      var custom = customStorage();
+      var job = custom
+        ? Promise.resolve(custom.save(fieldId, record))
+        : saveReading(round, ph, date);
+
+      job.then(function () {
+        // แจ้งให้ตรงกับความจริง ถ้าเน็ตล่ม Store จะเก็บลงเครื่องไว้ก่อน
+        // การบอกว่า "บันทึกแล้ว" เฉยๆ ทั้งที่ยังไม่ขึ้นเซิร์ฟเวอร์ทำให้เข้าใจผิด
+        var store = storeApi();
+        var offline = store && typeof store.isOffline === 'function' && store.isOffline();
+        msgBox.textContent = offline
+          ? 'บันทึกลงเครื่องแล้ว จะซิงก์ขึ้นเซิร์ฟเวอร์เมื่อเชื่อมต่อได้'
+          : 'บันทึกลงทะเบียนบันทึกแล้ว';
         msgBox.hidden = false;
         showResult(ph);
-      })['catch'](function () {
-        errBox.textContent = 'บันทึกไม่สำเร็จ ค่าที่กรอกยังแสดงผลได้แต่จะหายเมื่อปิดหน้า';
+      })['catch'](function (err) {
+        errBox.textContent = (err && err.message) || 'บันทึกไม่สำเร็จ ค่าที่กรอกยังดูผลได้แต่จะหายเมื่อปิดหน้า';
         errBox.hidden = false;
       }).then(function () {
         saveBtn.disabled = false;
+        saveBtn.textContent = 'บันทึก';
       });
     });
 
     // โหลดค่าเดิมมาเติมให้ ผู้ใช้จะได้ไม่ต้องกรอกซ้ำและเห็นของเก่าที่เคยบันทึก
-    storage().load(fieldId).then(function (data) {
+    var custom = customStorage();
+    var loader = custom ? Promise.resolve(custom.load(fieldId)) : loadRecord();
+
+    loader.then(function (data) {
       if (data && typeof data === 'object') {
         record.r1 = data.r1 || null;
         record.r2 = data.r2 || null;
