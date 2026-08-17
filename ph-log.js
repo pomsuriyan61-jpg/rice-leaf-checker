@@ -69,59 +69,113 @@
   }
 
   // ------------------------------------------------------------
-  // ที่เก็บข้อมูล — ใช้ Store เดียวกับบันทึกสำรวจ
+  // ที่เก็บข้อมูล
   // ------------------------------------------------------------
   //
-  // ไม่เขียนที่เก็บใหม่ เพราะ Store.add() มีของที่เขียนเองแล้วจะได้ไม่ครบ
-  // คือยิงขึ้น Cloudflare Worker, เก็บลงเครื่องไว้ก่อนถ้าเน็ตล่ม
-  // และจัดการ session หมดอายุให้ ค่า pH จึงไปอยู่ในทะเบียนบันทึกเหมือนข้อมูลอื่น
+  // เดิมเรียกผ่าน Store.add() ของโค้ดหลัก แต่ Store ถูกประกาศด้วย var
+  // อยู่ในฟังก์ชันครอบ (IIFE) ของ index.html จึงเป็นตัวแปรส่วนตัวของบล็อกนั้น
+  // ไฟล์นี้ที่โหลดแยกกันจึงมองไม่เห็น ทำให้บันทึกไม่ได้
+  //
+  // ทางแก้คือยิงขึ้น endpoint เดียวกัน (/field-logs) ตรงๆ
+  // ข้อมูลจึงยังไปอยู่ในทะเบียนบันทึกเดียวกับบันทึกสำรวจเหมือนเดิม
+  // แต่ต้องจัดการ token กับ offline fallback เองแทนที่จะได้มาฟรีจาก Store
+  //
+  // ถ้าวันหลังแก้ index.html ให้ประกาศ window.Store = Store
+  // ไฟล์นี้จะกลับไปใช้ Store อัตโนมัติ ซึ่งดีกว่าเพราะได้ระบบซิงก์ของเดิมทั้งชุด
+  var API_BASE = global.API_BASE || 'https://divine-frost-abbb.pomsuriyan61.workers.dev';
+  var LOCAL_KEY = 'smartrice.ph.pending';
+
   function storeApi() {
-    return global.Store || null;
+    var store = global.Store;
+    return (store && typeof store.add === 'function') ? store : null;
   }
 
   function profileName() {
-    var store = storeApi();
+    var store = global.Store;
     try {
-      return (store && store.profile && store.profile().name) || '';
-    } catch (err) {
-      return '';
-    }
+      if (store && typeof store.profile === 'function') {
+        return store.profile().name || '';
+      }
+    } catch (err) { /* ไม่มีก็ปล่อยว่าง ไม่ใช่เรื่องคอขาดบาดตาย */ }
+    return '';
   }
 
-  // หาค่า pH ที่บันทึกไว้ล่าสุดก่อนหน้านี้ เพื่อเอามาเทียบแนวโน้ม
-  // ดูทุกรายการที่มีค่า pH ไม่ว่าจะบันทึกจากหน้าไหน เพราะทั้งสองหน้าใช้ 5 จุดเหมือนกัน
-  // จึงเทียบกันได้ตรงๆ ไม่ต้องแยกว่ามาจากหน้าเตรียมดินหรือบันทึกสำรวจ
+  // หา token ที่ระบบล็อกอินเก็บไว้ ชื่อคีย์ต่างกันได้ตามที่โค้ดหลักตั้ง
+  // จึงลองหลายชื่อแทนที่จะล็อกชื่อเดียวแล้วพังถ้าเดาผิด
+  function authToken() {
+    var keys = ['smartrice.token', 'token', 'authToken', 'smartrice_token'];
+    for (var i = 0; i < keys.length; i++) {
+      try {
+        var v = localStorage.getItem(keys[i]);
+        if (v) return v;
+      } catch (err) { return ''; }
+    }
+    return '';
+  }
+
+  function apiFetch(path, options) {
+    options = options || {};
+    var headers = {};
+    if (options.body) headers['Content-Type'] = 'application/json';
+    var token = authToken();
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    var init = { method: options.method || 'GET', headers: headers };
+    if (options.body) init.body = JSON.stringify(options.body);
+
+    return fetch(API_BASE + path, init).then(function (res) {
+      return res.json()['catch'](function () { return {}; }).then(function (data) {
+        if (!res.ok) throw new Error(data.error || ('คำขอไม่สำเร็จ (HTTP ' + res.status + ')'));
+        return data;
+      });
+    });
+  }
+
+  // หาค่า pH ที่บันทึกไว้ล่าสุด เพื่อเอามาเทียบแนวโน้ม
+  // ทั้งสองหน้าใช้ 5 จุดเฉลี่ยเหมือนกันแล้ว จึงเทียบกันได้ตรงๆ
+  // ไม่ต้องแยกว่ามาจากหน้าเตรียมดินหรือบันทึกสำรวจ
   function loadLatest() {
     var store = storeApi();
-    if (!store) return Promise.resolve(null);
+    var getList = store && (store.list || store.all || store.entries);
 
-    var getList = store.list || store.all || store.entries;
-    if (typeof getList !== 'function') return Promise.resolve(null);
+    var source = (typeof getList === 'function')
+      ? Promise.resolve().then(function () { return getList.call(store); })
+      : apiFetch('/field-logs').then(function (data) {
+          return Array.isArray(data) ? data : (data && data.logs) || [];
+        });
 
-    return Promise.resolve()
-      .then(function () { return getList.call(store); })
-      .then(function (entries) {
-        if (!Array.isArray(entries)) return null;
-        for (var i = 0; i < entries.length; i++) {
-          var e = entries[i];
-          if (e && typeof e.ph === 'number' && e.ph > 0) {
-            return { ph: e.ph, date: e.date };
-          }
+    return source.then(function (entries) {
+      if (!Array.isArray(entries)) return null;
+      for (var i = 0; i < entries.length; i++) {
+        var e = entries[i];
+        if (e && typeof e.ph === 'number' && e.ph > 0) {
+          return { ph: e.ph, date: e.date };
         }
-        return null;
-      })['catch'](function (err) {
-        console.warn('[ph-log] อ่านบันทึกเดิมไม่สำเร็จ', err);
-        return null;
-      });
+      }
+      return null;
+    })['catch'](function (err) {
+      console.warn('[ph-log] อ่านบันทึกเดิมไม่สำเร็จ', err);
+      return null;
+    });
+  }
+
+  // เก็บลงเครื่องไว้ก่อนเมื่อส่งขึ้นเซิร์ฟเวอร์ไม่ได้
+  // ไม่ทิ้งข้อมูลที่ผู้ใช้อุตส่าห์เดินวัดมา 5 จุด เพียงเพราะเน็ตไม่ดีตอนนั้น
+  function savePending(entry) {
+    try {
+      var list = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
+      list.unshift(entry);
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(list));
+      return true;
+    } catch (err) {
+      console.warn('[ph-log] เก็บลงเครื่องไม่ได้', err);
+      return false;
+    }
   }
 
   function saveReading(avg, points, date) {
-    var store = storeApi();
-    if (!store || typeof store.add !== 'function') {
-      return Promise.reject(new Error('ยังไม่พร้อมบันทึก ลองรีเฟรชหน้าอีกครั้ง'));
-    }
-    // ใส่ฟิลด์ให้ตรงกับ entry ของบันทึกสำรวจ เพื่อให้แสดงในทะเบียนได้เหมือนกัน
-    return Promise.resolve(store.add({
+    // ฟิลด์ตรงกับ entry ของบันทึกสำรวจ เพื่อให้แสดงในทะเบียนได้เหมือนกัน
+    var entry = {
       date: date,
       owner: profileName(),
       gps: '',
@@ -130,7 +184,23 @@
       disease: 'วัดค่า pH ดิน — ก่อนปลูก',
       score: null,
       image: null
-    }));
+    };
+
+    // ถ้า Store มองเห็นได้ ใช้ตัวนั้นก่อนเสมอ เพราะมีระบบซิงก์ครบกว่า
+    var store = storeApi();
+    if (store) {
+      return Promise.resolve(store.add(entry)).then(function () {
+        return { offline: false };
+      });
+    }
+
+    return apiFetch('/field-logs', { method: 'POST', body: entry })
+      .then(function () { return { offline: false }; })
+      ['catch'](function (err) {
+        if (/หมดเวลา|401/.test(err.message || '')) throw err;
+        if (savePending(entry)) return { offline: true };
+        throw err;
+      });
   }
 
   // ------------------------------------------------------------
@@ -379,11 +449,9 @@
       saveBtn.disabled = true;
       saveBtn.textContent = 'กำลังบันทึก';
 
-      saveReading(avg, values, date).then(function () {
-        var store = storeApi();
-        var offline = store && typeof store.isOffline === 'function' && store.isOffline();
+      saveReading(avg, values, date).then(function (result) {
         // บอกให้ตรงความจริง ถ้ายังไม่ขึ้นเซิร์ฟเวอร์ต้องไม่บอกว่าบันทึกเสร็จแล้วเฉยๆ
-        msgBox.textContent = offline
+        msgBox.textContent = (result && result.offline)
           ? 'บันทึกลงเครื่องแล้ว จะซิงก์ขึ้นเซิร์ฟเวอร์เมื่อเชื่อมต่อได้'
           : 'บันทึกลงทะเบียนบันทึกแล้ว';
         msgBox.hidden = false;
@@ -460,13 +528,28 @@
     var heading = findHeading();
     if (!heading) return;
 
-    // วางไว้ใต้หัวข้อหน้าโดยตรง ไม่ใช่ต่อท้ายเนื้อหาทั้งหมด
-    // เพราะเนื้อหาด้านล่างมีบล็อกสภาพดินอยู่แล้ว การ์ดควรอยู่เหนือมัน
-    var anchor = heading.parentElement;
-    if (!anchor || !anchor.parentElement) return;
+    // แทรกใต้ header ของหน้า ไม่ใช่เป็นพี่น้องกับตัว header เอง
+    //
+    // เดิมแทรกต่อจาก heading.parentElement ซึ่งกลายเป็นสมาชิกของแถบหัวหน้า
+    // ที่จัดวางแบบ flex แนวนอน การ์ดจึงไปยืนข้างๆ ชื่อหน้าและดันแถบค้นหาหลุดตำแหน่ง
+    //
+    // วิธีที่ปลอดภัยกว่าคือไต่ขึ้นไปหาบล็อกที่เป็นคอลัมน์เนื้อหาจริงๆ
+    // แล้วแทรกเป็นลูกตัวแรกของบล็อกนั้น การ์ดจะอยู่เหนือเนื้อหาโดยไม่แย่งที่ใคร
+    var host = heading.closest('main, [class*="content"], [class*="page"]');
+    if (!host) {
+      // สำรอง: ไต่ขึ้นจนเจอบล็อกที่ไม่ได้จัดวางแนวนอน
+      var node = heading.parentElement;
+      while (node && node !== document.body) {
+        var display = window.getComputedStyle(node).display;
+        var direction = window.getComputedStyle(node).flexDirection;
+        if (display !== 'flex' || direction === 'column') { host = node; break; }
+        node = node.parentElement;
+      }
+    }
+    if (!host) return;
 
     mountedCard = document.createElement('div');
-    anchor.parentElement.insertBefore(mountedCard, anchor.nextSibling);
+    host.insertBefore(mountedCard, host.firstChild);
     render(mountedCard);
   }
 
