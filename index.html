@@ -1043,7 +1043,6 @@
 <script src="disease-guide.js?v=12"></script>
 <script src="soil-guide.js?v=12"></script>
 <script src="fertilizer-guide.js?v=12"></script>
-  <script src="fert-calc.js?v=2"></script>
 </body>
 <script src="cost-guide.js?v=12"></script>
 <script src="care-guide.js?v=12"></script>
@@ -4456,7 +4455,116 @@ views.fert = async function (root) {
     body.appendChild(bund("คำนวณปริมาณที่ต้องเตรียม"));
     var calcCard = plot(null);
     if (!t.calc) {
-      calcCard.appendChild(stateBlock("◇", "ยังไม่มีอัตราอ้างอิงสำหรับปุ๋ยชนิดนี้", t.calcNote));
+      // ── ปุ๋ยที่ไม่มีอัตราอ้างอิง ──
+      //
+      // ไม่ใส่ตัวเลขให้ ตามเหตุผลใน fertilizer-guide.js ที่ว่ามูลไก่เข้มข้นกว่า
+      // มูลวัวควายหลายเท่า การให้อัตรากลางกับทุกคนคือการเดาแทนเกษตรกร
+      //
+      // แต่การล็อกไม่ให้กรอกเลยก็ปิดประตูใส่คนที่ปรึกษาหมอดินมาแล้ว
+      // และมีตัวเลขของแปลงตัวเองอยู่ในมือ จึงให้กรอกอัตราเอง
+      // ระบบทำหน้าที่คูณเลขและแปลงหน่วยให้ ไม่ใช่ตัดสินใจแทน
+      calcCard.appendChild(el("div", "flash flash-warn", t.calcNote));
+
+      var mRow = el("div");
+      mRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap;margin:14px 0";
+
+      var mf1 = el("div", "inp");
+      mf1.style.cssText = "flex:1;min-width:150px";
+      mf1.appendChild(el("label", "", "พื้นที่ (ไร่)"));
+      var mRaiIn = el("input");
+      mRaiIn.className = "num-in";
+      mRaiIn.inputMode = "decimal";
+      mRaiIn.value = "1";
+      mRaiIn.placeholder = "1";
+      mf1.appendChild(mRaiIn);
+
+      var mDeed = readDeed();
+      var mFld = readField();
+      var mMeasured = null;
+      if (mFld) {
+        if (mFld.mode === "poly" && mFld.points && mFld.points.length >= 3) {
+          mMeasured = polygonArea(mFld.points) / 1600;
+        } else if (mFld.lat != null && mFld.radius) {
+          mMeasured = (Math.PI * mFld.radius * mFld.radius) / 1600;
+        }
+      }
+
+      var mBtns = el("div");
+      mBtns.style.cssText = "display:flex;gap:7px;flex-wrap:wrap;margin-top:7px";
+      if (mDeed) {
+        var mUseDeed = el("button", "act act-line act-sm",
+          "ใช้ขนาดจากโฉนด (" + (Math.round(mDeed.rai * 100) / 100) + " ไร่)");
+        mUseDeed.onclick = function () {
+          mRaiIn.value = Math.round(mDeed.rai * 100) / 100;
+          mRecalc();
+        };
+        mBtns.appendChild(mUseDeed);
+      }
+      if (mMeasured && mMeasured > 0) {
+        var mUseMeas = el("button", "act act-line act-sm",
+          "ใช้พื้นที่ที่เดินวัด (" + mMeasured.toFixed(2) + " ไร่)");
+        mUseMeas.onclick = function () {
+          mRaiIn.value = mMeasured.toFixed(2);
+          mRecalc();
+        };
+        mBtns.appendChild(mUseMeas);
+      }
+      if (mBtns.children.length) mf1.appendChild(mBtns);
+      mRow.appendChild(mf1);
+
+      var mf2 = el("div", "inp");
+      mf2.style.cssText = "flex:1;min-width:150px";
+      mf2.appendChild(el("label", "", "อัตราที่จะใช้ (กก./ไร่)"));
+      var mRateIn = el("input");
+      mRateIn.className = "num-in";
+      mRateIn.inputMode = "decimal";
+      mRateIn.placeholder = "จากหมอดินอาสา";
+      mf2.appendChild(mRateIn);
+      mRow.appendChild(mf2);
+
+      calcCard.appendChild(mRow);
+
+      var mOut = el("div");
+      calcCard.appendChild(mOut);
+
+      function mRecalc() {
+        mOut.innerHTML = "";
+        var rai = parseFloat(mRaiIn.value);
+        var rate = parseFloat(mRateIn.value);
+
+        if (!rai || rai <= 0) {
+          mOut.appendChild(el("div", "read-foot", "กรอกพื้นที่เป็นตัวเลขมากกว่า 0"));
+          return;
+        }
+        // ช่องอัตราว่างไม่ใช่ความผิดพลาด ผู้ใช้อาจยังไม่รู้ตัวเลข
+        // จึงบอกเงียบๆ ว่าต้องกรอกอะไร ไม่ขึ้นข้อความเตือนให้ตกใจ
+        if (!rate || rate <= 0) {
+          mOut.appendChild(el("div", "read-foot", "กรอกอัตราต่อไร่เพื่อดูปริมาณรวม"));
+          return;
+        }
+
+        var totalKg = rai * rate;
+        var mGrid = el("div");
+        mGrid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px";
+
+        mGrid.appendChild(readOut("รวมทั้งแปลง",
+          (Math.round(totalKg * 100) / 100).toLocaleString("th-TH") + " กก.",
+          rate + " กก./ไร่ × " + rai + " ไร่"));
+
+        // ปุ๋ยคอกใช้ปริมาณมากจนหน่วยกิโลกรัมอ่านยาก และการจ้างรถขนคิดเป็นตัน
+        if (totalKg >= 1000) {
+          mGrid.appendChild(readOut("คิดเป็น", (totalKg / 1000).toFixed(1) + " ตัน",
+            "ใช้ประมาณการค่าขนส่งได้"));
+        }
+
+        mOut.appendChild(mGrid);
+        mOut.appendChild(el("div", "read-foot",
+          "ต้องเป็นมูลที่ผ่านการหมักจนสลายตัวดีแล้ว ใส่ช่วงเตรียมดินแล้วไถกลบขณะดินมีความชื้นพอเพียง"));
+      }
+
+      mRaiIn.oninput = mRecalc;
+      mRateIn.oninput = mRecalc;
+      mRecalc();
     } else {
       var inRow = el("div");
       inRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px";
