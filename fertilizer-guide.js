@@ -1,138 +1,69 @@
-/* ============================================================
-   สไตล์กล่องคำนวณปุ๋ย
-   ============================================================
+// ============================================================
+// แพตช์: เพิ่มช่อง calc ให้ปุ๋ยเคมี
+// ============================================================
+//
+// วิธีใช้: คัดลอกบล็อก calc ด้านล่างนี้ไปวางในไฟล์ fertilizer-guide.js
+// ภายใน object ของ "chem" โดยวางไว้ก่อนบรรทัด warn:
+//
+// ------------------------------------------------------------
+// ทำไมต้องเก็บเป็นเงื่อนไข ไม่ใช่ตัวเลขเดียวแบบปุ๋ยหมัก
+// ------------------------------------------------------------
+// ปุ๋ยหมักใช้ 2 ตันต่อไร่เท่ากันทุกกรณี จึงเก็บเป็น perRai ตัวเดียวได้
+// แต่ปุ๋ยเคมีมีตัวแปร 3 ตัวที่เปลี่ยนคำตอบ คือพันธุ์ข้าว สูตรที่เลือก และชนิดดิน
+//
+// ถ้าเก็บเป็น perRai ตัวเดียวจะผิดทันทีกับผู้ใช้ครึ่งหนึ่ง เพราะ
+// ครั้งที่ 1 ต่างกัน 20-25 กับ 30-35 กก./ไร่ ตามความไวต่อช่วงแสง
+// ครั้งที่ 2 ต่างกันถึงเท่าตัว คือ 10 กับ 20 กก./ไร่
+//
+// ตัวเลขทุกตัวในบล็อกนี้ยกมาจากช่อง rates ของ chem ในไฟล์เดิมโดยตรง
+// ไม่มีตัวใดที่คำนวณเพิ่มหรือประมาณขึ้นใหม่
+// ถ้าแก้ตัวเลขที่นี่ ต้องแก้ใน rates ให้ตรงกันด้วยเสมอ ไม่งั้นตัวเลขที่
+// AI ตอบกับตัวเลขที่เครื่องคำนวณแสดงจะขัดกันเอง ซึ่งทำลายความน่าเชื่อถือทั้งหน้า
 
-   ใช้ CSS variable ทั้งหมดเพื่อให้ปรับธีมได้จากที่เดียว
-   ถ้าแอปมีตัวแปรสีของตัวเองอยู่แล้ว ให้ลบบล็อก :root นี้ออก
-   แล้วแมป --fc-* ไปที่ตัวแปรเดิมแทน จะได้ไม่มีสองแหล่งความจริง
-   ============================================================ */
+calc: {
+  // ตัวบอก renderer ว่าต้องใช้ฟอร์มแบบมีเงื่อนไข ไม่ใช่ช่องกรอกไร่เฉยๆ
+  mode: "chem",
+  unit: "กก.",
 
-:root {
-  --fc-accent: #1f7a4d;
-  --fc-accent-bg: #eaf5ee;
-  --fc-text: #1a1a1a;
-  --fc-text-muted: #6b6b6b;
-  --fc-border: #e3e3e0;
-  --fc-surface: #ffffff;
-  --fc-surface-alt: #f7f7f5;
-  --fc-warn-bg: #fdf6e7;
-  --fc-warn-text: #7a5510;
-  --fc-danger: #b3261e;
-  --fc-radius: 8px;
-}
+  // สูตรที่ใช้ได้สำหรับครั้งที่ 1
+  // ตัวเลขตัวท้ายคือโพแทสเซียม ใช้ตัดสินว่าต้องเสริม 0-0-60 หรือไม่
+  // จึงห้ามแก้ชื่อสูตรเป็นรูปแบบอื่นที่แยกด้วย - ไม่ได้
+  formulas: ["16-20-0", "16-16-8", "18-22-0", "20-20-0", "18-46-0"],
 
-.fc-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
+  // ครั้งที่ 1 ระยะแตกกอ อายุ 20-30 วันหลังข้าวงอก
+  first: {
+    sensitive:    { min: 20, max: 25 },
+    nonsensitive: { min: 30, max: 35 },
+    timing: "อายุ 20-30 วันหลังข้าวงอก (นาดำ: วันปักดำหรือก่อน 1 วันแล้วคราดกลบ หรือหลังปักดำไม่เกิน 15 วัน)"
+  },
 
-.fc-field { display: flex; flex-direction: column; }
+  // เสริมโพแทสเซียม ต้องเข้าเงื่อนไขครบสองข้อเท่านั้น
+  // (1) สูตรครั้งที่ 1 มีโพแทสเซียมเป็นศูนย์ และ (2) ดินเป็นดินทรายหรือร่วนทราย
+  potash: {
+    formula: "0-0-60",
+    min: 5,
+    max: 10,
+    soils: ["sand"],
+    skipReasonHasK: "สูตรที่เลือกมีโพแทสเซียมอยู่แล้ว ถ้าเสริม 0-0-60 ซ้ำจะได้เกินความต้องการเกินเท่าตัวโดยไม่ได้ผลผลิตเพิ่ม",
+    skipReasonSoil: "ดินเหนียวและดินร่วนมักมีโพแทสเซียมเพียงพออยู่แล้ว ไม่ต้องเสริม"
+  },
 
-.fc-label {
-  font-size: 13px;
-  color: var(--fc-text-muted);
-  margin-bottom: 6px;
-}
+  // ครั้งที่ 2 ระยะกำเนิดช่อดอก = 30 วันก่อนข้าวออกดอก
+  // เกณฑ์คือระยะการเจริญเติบโต ไม่ใช่อายุคงที่ จึงต้องมี timing แยกตามกลุ่มพันธุ์
+  second: {
+    sensitive: {
+      urea: 10,
+      ammonium: 20,
+      timing: "นับถอยหลัง 30 วันจากวันออกดอกของพันธุ์ ไม่ใช่นับตามอายุ — ขาวดอกมะลิ 105 ใส่ประมาณ 26 ก.ย. | กข6 ใส่ประมาณ 22 ก.ย."
+    },
+    nonsensitive: {
+      urea: 20,
+      ammonium: 20,
+      timing: "พันธุ์อายุประมาณ 100 วัน ตกที่อายุ 45-50 วันหลังหว่าน หรือนับหลังใส่ปุ๋ยครั้งแรก 30 วัน"
+    },
+    check: "วิธีเช็กที่แม่นที่สุดคือผ่าลำต้นดู ถ้าเห็นช่อดอกอ่อนสีขาวขนาด 1-2 มม. ในกาบใบ แปลว่าถึงจังหวะแล้วไม่ว่าปฏิทินจะบอกอะไร"
+  },
 
-.fc-input {
-  width: 100%;
-  height: 40px;
-  padding: 0 12px;
-  font-size: 15px;
-  font-family: inherit;
-  color: var(--fc-text);
-  background: var(--fc-surface);
-  border: 1px solid var(--fc-border);
-  border-radius: var(--fc-radius);
-  box-sizing: border-box;
-}
-
-.fc-input:focus {
-  outline: none;
-  border-color: var(--fc-accent);
-  box-shadow: 0 0 0 3px var(--fc-accent-bg);
-}
-
-.fc-card {
-  background: var(--fc-surface-alt);
-  border-radius: var(--fc-radius);
-  padding: 16px;
-  margin-bottom: 12px;
-}
-
-.fc-card--warn { background: var(--fc-warn-bg); }
-.fc-card--warn .fc-card-note { color: var(--fc-warn-text); }
-
-.fc-card-step {
-  font-size: 13px;
-  color: var(--fc-text-muted);
-  margin-bottom: 4px;
-}
-
-.fc-card-title {
-  font-size: 17px;
-  font-weight: 500;
-  color: var(--fc-text);
-  margin-bottom: 4px;
-}
-
-.fc-card-note {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--fc-text-muted);
-  margin-bottom: 10px;
-}
-
-.fc-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 15px;
-  padding: 5px 0;
-}
-
-.fc-row-label { color: var(--fc-text-muted); }
-.fc-row-value { font-weight: 500; color: var(--fc-text); text-align: right; }
-
-.fc-divider {
-  font-size: 13px;
-  color: var(--fc-text-muted);
-  border-top: 1px solid var(--fc-border);
-  margin-top: 10px;
-  padding-top: 10px;
-}
-
-.fc-hint {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--fc-text-muted);
-  padding: 0 4px;
-}
-
-.fc-error {
-  font-size: 13px;
-  color: var(--fc-danger);
-  margin-bottom: 12px;
-}
-
-.fc-empty {
-  text-align: center;
-  padding: 40px 24px;
-}
-
-.fc-empty-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--fc-text);
-  margin-bottom: 8px;
-}
-
-.fc-empty-note {
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--fc-text-muted);
-  max-width: 520px;
-  margin: 0 auto;
-}
+  // ขนาดกระสอบมาตรฐาน ใช้แปลงกิโลกรัมเป็นจำนวนกระสอบให้ซื้อได้จริง
+  bagKg: 50
+},
