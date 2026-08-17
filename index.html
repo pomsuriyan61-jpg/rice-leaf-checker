@@ -1042,7 +1042,6 @@
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
 <script src="disease-guide.js?v=12"></script>
 <script src="soil-guide.js?v=12"></script>
-  <script src="ph-log.js?v=3"></script>
 <script src="fertilizer-guide.js?v=12"></script>
   <script src="fert-calc.js?v=2"></script>
 </body>
@@ -3947,12 +3946,176 @@ views.soil = async function (root) {
     try { localStorage.setItem(KEY, JSON.stringify(pick)); } catch (e) { /* พื้นที่เต็ม ข้ามไป */ }
   }
 
+  // ══ วัดค่า pH ══
+  //
+  // วางไว้บนสุดเพราะเป็นสิ่งที่ต้องทำก่อน ค่าที่บันทึกจะไปแสดงในบล็อกถัดไปทันที
+  //
+  // ใช้ 5 จุดเหมือนหน้าบันทึกสำรวจ ไม่ใช่จุดเดียว
+  // ดินในแปลงเดียวกันค่า pH ไม่เท่ากันทุกจุด ตรงที่เคยเป็นคอกสัตว์
+  // หรือตรงที่น้ำขังประจำต่างจากจุดอื่นได้เป็นหน่วยเต็ม
+  // ถ้าสองหน้าใช้จำนวนจุดไม่เท่ากัน ค่าที่ได้จะเทียบกันไม่ได้เพราะวิธีได้มาต่างกัน
+  root.appendChild(bund("วัดค่า pH ดิน"));
+  var phForm = plot("บันทึกค่าที่วัดได้", "วัด 5 จุดกระจายทั่วแปลง ระบบเฉลี่ยให้เอง");
+
+  function phInput(label, id, placeholder, readonly) {
+    var f = el("div", "inp");
+    f.appendChild(el("label", "", label));
+    var i = el("input");
+    i.id = id;
+    i.className = "num-in";
+    i.inputMode = "decimal";
+    i.placeholder = placeholder || "";
+    if (readonly) i.readOnly = true;
+    f.appendChild(i);
+    return f;
+  }
+
+  var phGrid = el("div", "grid");
+  for (var pn = 1; pn <= 5; pn++) {
+    phGrid.appendChild(phInput("pH จุดที่ " + pn, "spPh" + pn, "0.0"));
+  }
+  phGrid.appendChild(phInput("ค่าเฉลี่ย", "spAvg", "คำนวณให้อัตโนมัติ", true));
+  phForm.appendChild(phGrid);
+
+  // เฉลี่ยเฉพาะจุดที่กรอกจริง ไม่นับช่องว่างเป็นศูนย์
+  // ถ้านับเป็นศูนย์ คนที่วัดได้ 3 จุด เช่น 6.0 6.2 6.1 จะได้ค่าเฉลี่ย 3.7
+  // ซึ่งระบบจะแปลว่าดินเปรี้ยวจัดทั้งที่ดินปกติดี
+  function phValues() {
+    var vals = [];
+    for (var i = 1; i <= 5; i++) {
+      var v = parseFloat(document.getElementById("spPh" + i).value);
+      if (!isNaN(v) && v > 0) vals.push(v);
+    }
+    return vals;
+  }
+
+  function phAverage(vals) {
+    return vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+  }
+
+  var phMsg = el("div");
+  var phHint = el("div", "read-foot", "");
+  phHint.style.marginTop = "8px";
+
+  function phRecalc() {
+    var vals = phValues();
+    var avgField = document.getElementById("spAvg");
+    phMsg.innerHTML = "";
+
+    if (!vals.length) {
+      avgField.value = "";
+      phHint.textContent = "";
+      return;
+    }
+
+    var bad = vals.filter(function (v) { return v < 3 || v > 10; });
+    if (bad.length) {
+      avgField.value = "";
+      phHint.textContent = "ค่า pH ควรอยู่ระหว่าง 3 ถึง 10 ลองตรวจเครื่องวัดอีกครั้ง";
+      return;
+    }
+
+    var avg = phAverage(vals);
+    avgField.value = avg.toFixed(2);
+
+    var parts = [];
+    if (vals.length < 5) parts.push("เฉลี่ยจาก " + vals.length + " จุด");
+
+    // เตือนเมื่อจุดต่างๆ กระจายกันมาก ซึ่งค่าเฉลี่ยเดียวอธิบายไม่ได้
+    // ดินที่ต่างกันเกิน 1 หน่วยระหว่างจุดควรแยกจัดการเป็นโซน
+    // ไม่ใช่ใส่ปูนเท่ากันทั้งแปลงจนโซนหนึ่งเกินอีกโซนขาด
+    var spread = Math.max.apply(null, vals) - Math.min.apply(null, vals);
+    if (vals.length >= 2 && spread >= 1.0) {
+      parts.push("จุดต่ำสุดกับสูงสุดต่างกัน " + spread.toFixed(1) +
+        " หน่วย แปลงนี้สภาพดินไม่สม่ำเสมอ ควรจดไว้ว่าจุดไหนต่างจากจุดอื่นแล้วปรึกษาหมอดินอาสาเรื่องการจัดการแยกโซน");
+    }
+
+    // เทียบกับค่าที่เคยบันทึกไว้ล่าสุด จุดนี้คือคุณค่าจริงของการวัดซ้ำ
+    // ไม่สรุปจากทิศทางตัวเลขอย่างเดียว เพราะ pH ขึ้นจาก 5.0 เป็น 6.0 คือดีขึ้น
+    // แต่ขึ้นจาก 7.0 เป็น 8.0 คือแย่ลง ต้องดูว่าเข้าใกล้หรือออกห่างช่วง 5.5-6.5
+    if (phs.length) {
+      var prev = phs[0].ph;
+      var diff = avg - prev;
+      if (Math.abs(diff) < 0.3) {
+        parts.push("ใกล้เคียงค่าเดิม " + prev.toFixed(1) +
+          " ความต่างอยู่ในระดับความคลาดเคลื่อนของเครื่องวัด ยังสรุปว่าดินเปลี่ยนไปไม่ได้");
+      } else {
+        function offIdeal(p) { return p < 5.5 ? 5.5 - p : (p > 6.5 ? p - 6.5 : 0); }
+        var verdict = offIdeal(avg) < offIdeal(prev)
+          ? "เข้าใกล้ช่วงที่เหมาะกับข้าวมากขึ้น ถ้าเพิ่งปรับปรุงดินไปแสดงว่าได้ผล"
+          : (offIdeal(avg) > offIdeal(prev)
+            ? "ออกห่างจากช่วงที่เหมาะกับข้าว ควรทบทวนว่าช่วงที่ผ่านมาใส่ปูนหรือปุ๋ยไนโตรเจนมากเกินไปหรือไม่"
+            : "ยังอยู่ในช่วงที่เหมาะกับข้าวทั้งสองครั้ง");
+        parts.push("ครั้งก่อนวัดได้ " + prev.toFixed(1) + " — " +
+          (diff > 0 ? "สูงขึ้น" : "ต่ำลง") + " " + Math.abs(diff).toFixed(1) + " หน่วย " + verdict);
+      }
+    }
+
+    phHint.textContent = parts.join(" · ");
+  }
+
+  for (var pk = 1; pk <= 5; pk++) {
+    phGrid.querySelector("#spPh" + pk).oninput = phRecalc;
+  }
+
+  var phSave = el("button", "act act-go act-wide", "บันทึกค่า pH");
+  phSave.style.marginTop = "15px";
+  phForm.appendChild(phSave);
+  phForm.appendChild(phHint);
+  phForm.appendChild(phMsg);
+
+  phSave.onclick = async function () {
+    var vals = phValues();
+    phMsg.innerHTML = "";
+
+    if (!vals.length) {
+      phMsg.appendChild(el("div", "flash flash-warn", "กรอกค่า pH อย่างน้อย 1 จุดก่อนบันทึก"));
+      return;
+    }
+    if (vals.filter(function (v) { return v < 3 || v > 10; }).length) {
+      phMsg.appendChild(el("div", "flash flash-warn", "มีค่าที่อยู่นอกช่วง 3 ถึง 10 แก้ก่อนบันทึก"));
+      return;
+    }
+
+    phSave.disabled = true;
+    phSave.textContent = "กำลังบันทึก";
+
+    try {
+      // ใช้ Store.add ตัวเดียวกับบันทึกสำรวจ ค่า pH จึงไปอยู่ในทะเบียนเดียวกัน
+      // ได้ระบบซิงก์ขึ้น Worker และ offline fallback มาด้วยโดยไม่ต้องเขียนเอง
+      await Store.add({
+        date: todayStamp(),
+        owner: Store.profile().name || "ไม่ระบุ",
+        gps: "",
+        ph: Math.round(phAverage(vals) * 100) / 100,
+        disease: "วัดค่า pH ดิน (ก่อนปลูก)",
+        score: null
+      });
+
+      phMsg.appendChild(el("div", "flash flash-ok", Store.isOffline()
+        ? "บันทึกลงเครื่องแล้ว จะซิงก์ขึ้นเซิร์ฟเวอร์เมื่อเชื่อมต่อได้"
+        : "บันทึกแล้ว กำลังอัปเดตสภาพดินด้านล่าง"));
+
+      // วาดหน้าใหม่เพื่อให้บล็อกสภาพดินและวิธีแก้ปัญหาใช้ค่าล่าสุดทันที
+      // ไม่ต้องให้ผู้ใช้กดรีเฟรชเอง ซึ่งเป็นขั้นตอนที่คนมักไม่รู้ว่าต้องทำ
+      setTimeout(function () { open("soil"); }, 900);
+    } catch (err) {
+      phMsg.appendChild(el("div", "flash flash-warn",
+        (err && err.message) || "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง"));
+    }
+
+    phSave.disabled = false;
+    phSave.textContent = "บันทึกค่า pH";
+  };
+
+  root.appendChild(phForm);
+
   // ══ สภาพดินจากค่าที่บันทึกไว้ ══
   root.appendChild(bund("สภาพดินของแปลงคุณ"));
   var phCard = plot(null);
   if (!phs.length) {
     phCard.appendChild(stateBlock("◇", "ยังไม่เคยวัดค่า pH ดิน",
-      "ไปที่หน้าบันทึกสำรวจ วัด pH 5 จุดในแปลงแล้วบันทึกไว้ ระบบจะแปลผลให้ที่นี่"));
+      "กรอกค่าที่วัดได้ในช่องด้านบน หรือไปที่หน้าบันทึกสำรวจ ระบบจะแปลผลให้ที่นี่"));
   } else {
     var latest = phs[0];
     var band = window.readSoilPh(latest.ph);
