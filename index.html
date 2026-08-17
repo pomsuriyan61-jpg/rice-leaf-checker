@@ -4408,6 +4408,127 @@ views.fert = async function (root) {
     if (saved && G.types[saved]) current = saved;
   } catch (e) { /* อ่านไม่ได้ก็ใช้ค่าเริ่มต้น */ }
 
+  // ══ สรุปสำหรับแปลงของคุณ ══
+  //
+  // วางไว้บนสุดเพราะเป็นคำตอบที่ชาวนาเปิดหน้านี้มาเพื่อหา
+  // ส่วนความรู้พื้นฐานด้านล่างเป็นของคนที่อยากอ่านต่อ ไม่ใช่ทุกคน
+  //
+  // ── ทำไมต้องมี ──
+  // เดิมหน้านี้ให้ผู้ใช้ไล่อ่านเองว่าปุ๋ยแต่ละชนิดต่างกันยังไง แล้วไปเลือกเอง
+  // ซึ่งเหมาะกับคนที่อยากเรียนรู้ แต่คนส่วนใหญ่แค่อยากรู้ว่า "ของฉันต้องใช้อะไร"
+  // ระบบรู้พันธุ์ ชนิดดิน ค่า pH และพื้นที่อยู่แล้ว จึงตอบให้ได้เลยโดยไม่ต้องถามซ้ำ
+  //
+  // ── ทำไมไม่บอกยี่ห้อ ──
+  // ปุ๋ยสูตรเดียวกันขายหลายยี่ห้อ ธาตุอาหารเท่ากันแต่ราคาต่างกันได้หลายร้อยบาท
+  // การบอกยี่ห้อจึงเป็นการเชียร์ร้านโดยไม่มีข้อมูลรองรับ และทำให้ชาวนาจ่ายแพงกว่าที่ควร
+  // สิ่งที่ต้องดูคือตัวเลขบนกระสอบ ซึ่งเป็นสิ่งเดียวที่บอกว่าได้ธาตุอาหารเท่าไหร่จริง
+  var fertLogs = [];
+  try { fertLogs = await Store.list(); } catch (e) { fertLogs = []; }
+  var fertPh = fertLogs.filter(function (l) { return typeof l.ph === "number" && l.ph > 0; })[0];
+
+  var myPhoto = fieldVariety() !== "nonphoto";
+  var myDeed = readDeed();
+  var mySoil = null;
+  try {
+    var sKey = "smartrice-soil:" + (Session.user ? Session.user.username : "guest");
+    mySoil = (JSON.parse(localStorage.getItem(sKey) || "{}")).soil || null;
+  } catch (e) { mySoil = null; }
+
+  var SOIL_WORD = { clay: "ดินเหนียว", loam: "ดินร่วน", sand: "ดินทราย" };
+
+  root.appendChild(bund("สรุปสำหรับแปลงของคุณ"));
+  var meCard = plot(null, "อ่านจากข้อมูลที่คุณบันทึกไว้ในระบบ");
+
+  // บรรทัดแรก: บอกว่าระบบรู้อะไรบ้าง เพื่อให้ผู้ใช้ตรวจได้ว่าตรงกับแปลงจริงไหม
+  // ถ้าข้อมูลผิดแล้วเขาไม่รู้ตัว คำแนะนำทั้งหมดด้านล่างจะผิดตามโดยไม่มีใครจับได้
+  var knowBits = [myPhoto ? "ปลูกแบบนาปี" : "ปลูกแบบนาปรัง"];
+  if (mySoil && SOIL_WORD[mySoil]) knowBits.push(SOIL_WORD[mySoil]);
+  if (fertPh) {
+    var phBand = window.readSoilPh(fertPh.ph);
+    knowBits.push("ค่า pH " + fertPh.ph.toFixed(1) + (phBand ? " (" + phBand.title + ")" : ""));
+  }
+  if (myDeed) knowBits.push("พื้นที่ " + (Math.round(myDeed.rai * 100) / 100) + " ไร่");
+
+  var knowLine = el("div", "flash flash-ok", "แปลงของคุณ: " + knowBits.join(" · "));
+  meCard.appendChild(knowLine);
+
+  // เลือกสูตรที่เหมาะ แล้วอธิบายด้วยคำที่ใช้ซื้อของได้จริง
+  //
+  // ดินทรายอุ้มโพแทสเซียมไม่อยู่ สูตรที่มีโพแทสเซียมมาแล้วจบในกระสอบเดียว
+  // ดินอื่นมีโพแทสเซียมพอ ซื้อสูตรที่มีจึงเป็นการจ่ายค่าธาตุที่ดินมีอยู่แล้ว
+  var pickFormula = (mySoil === "sand") ? "16-16-8" : "16-20-0";
+  var firstLo = myPhoto ? 20 : 30;
+  var firstHi = myPhoto ? 25 : 35;
+  var ureaRate = myPhoto ? 10 : 20;
+  var myRai = myDeed ? myDeed.rai : 1;
+
+  function sacks(kg) { return Math.ceil(kg / 50); }
+
+  var steps = el("div");
+  steps.style.marginTop = "15px";
+
+  function plainStep(n, head, body, foot) {
+    var b = el("div");
+    b.style.cssText = "padding:13px 0;border-top:1px solid var(--rule-soft)";
+    var h = el("div");
+    h.style.cssText = "font-size:.95rem;margin-bottom:5px";
+    h.textContent = n + ". " + head;
+    b.appendChild(h);
+    b.appendChild(el("div", "read-foot", body));
+    if (foot) b.appendChild(el("div", "read-foot", foot));
+    return b;
+  }
+
+  steps.appendChild(plainStep(1,
+    "ไปร้านปุ๋ย บอกเขาว่าขอกระสอบที่เขียนว่า " + pickFormula,
+    "ซื้อประมาณ " + (sacks(myRai * firstLo) === sacks(myRai * firstHi)
+      ? sacks(myRai * firstHi) + " กระสอบ"
+      : sacks(myRai * firstLo) + "-" + sacks(myRai * firstHi) + " กระสอบ") +
+    " (กระสอบละ 50 กิโล) สำหรับพื้นที่ " + (Math.round(myRai * 100) / 100) + " ไร่",
+    mySoil === "sand"
+      ? "เลือกสูตรนี้เพราะดินทรายเก็บโพแทสเซียมไม่อยู่ สูตรนี้มีมาให้แล้วในกระสอบเดียว ไม่ต้องซื้อเพิ่ม"
+      : "เลือกสูตรนี้เพราะดินแบบนี้มีโพแทสเซียมพออยู่แล้ว ไม่ต้องจ่ายเพิ่มในสิ่งที่ดินมีอยู่"));
+
+  steps.appendChild(plainStep(2,
+    "ใส่ครั้งแรก ตอนข้าวอายุ 20-30 วัน",
+    "ช่วงที่ข้าวเริ่มแตกกอ ใส่ให้ทั่วแปลง ให้มีน้ำในนาตื้นๆ ประมาณข้อนิ้ว",
+    "ห้ามระบายน้ำออกภายใน 7 วันหลังใส่ ไม่งั้นปุ๋ยไหลไปกับน้ำหมด"));
+
+  steps.appendChild(plainStep(3,
+    "ครั้งที่สอง ซื้อยูเรีย 46-0-0 อีก " + sacks(myRai * ureaRate) + " กระสอบ",
+    myPhoto
+      ? "ใส่ประมาณปลายเดือนกันยายน ก่อนข้าวออกดอกราวหนึ่งเดือน"
+      : "ใส่ตอนข้าวอายุ 45-50 วันหลังหว่าน หรือนับจากใส่ครั้งแรกไปอีก 30 วัน",
+    "วิธีเช็กที่แม่นที่สุดคือผ่าลำต้นดู ถ้าเห็นช่อดอกอ่อนสีขาวเล็กๆ ในกาบใบ แปลว่าถึงเวลาแล้ว"));
+
+  // ถ้าดินเป็นกรด ต้องเตือนเรื่องปุ๋ยถูกตรึง ไม่งั้นใส่ปุ๋ยเท่าไหร่ก็ได้ผลน้อย
+  if (fertPh && fertPh.ph < 5.5) {
+    steps.appendChild(el("div", "flash flash-warn",
+      "ดินของคุณเป็นกรด (pH " + fertPh.ph.toFixed(1) + ") ทำให้ปุ๋ยฟอสฟอรัสถูกตรึงในดินจนข้าวดูดไปใช้ได้ไม่เต็มที่ " +
+      "ใส่ปุ๋ยเท่าเดิมแต่ได้ผลน้อยลง ควรแก้ความเป็นกรดควบคู่ไปด้วย ดูวิธีที่หน้าเตรียมดิน"));
+  }
+
+  meCard.appendChild(steps);
+
+  meCard.appendChild(el("div", "read-foot",
+    "ไม่ต้องสนใจยี่ห้อ ดูแค่ตัวเลขบนกระสอบให้ตรง เพราะสูตรเดียวกันคนละยี่ห้อให้ธาตุอาหารเท่ากัน " +
+    "แต่ราคาต่างกันได้หลายร้อยบาท เทียบราคาได้ที่หน้าร้านค้า"));
+
+  // เตือนเมื่อข้อมูลไม่ครบ เพราะคำแนะนำด้านบนจะคลาดเคลื่อน
+  var missing = [];
+  if (!mySoil) missing.push("ชนิดดิน (ไปเลือกที่หน้าเตรียมดิน)");
+  if (!fertPh) missing.push("ค่า pH (ไปวัดที่หน้าเตรียมดิน)");
+  if (!myDeed) missing.push("ขนาดแปลง (ไปกรอกที่หน้าที่นาของฉัน)");
+  if (missing.length) {
+    meCard.appendChild(el("div", "flash flash-warn",
+      "ยังขาดข้อมูล: " + missing.join(" · ") + " — คำแนะนำด้านบนจึงใช้ค่าตั้งต้นแทน กรอกให้ครบจะแม่นกว่านี้"));
+  }
+
+  meCard.appendChild(el("div", "rx-src",
+    "อัตราปุ๋ยอ้างอิงคำแนะนำการใส่ปุ๋ยเคมีในนาข้าว กรมการข้าว สำหรับกรณียังไม่มีผลวิเคราะห์ดิน"));
+
+  root.appendChild(meCard);
+
   // ══ ความรู้พื้นฐาน ══
   root.appendChild(bund("ปุ๋ยสำหรับนาข้าว"));
   var over = plot(null);
