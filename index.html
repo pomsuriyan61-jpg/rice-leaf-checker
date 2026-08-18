@@ -301,6 +301,21 @@
   .rx li { margin-bottom: 3px; }
   .rx-src { font-size: .73rem; color: var(--ink-faint); margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--rule); }
 
+  /* ─── ตารางเทียบวิธีทำนา ───
+     ทำเป็นการ์ดเรียงลง ไม่ใช่ตารางจริง เพราะบนมือถือตารางจะบีบจนอ่านไม่ออก */
+  .cmp { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--rule); }
+  .cmp-head { font-size: .93rem; font-weight: 600; color: var(--ink); }
+  .cmp-answer { font-size: .87rem; color: var(--blade); font-weight: 500; margin: 4px 0 12px; }
+  .cmp-row { padding: 11px 13px; border: 1px solid var(--rule); border-radius: var(--r-sm);
+             margin-bottom: 8px; background: var(--paper); }
+  .cmp-row.mine { border-color: var(--blade); background: var(--tint-ok); }
+  .cmp-name { font-weight: 600; font-size: .87rem; margin-bottom: 5px;
+              display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cmp-tag { font-size: .68rem; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+             background: var(--blade); color: #FFFFFF; }
+  .cmp-cell { font-size: .82rem; color: var(--ink-soft); line-height: 1.55; }
+  .cmp-thin { font-size: .76rem; color: var(--ink-faint); margin-top: 4px; }
+
   /* ─── ช่องวัดค่าดิน จุดละ 3 ครั้ง ───
      แยกเป็นกล่องต่อจุด ไม่ใช่ช่องเรียงติดกันยาวๆ
      เพราะคนกรอกยืนอยู่กลางนาถือมือถือข้างเดียว ต้องรู้ตลอดว่ากรอกจุดไหนอยู่ */
@@ -1102,16 +1117,16 @@
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=15"></script>
-<script src="soil-guide.js?v=15"></script>
-<script src="fertilizer-guide.js?v=15"></script>
+<script src="disease-guide.js?v=16"></script>
+<script src="soil-guide.js?v=16"></script>
+<script src="fertilizer-guide.js?v=16"></script>
 </body>
-<script src="cost-guide.js?v=15"></script>
-<script src="care-guide.js?v=15"></script>
-<script src="planting-guide.js?v=15"></script>
-<script src="pest-guide.js?v=15"></script>
-<script src="variety-guide.js?v=15"></script>
-  <script src="pest-page.js?v=15"></script>
+<script src="cost-guide.js?v=16"></script>
+<script src="care-guide.js?v=16"></script>
+<script src="planting-guide.js?v=16"></script>
+<script src="pest-guide.js?v=16"></script>
+<script src="variety-guide.js?v=16"></script>
+  <script src="pest-page.js?v=16"></script>
 <script>
 (function () {
 "use strict";
@@ -2739,6 +2754,17 @@ function setFieldSowDate(iso) {
 }
 
 // ปฏิทินของแปลงนี้ คืน null ถ้าข้อมูลไม่พอ ไม่เดาแทนผู้ใช้
+// ── วิธีทำนาที่ผู้ใช้เลือกไว้ในหน้าเตรียมดิน ──
+//
+// เก็บอยู่ที่เดียวกับชนิดดิน เพราะเป็นคุณสมบัติของแปลงในฤดูนั้น ไม่ใช่การตั้งค่าหน้าจอ
+// หน้าอื่นที่ต้องรู้จังหวะข้าว ต้องอ่านค่านี้ ไม่ใช่เดาว่าเป็นนาหว่านเสมอ
+function fieldMethod() {
+  try {
+    var k = "smartrice-soil:" + (Session.user ? Session.user.username : "guest");
+    return (JSON.parse(localStorage.getItem(k) || "{}")).method || null;
+  } catch (e) { return null; }
+}
+
 // แปลงวันเป็นข้อความไทย ใช้ตอนที่ยังไม่มีปฏิทินเต็มให้เรียก
 function thaiDateOf(d) {
   return (typeof window.thaiDateText === "function" && d) ? window.thaiDateText(d) : "";
@@ -4525,6 +4551,37 @@ views.soil = async function (root) {
     pickCard.appendChild(chooser("ชนิดดินในแปลง", G.soils, pick.soil, function (k) {
       pick.soil = k; remember(); repaint();
     }));
+
+    // ── ตอบคำถามที่ถูกถามบ่อยที่สุดตรงที่ต้องเลือก ──
+    //
+    // คนกำลังจะกดเลือกวิธีทำนาย่อมอยากรู้ว่าเลือกอันไหนได้ผลผลิตดีกว่ากัน
+    // ถ้าไม่ตอบตรงนี้ เขาก็ต้องไปเดาเอาเองหรือไปถาม AI ซึ่งช้ากว่าและอาจได้คำตอบมั่ว
+    //
+    // จงใจไม่ชี้ว่าวิธีไหนดีที่สุด เพราะข้อมูลจริงบอกว่ามันขึ้นกับว่าใส่ปุ๋ยครบไหม
+    // การฟันธงให้ทั้งที่ข้อมูลไม่ได้บอกแบบนั้น จะทำให้คนเปลี่ยนวิธีแล้วได้ผลผลิตน้อยลง
+    if (G.methodCompare) {
+      var MC = G.methodCompare;
+      var cmp = el("div", "cmp");
+      cmp.appendChild(el("div", "cmp-head", MC.title));
+      cmp.appendChild(el("div", "cmp-answer", MC.answer));
+
+      MC.rows.forEach(function (r) {
+        var isMine = (G.methods[pick.method] && G.methods[pick.method].thai.indexOf(r.name) === 0);
+        var row = el("div", "cmp-row" + (isMine ? " mine" : ""));
+        var nm = el("div", "cmp-name", r.name);
+        if (isMine) nm.appendChild(el("span", "cmp-tag", "ที่คุณเลือกไว้"));
+        row.appendChild(nm);
+        row.appendChild(el("div", "cmp-cell", "ข้อดี: " + r.good));
+        row.appendChild(el("div", "cmp-cell", "ข้อเสีย: " + r.bad));
+        row.appendChild(el("div", "cmp-thin", r.seed + " · " + r.labor));
+        cmp.appendChild(row);
+      });
+
+      cmp.appendChild(el("div", "flash flash-warn", MC.rule));
+      cmp.appendChild(more("ตัวเลขผลผลิตที่เอามาพูดถึง มาจากไหน",
+        MC.numbers + "\n\n" + MC.source));
+      pickCard.appendChild(cmp);
+    }
 
     // ── วิธีทดสอบชนิดดินด้วยมือ ──
     //
@@ -7093,12 +7150,19 @@ views.consult = async function (root) {
       vBar.innerHTML = "";
       var v = window.careVariety(vKey);
       var cal = fieldCalendar();
-      stageInfo = (cal && typeof window.stageWindows === "function") ? window.stageWindows(cal) : null;
+      stageInfo = (cal && typeof window.stageWindows === "function")
+        ? window.stageWindows(cal, fieldMethod()) : null;
 
       if (stageInfo && stageInfo.current) {
         var curStage = C.stages.filter(function (x) { return x.key === stageInfo.current; })[0];
         vBar.appendChild(el("div", "nowline",
           "ตอนนี้ข้าวอายุ " + stageInfo.age + " วัน อยู่" + (curStage ? curStage.thai : "")));
+
+        // นาดำกับนาโยน กล้าโตมาก่อนแล้วจากแปลงเพาะ ต้องบอกไม่งั้นตัวเลขอายุจะดูขัดกับที่เห็นในนา
+        if (stageInfo.nursery) {
+          vBar.appendChild(el("div", "nowsub",
+            "นับจาก" + stageInfo.startWord + " · " + stageInfo.nursery + " ระบบคิดให้แล้ว"));
+        }
 
         // งานถัดไป — เอาหมุดที่ใกล้ที่สุดที่ยังไม่ถึงมาแสดง
         // ถ้าผ่านหมดแล้วก็บอกตรงๆ ว่าเหลือแค่รอเกี่ยว ไม่ต้องเดาเอง
@@ -7430,8 +7494,13 @@ views.ask = async function (root) {
       var prompt = "คุณเป็นผู้ช่วยเกษตรกรผู้ปลูกข้าวไทย ดูแลได้ครบทั้งโรคข้าว การเตรียมดิน " +
         "การแก้ปัญหาดิน ปุ๋ยอินทรีย์และปุ๋ยเคมี การดูแลตามช่วงอายุข้าว และต้นทุนการผลิต\n\n" +
         "วิธีตอบ:\n" +
-        "1. เข้าเรื่องทันที บอกสิ่งที่ต้องลงมือทำเป็นประโยคแรกเลย ไม่เกิน 5-6 ประโยค\n" +
+        "1. สั้นที่สุดเท่าที่ตอบได้ ปกติ 2-3 ประโยค ห้ามเกิน 4 ประโยคเด็ดขาด\n" +
+        "   เข้าเรื่องทันที บอกสิ่งที่ต้องลงมือทำเป็นประโยคแรกเลย\n" +
         "   ห้ามทักทาย ห้ามขึ้นต้นว่า สวัสดี หรือ จากข้อมูลที่ให้มา\n" +
+        "   ห้ามยกข้อมูลแปลงมาเล่าซ้ำ ผู้ถามเห็นข้อมูลตัวเองอยู่แล้ว\n" +
+        "   ถ้าต้องบอกหลายเรื่อง ให้ขึ้นบรรทัดใหม่เป็นข้อๆ ห้ามเขียนติดกันเป็นพืด\n" +
+        "   ถ้าผู้ถามแค่ทักทาย พิมพ์คำเดียว หรือพิมพ์อะไรที่ไม่ใช่คำถาม " +
+        "ให้ตอบสั้นๆ บรรทัดเดียวว่าถามอะไรได้บ้าง ห้ามอธิบายเรื่องดินหรือปุ๋ยที่เขาไม่ได้ถาม\n" +
         "2. ห้ามเรียกผู้ถามด้วยคำใดๆ ทั้งสิ้น ห้ามใช้คำว่า พี่ ป้า ลุง น้า คุณ ท่าน คุณลุง คุณป้า\n" +
         "   ห้ามเรียกชื่อผู้ถาม และห้ามลงท้ายว่า ครับ ค่ะ นะครับ นะคะ\n" +
         "   ให้พูดตรงๆ เหมือนคนคุ้นเคยกันบอกงานกัน เช่น ใส่ปุ๋ยได้เลย · ยังไม่ต้องใส่ รอไปอีกอาทิตย์\n" +
@@ -7639,33 +7708,59 @@ views.map = async function (root) {
       kBox.appendChild(el("div", "read-foot", "ชื่อพันธุ์"));
       var kSel = el("select");
       kSel.style.cssText = "padding:9px 12px;border:1px solid var(--rule);border-radius:var(--r-sm);background:#FFFFFF;min-width:230px";
-      var oNone = el("option", null, "ยังไม่ระบุพันธุ์");
-      oNone.value = "";
-      kSel.appendChild(oNone);
-      // จัดกลุ่มในเมนูให้เห็นชัดว่าพันธุ์ไหนอยู่กลุ่มไหน
-      // เพราะผู้ใช้จำนวนมากไม่รู้ว่าพันธุ์ที่ตัวเองปลูกออกรวงตามฤดูหรือไม่
-      [["photo", "ข้าวนาปี"], ["nonphoto", "ข้าวนาปรัง"]].forEach(function (g) {
-        var grp = document.createElement("optgroup");
-        grp.label = g[1];
-        window.VARIETY_GUIDE.varieties
-          .filter(function (v) { return (g[0] === "photo") === !!v.photo; })
-          .forEach(function (v) {
-            // ชื่อที่ชาวนาเรียกกันจริง ไม่ใช่ชื่อทางการที่มีรหัสตัวเลข
-            //
-            // ในนา ไม่มีใครพูดว่า "ขาวดอกมะลิ 105" กัน เขาพูดว่า "หอมมะลิ"
-            // และไม่มีใครพูดว่า "กข6" เขาพูดว่า "ข้าวเหนียว"
-            // ชื่อทางการมีไว้ในเอกสารราชการ ไม่ใช่ในบทสนทนาที่ร้านขายข้าวเปลือก
-            //
-            // พันธุ์ที่ไม่มีในรายการนี้จะใช้ชื่อเดิม เพราะเดาชื่อเล่นแทนไม่ได้
-            // ถ้าเจอพันธุ์ที่ควรเพิ่ม ให้เติมในรายการนี้ที่เดียว
-            var o = el("option", null, farmerName(v));
-            o.value = v.key;
-            grp.appendChild(o);
-          });
-        kSel.appendChild(grp);
-      });
-      kSel.value = fieldVarietyKey() || "";
+      // ── เมนูพันธุ์ข้าว: ขึ้นเฉพาะพันธุ์ที่ปลูกกันมากก่อน ──
+      //
+      // ของเดิมขึ้นมาทีเดียว 8 พันธุ์ ซึ่งเยอะเกินสำหรับเมนูที่ต้องเลือกครั้งเดียวจบ
+      // คนที่ไม่รู้ว่าตัวเองปลูกพันธุ์ไหนแน่ๆ จะยิ่งลังเลเมื่อเห็นตัวเลือกเยอะ
+      // ตอนนี้ขึ้น 5 พันธุ์ที่ปลูกกันมากที่สุดก่อน ที่เหลือกดเปิดดูได้
+      //
+      // ไม่ได้ลบข้อมูลพันธุ์อื่นทิ้ง เพราะยังใช้ตอบคำถามผ่าน AI และยังมีคนปลูกจริง
+      var showAllVars = false;
+      function fillVarietyMenu() {
+        kSel.innerHTML = "";
+        var oNone = el("option", null, "ยังไม่ระบุพันธุ์");
+        oNone.value = "";
+        kSel.appendChild(oNone);
+
+        // จัดกลุ่มในเมนูให้เห็นชัดว่าพันธุ์ไหนอยู่กลุ่มไหน
+        // เพราะผู้ใช้จำนวนมากไม่รู้ว่าพันธุ์ที่ตัวเองปลูกออกรวงตามฤดูหรือไม่
+        [["photo", "ข้าวนาปี"], ["nonphoto", "ข้าวนาปรัง"]].forEach(function (g) {
+          var grp = document.createElement("optgroup");
+          grp.label = g[1];
+          window.VARIETY_GUIDE.varieties
+            .filter(function (v) { return (g[0] === "photo") === !!v.photo; })
+            .filter(function (v) { return showAllVars || v.common; })
+            .forEach(function (v) {
+              // ชื่อที่ชาวนาเรียกกันจริง ไม่ใช่ชื่อทางการที่มีรหัสตัวเลข
+              //
+              // ในนา ไม่มีใครพูดว่า "ขาวดอกมะลิ 105" กัน เขาพูดว่า "หอมมะลิ"
+              // ชื่อทางการมีไว้ในเอกสารราชการ ไม่ใช่ในบทสนทนาที่ร้านขายข้าวเปลือก
+              var o = el("option", null, farmerName(v));
+              o.value = v.key;
+              grp.appendChild(o);
+            });
+          if (grp.children.length) kSel.appendChild(grp);
+        });
+        kSel.value = fieldVarietyKey() || "";
+      }
+      fillVarietyMenu();
       kBox.appendChild(kSel);
+
+      // ถ้าพันธุ์ที่บันทึกไว้ไม่ได้อยู่ในกลุ่มที่ปลูกกันมาก ต้องเปิดรายการเต็มให้เอง
+      // ไม่งั้นผู้ใช้จะเห็นเมนูเด้งกลับไปเป็น "ยังไม่ระบุพันธุ์" ทั้งที่เคยเลือกไว้แล้ว
+      if (fieldVarietyKey() && kSel.value !== fieldVarietyKey()) {
+        showAllVars = true;
+        fillVarietyMenu();
+      }
+
+      var moreVar = el("button", "act act-line act-sm", "ไม่เจอพันธุ์ที่ปลูก");
+      moreVar.style.marginTop = "7px";
+      moreVar.onclick = function () {
+        showAllVars = !showAllVars;
+        fillVarietyMenu();
+        moreVar.textContent = showAllVars ? "ย่อเหลือพันธุ์ที่ปลูกกันมาก" : "ไม่เจอพันธุ์ที่ปลูก";
+      };
+      kBox.appendChild(el("div")).appendChild(moreVar);
       cRow.appendChild(kBox);
 
       var dBox = el("div");

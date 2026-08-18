@@ -47,6 +47,7 @@ window.VARIETY_GUIDE = {
     // ══ ออกรวงตามฤดู (นาปี) ══
     {
       key: "kdml105",
+      common: true,   // ปลูกกันมาก ขึ้นในเมนูตั้งแต่แรก
       thai: "ขาวดอกมะลิ 105",
       en: "Khao Dawk Mali 105",
       grain: "ข้าวเจ้าหอม",
@@ -70,6 +71,7 @@ window.VARIETY_GUIDE = {
     },
     {
       key: "rd6",
+      common: true,   // ปลูกกันมาก ขึ้นในเมนูตั้งแต่แรก
       thai: "กข6",
       en: "RD6",
       grain: "ข้าวเหนียว",
@@ -134,6 +136,7 @@ window.VARIETY_GUIDE = {
     // ══ ออกรวงตามอายุ (นาปรัง) ══
     {
       key: "rd41",
+      common: true,   // ปลูกกันมาก ขึ้นในเมนูตั้งแต่แรก
       thai: "กข41",
       en: "RD41",
       grain: "ข้าวเจ้า",
@@ -156,6 +159,7 @@ window.VARIETY_GUIDE = {
     },
     {
       key: "rd47",
+      common: true,   // ปลูกกันมาก ขึ้นในเมนูตั้งแต่แรก
       thai: "กข47",
       en: "RD47",
       grain: "ข้าวเจ้า",
@@ -179,6 +183,7 @@ window.VARIETY_GUIDE = {
     },
     {
       key: "ptt1",
+      common: true,   // ปลูกกันมาก ขึ้นในเมนูตั้งแต่แรก
       thai: "ปทุมธานี 1",
       en: "Pathum Thani 1",
       grain: "ข้าวเจ้าหอม",
@@ -316,10 +321,34 @@ window.thaiDateText = thaiDate;
 //
 // ที่ใช้ "วันใส่ปุ๋ยครั้งที่ 2" เป็นเส้นแบ่งเข้าระยะตั้งท้อง เพราะปุ๋ยครั้งที่ 2
 // ต้องใส่ตอนข้าวเริ่มสร้างรวงในลำต้นพอดี ซึ่งคือจุดเริ่มของระยะนี้อยู่แล้ว
-window.stageWindows = function (cal) {
+//
+// ── ทำไมต้องรู้วิธีทำนาด้วย ──
+//
+// ช่องวันที่ผู้ใช้กรอกคือ "วันหว่าน หรือวันปักดำ" ซึ่งความหมายต่างกันมาก
+//   นาหว่าน — วันนั้นคือวันที่เมล็ดลงดิน ข้าวอายุ 0 วัน
+//   นาดำ    — วันนั้นคือวันปักดำ แต่กล้าโตมาแล้ว 20-30 วันจากแปลงเพาะ
+//   นาโยน   — วันนั้นคือวันโยน กล้าโตมาแล้ว 15 วันจากถาด
+//
+// ถ้าคิดว่าทุกวิธีเริ่มนับที่ 0 เหมือนกัน ระยะกล้าของนาดำจะยาวเกินจริงไปเกือบเดือน
+// แล้วคนทำนาดำจะเห็นว่าตัวเองยังอยู่ระยะกล้าทั้งที่ข้าวแตกกอไปแล้ว
+window.stageWindows = function (cal, method) {
   if (!cal || !cal.sow) return null;
 
-  var seedlingDays = cal.variety && cal.variety.photo ? 25 : 20;
+  // ระยะกล้าในแปลงใหญ่ นับจากวันที่กรอก
+  //   นาดำ/นาโยน นับแค่ช่วงตั้งตัวหลังย้ายลงแปลง เพราะกล้าโตมาจากที่อื่นแล้ว
+  var nursery = null, startWord = "วันหว่าน", seedlingDays;
+  if (method === "transplant") {
+    seedlingDays = 10;
+    nursery = "กล้าอายุ 20-30 วันจากแปลงเพาะ";
+    startWord = "วันปักดำ";
+  } else if (method === "throw") {
+    seedlingDays = 7;
+    nursery = "กล้าอายุ 15 วันจากถาดหลุม";
+    startWord = "วันโยน";
+  } else {
+    seedlingDays = cal.variety && cal.variety.photo ? 25 : 20;
+  }
+
   var seedlingEnd = addDays(cal.sow, seedlingDays);
 
   var list = [
@@ -351,6 +380,8 @@ window.stageWindows = function (cal) {
     list: list,
     current: current,                       // null = ยังไม่หว่าน หรือเลยเก็บเกี่ยวไปแล้ว
     age: age,
+    nursery: nursery,                       // ข้อความบอกว่ากล้าโตมาก่อนแล้วกี่วัน (นาดำ/นาโยน)
+    startWord: startWord,                   // เรียกวันตั้งต้นว่าอะไร หว่าน/ปักดำ/โยน
     beforeSow: today < cal.sow,
     afterHarvest: today >= cal.harvest,
     today: today
