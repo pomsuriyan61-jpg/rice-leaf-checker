@@ -344,18 +344,9 @@
 
   /* ─── ตารางเทียบวิธีทำนา ───
      ทำเป็นการ์ดเรียงลง ไม่ใช่ตารางจริง เพราะบนมือถือตารางจะบีบจนอ่านไม่ออก */
-  .cmp { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--rule); }
-  .cmp-head { font-size: .93rem; font-weight: 600; color: var(--ink); }
-  .cmp-answer { font-size: .87rem; color: var(--blade); font-weight: 500; margin: 4px 0 12px; }
-  .cmp-row { padding: 11px 13px; border: 1px solid var(--rule); border-radius: var(--r-sm);
              margin-bottom: 8px; background: var(--paper); }
-  .cmp-row.mine { border-color: var(--blade); background: var(--tint-ok); }
-  .cmp-name { font-weight: 600; font-size: .87rem; margin-bottom: 5px;
               display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .cmp-tag { font-size: .68rem; font-weight: 600; padding: 2px 8px; border-radius: 20px;
              background: var(--blade); color: #FFFFFF; }
-  .cmp-cell { font-size: .82rem; color: var(--ink-soft); line-height: 1.55; }
-  .cmp-thin { font-size: .76rem; color: var(--ink-faint); margin-top: 4px; }
 
   /* ─── ช่องวัดค่าดิน จุดละ 3 ครั้ง ───
      แยกเป็นกล่องต่อจุด ไม่ใช่ช่องเรียงติดกันยาวๆ
@@ -3747,19 +3738,15 @@ views.overview = async function (root) {
 // คนที่ต้องใช้จริงคือคนที่ยังไม่รู้ว่ามันคืออะไร ซึ่งเดิมจะเลือกเมนูผิดตั้งแต่ก้าวแรก
 views.diagnose = function (root) {
   root.appendChild(pageHead("diagnose"));
-  root.appendChild(bund("เห็นอะไรผิดปกติในนา"));
 
-  // บอกทางเลือกทั้งหมดตั้งแต่บนสุด คนที่ไม่รู้ว่าเจออะไรจะได้ไม่ต้องเดา
-  var lead = plot(null);
-  lead.appendChild(el("p", "",
-    "ถ้าเห็นใบข้าวเป็นจุด เป็นแผล หรือใบเหลืองผิดปกติ ให้ถ่ายรูปใบมาตรวจในช่องข้างล่างนี้ได้เลย"));
-  lead.appendChild(el("p", "",
-    "ถ้าเห็นตัวแมลง เลื่อนลงไปดูหัวข้อ \"แมลงที่กินข้าว\" ท้ายหน้า มีรูปให้เทียบว่าใช่ตัวเดียวกันไหม"));
-  lead.appendChild(el("p", "",
-    "ถ้าไม่แน่ใจว่าเจออะไร ไปที่หน้า \"ต้องทำอะไรตอนนี้\" แล้วพิมพ์เล่าอาการที่เห็น จะมีคนช่วยดูให้"));
-  root.appendChild(lead);
+  // ── แมลงมาก่อน AI ตรวจโรค ──
+  //
+  // ลำดับนี้ตามลำดับที่คนตัดสินใจจริงในนา คือต้องรู้ก่อนว่าเป็นแมลงหรือโรค
+  // ตัวตรวจรูปเรียนมาจากรูปใบข้าวเป็นโรคเท่านั้น มันดูแมลงไม่เป็น
+  // ถ้าเอา AI ขึ้นก่อน คนที่เจอแมลงจะถ่ายรูปเข้าไปตรวจแล้วได้ชื่อโรคที่ไม่เกี่ยวกันเลย
+  renderPestSection(root);
 
-  root.appendChild(bund("ถ่ายรูปใบข้าวมาตรวจ"));
+  root.appendChild(bund("ถ่ายรูปใบข้าวมาตรวจโรค"));
 
   var wrap = el("div", "row-2");
 
@@ -3910,14 +3897,6 @@ views.diagnose = function (root) {
   };
 
   markBrain();
-
-  // ── แมลงที่กินข้าว ──
-  // เดิมเป็นเมนูแยกต่างหาก แต่คนที่ยังไม่รู้ว่าตัวที่เห็นคือแมลงอะไร
-  // จะไม่กดเข้าไปตั้งแต่แรก จึงย้ายมาต่อท้ายหน้านี้
-  // ตัวตรวจรูปดูแมลงไม่เป็น (เรียนมาจากรูปใบข้าวเป็นโรคเท่านั้น)
-  // ส่วนนี้จึงเป็นรูปให้เทียบเอาเอง ไม่ใช่การตรวจอัตโนมัติ
-  renderPestSection(root);
-
 };
 
 // แยกเป็นฟังก์ชันธรรมดา ไม่ใช่ views.* แล้ว เพราะไม่ได้เป็นหน้าของตัวเองอีกต่อไป
@@ -4428,28 +4407,6 @@ views.soil = async function (root) {
     sc.appendChild(ul);
     resultHost.appendChild(sc);
 
-    // ── เทียบวิธีทำนา ──
-    // ไม่ฟันธงว่าวิธีไหนดีที่สุด เพราะข้อมูลจริงบอกว่าขึ้นกับว่าใส่ปุ๋ยครบไหม
-    if (G.methodCompare) {
-      var MC = G.methodCompare;
-      resultHost.appendChild(bund(MC.title));
-      var cmpCard = plot(null);
-      cmpCard.appendChild(el("div", "cmp-answer", MC.answer));
-      MC.rows.forEach(function (r) {
-        var isMine = (m.thai.indexOf(r.name) === 0);
-        var row = el("div", "cmp-row" + (isMine ? " mine" : ""));
-        var nm2 = el("div", "cmp-name", r.name);
-        if (isMine) nm2.appendChild(el("span", "cmp-tag", "ที่คุณเลือกไว้"));
-        row.appendChild(nm2);
-        row.appendChild(el("div", "cmp-cell", "ข้อดี: " + r.good));
-        row.appendChild(el("div", "cmp-cell", "ข้อเสีย: " + r.bad));
-        row.appendChild(el("div", "cmp-thin", r.seed + " · " + r.labor));
-        cmpCard.appendChild(row);
-      });
-      cmpCard.appendChild(el("div", "flash flash-warn", MC.rule));
-      cmpCard.appendChild(el("div", "read-foot", MC.source));
-      resultHost.appendChild(cmpCard);
-    }
   }
 
   paintResults();
@@ -5684,9 +5641,9 @@ async function renderReferencePrices(root) {
     return;
   }
 
-  // จอกว้างวางการ์ดราคาสองคอลัมน์ ไม่งั้นต้องเลื่อนผ่านราคาเกือบ 1,500px กว่าจะถึงช่องกรอก
+  // ราคาที่ดึงสดจากกระทรวงพาณิชย์เป็นตัวเลขเดียวในหน้านี้ที่อัปเดตจริง จึงให้เต็มความกว้าง
+  // ส่วนค่าตั้งต้นกับปุ่มค้นราคาเป็นของประกอบ วางสองคอลัมน์ต่อข้างล่าง
   var pgrid = el("div", "pgrid");
-  root.appendChild(pgrid);
 
   // ══ ราคาข้าวเปลือกสำรวจจริง ══
   var liveCard = plot("ราคารับซื้อข้าวเปลือก", "สำรวจจริงโดยกรมการค้าภายใน กระทรวงพาณิชย์");
@@ -5697,7 +5654,8 @@ async function renderReferencePrices(root) {
   var liveBtn = el("button", "act act-line act-sm", "ดึงราคาใหม่");
   liveBtn.style.marginTop = "11px";
   liveCard.appendChild(liveBtn);
-  pgrid.appendChild(liveCard);
+  root.appendChild(liveCard);
+  root.appendChild(pgrid);
 
   async function loadLive() {
     liveBtn.disabled = true;
@@ -5752,17 +5710,6 @@ async function renderReferencePrices(root) {
   }
 
   liveBtn.onclick = loadLive;
-
-  // ══ ราคาปุ๋ยเคมี ══
-  if (C.fertPrices && C.fertPrices.items) {
-    var fCard = plot("ราคาปุ๋ยเคมี", C.fertPrices.unit || "");
-      C.fertPrices.items.forEach(function (x) {
-      fCard.appendChild(PriceUI.row("bag", x.formula, x.name,
-        x.low === x.high ? PriceUI.baht(x.low) : PriceUI.baht(x.low) + "-" + PriceUI.baht(x.high), "บาท"));
-    });
-    fCard.appendChild(el("div", "read-foot", C.fertPrices.asOf));
-    pgrid.appendChild(fCard);
-  }
 
   // ══ ค่าตั้งต้นที่ระบบใช้คำนวณ ══
   if (C.varieties && C.varieties.length) {

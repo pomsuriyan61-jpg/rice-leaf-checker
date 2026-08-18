@@ -157,6 +157,17 @@ function installStyles() {
   const st = document.createElement("style");
   st.id = "pestStyles";
   st.textContent =
+    ".tri{border:1px solid var(--rule);border-radius:var(--r-sm);overflow:hidden;background:#FFFFFF}" +
+    ".tri-head,.tri-row{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;padding:9px 14px}" +
+    ".tri-head{background:var(--canopy);font-size:.68rem;letter-spacing:.1em;" +
+      "text-transform:uppercase;color:var(--ink-faint)}" +
+    ".tri-row{border-top:1px solid var(--rule-soft);font-size:.84rem;line-height:1.55}" +
+    ".tri-sign{color:var(--ink-soft)}" +
+    ".tri-cause{color:var(--deep);font-weight:600}" +
+    ".tri-cause i{display:block;font-style:normal;font-weight:400;font-size:.79rem;" +
+      "color:var(--ink-faint);margin-top:3px}" +
+    "@media(max-width:680px){.tri-head{display:none}" +
+      ".tri-row{grid-template-columns:1fr;gap:4px;padding:11px 14px}}" +
     ".pest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:11px}" +
     ".pest-card{display:flex;flex-direction:column;gap:7px;padding:15px 16px;text-align:left;" +
       "background:#FFFFFF;border:1px solid var(--rule);border-radius:var(--r);cursor:pointer;" +
@@ -230,45 +241,59 @@ window.buildPestPage = function (root, ui) {
     return b;
   }
 
-  // ══ คำนำ ══
-  root.appendChild(bund("แมลงและสัตว์ที่กินข้าว"));
-
-  const intro = plot(null);
-  intro.appendChild(el("div", "read-foot",
-    "ตรงนี้ไม่มีรูปแมลงโดยตั้งใจ เพราะแมลงหลายตัวหน้าตาคล้ายกันมากจนดูรูปแล้วแยกไม่ออก " +
-    "เช่นเพลี้ยกระโดดสีน้ำตาลกับหลังขาวที่ต่างกันแค่แถบสีบนหลัง " +
-    "จึงใช้คำบรรยายลักษณะที่ชี้จุดต่างได้ตรงกว่าแทน"));
-  intro.appendChild(el("div", "read-foot",
-    "สีและจำนวนจุดบนป้ายบอกระดับความอันตราย · แดงสามจุดคือต้องรีบจัดการ " +
-    "ทองสองจุดคือให้เดินสำรวจก่อน เขียวหนึ่งจุดคือเฝ้าดูตามปกติ"));
-  root.appendChild(intro);
-
   // ══ ตัวแยกว่าเป็นโรคหรือแมลง ══
   //
-  // วางไว้ก่อนรายชื่อแมลงโดยตั้งใจ เพราะเป็นคำถามที่ต้องตอบก่อนเสมอ
+  // อยู่บนสุดของทั้งหน้าเพราะเป็นคำถามที่ต้องตอบก่อนเสมอ
   // ถ้าอาการที่เห็นเกิดจากเชื้อรา การไล่ดูรายชื่อแมลงคือการเดินผิดทางตั้งแต่ต้น
   // และจะจบด้วยการซื้อยาฆ่าแมลงมาพ่นโรคพืช ซึ่งเสียเงินแล้วไม่ได้ผลเลย
+  //
+  // ข้อมูลเขียนในรูป "อาการ = ตัวการ" อยู่แล้ว จึงแสดงเป็นสองคอลัมน์
+  // อาการที่เห็นอยู่ซ้าย ตัวการอยู่ขวา กวาดตาหาแถวที่ตรงกับที่เจอได้เร็วกว่ารายการหัวข้อย่อยยาวๆ
   if (P.triage && P.triage.length) {
-    root.appendChild(bund("ก่อนอื่น แยกให้ออกว่าเป็นแมลงหรือโรค"));
+    root.appendChild(bund("เห็นอาการแบบนี้ แมลงหรือโรค"));
     const tri = plot(null, "โรคพืชไม่ทำให้เนื้อใบหายไป ถ้าเห็นรอยกัดหรือใบแหว่ง แปลว่าเป็นแมลงแน่นอน");
-    const ul = el("ul");
-    ul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
-    P.triage.forEach((line) => {
-      const li = el("li", "", line);
-      li.style.marginBottom = "6px";
-      ul.appendChild(li);
+
+    const table = el("div", "tri");
+    const th = el("div", "tri-head");
+    th.appendChild(el("div", "", "อาการที่เห็น"));
+    th.appendChild(el("div", "", "น่าจะเป็น"));
+    table.appendChild(th);
+
+    P.triage.forEach((item) => {
+      // รองรับทั้งรูปแบบใหม่ที่แยกช่อง และสตริงเก่ารูปแบบ "อาการ = ตัวการ"
+      // ถ้าไฟล์ฐานความรู้ถูกย้อนกลับไปเวอร์ชันเก่า ตารางยังขึ้นครบไม่พัง
+      let sign, cause, note;
+      if (typeof item === "string") {
+        const at = item.indexOf(" = ");
+        if (at === -1) { sign = item; cause = ""; }
+        else { sign = item.slice(0, at); cause = item.slice(at + 3); }
+      } else {
+        sign = item.sign; cause = item.cause; note = item.note;
+      }
+
+      const row = el("div", "tri-row");
+      const signCell = el("div", "tri-sign", String(sign || "").replace(/^ถ้า/, ""));
+      if (!cause) signCell.style.gridColumn = "1 / -1";
+      row.appendChild(signCell);
+
+      if (cause) {
+        const causeCell = el("div", "tri-cause", cause);
+        if (note) causeCell.appendChild(el("i", "", note));
+        row.appendChild(causeCell);
+      }
+      table.appendChild(row);
     });
-    tri.appendChild(ul);
+    tri.appendChild(table);
+
     tri.appendChild(el("div", "flash flash-bad",
-      "ตัวตรวจรูปของเว็บนี้ดูออกแค่โรค 6 ชนิด มันไม่รู้จักแมลง " +
-      "ถ้าอาการเกิดจากแมลง ผลตรวจจากภาพจะไม่ถูกต้อง ห้ามเชื่อผลจากภาพในกรณีนี้"));
+      "ตัวตรวจรูปดูออกแค่โรค 6 ชนิด ไม่รู้จักแมลง ถ้าอาการเกิดจากแมลง ห้ามเชื่อผลตรวจจากภาพ"));
     root.appendChild(tri);
   }
 
   // ══ รายชื่อแมลง ══
-  root.appendChild(bund("เลือกแมลงที่พบในแปลง"));
+  root.appendChild(bund("แมลงและสัตว์ที่กินข้าว"));
 
-  const gridCard = plot(null, "เรียงจากที่อันตรายที่สุดลงมา กดที่การ์ดเพื่อดูวิธีจัดการ");
+  const gridCard = plot(null, "เรียงจากที่อันตรายที่สุดลงมา · แดง 3 จุด = ต้องรีบจัดการ, ทอง 2 จุด = เดินสำรวจก่อน, เขียว 1 จุด = เฝ้าดูตามปกติ");
   const grid = el("div", "pest-grid");
   gridCard.appendChild(grid);
   root.appendChild(gridCard);
