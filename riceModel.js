@@ -126,7 +126,7 @@ export async function classifyLeaf(imageElement) {
   };
 }
 
-/** คืนหน่วยความจำ GPU เมื่อออกจากหน้าวินิจฉัย */
+/** คืนหน่วยความจำ GPU เมื่อออกจากหน้าข้าวมีปัญหา */
 export function disposeRiceModel() {
   model?.dispose();
   model = null;
