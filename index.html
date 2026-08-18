@@ -1315,7 +1315,31 @@ async function api(path, options) {
   };
   if (options.body) init.body = JSON.stringify(options.body);
 
-  var res = await fetch(API_BASE + path, init);
+  // ตัดสายเมื่อรอเกิน 20 วินาที
+  //
+  // ถ้าไม่มีตัวนี้ เน็ตที่ค้างครึ่งๆ กลางๆ (สัญญาณอ่อนกลางนา หรือเซิร์ฟเวอร์ไม่ตอบ)
+  // จะทำให้ await รอไปไม่มีที่สิ้นสุด ตอนเปิดเว็บครั้งแรก boot() จะค้างที่ /auth/me
+  // ผู้ใช้เห็นหน้าเปล่าที่มีแต่โครง ไม่ขึ้น error ไม่เด้งหน้าล็อกอิน ทำอะไรต่อไม่ได้เลย
+  // 20 วินาทีเผื่อไว้สำหรับคำขอที่ต้องรอ AI ตอบ ซึ่งนานกว่าคำขอทั่วไปมาก
+  var ctrl = new AbortController();
+  var timer = setTimeout(function () { ctrl.abort(); }, 20000);
+  init.signal = ctrl.signal;
+
+  var res;
+  try {
+    res = await fetch(API_BASE + path, init);
+  } catch (err) {
+    // แยกสองกรณีให้ชัด เพราะผู้ใช้ต้องทำคนละอย่าง
+    // หมดเวลา = เซิร์ฟเวอร์รับสายแต่ไม่ตอบ รอสักครู่แล้วลองใหม่
+    // ต่อไม่ได้ = ยิงไปไม่ถึงเลย ให้ไปดูสัญญาณเน็ตก่อน
+    if (err.name === "AbortError") {
+      throw new Error("เซิร์ฟเวอร์ไม่ตอบสนอง (รอเกิน 20 วินาที) ลองใหม่อีกครั้ง");
+    }
+    throw new Error("ต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบสัญญาณอินเทอร์เน็ตแล้วลองใหม่");
+  } finally {
+    clearTimeout(timer);
+  }
+
   var data = null;
   try { data = await res.json(); } catch (e) { data = {}; }
 
@@ -1343,6 +1367,13 @@ function friendlyError(msg) {
   if (/limit:\s*0\b/.test(raw)) {
     return "บัญชี AI ที่ตั้งค่าไว้ยังไม่ได้รับโควตาใช้งาน กรุณาแจ้งผู้ดูแลระบบให้ตรวจสอบคีย์ " +
            "ระหว่างนี้การตรวจโรคจากภาพยังใช้ได้ตามปกติ เพราะทำงานในเครื่องของคุณเอง";
+  }
+  // 503 = ฝั่ง Google คนใช้พร้อมกันเยอะจนคิวเต็ม ไม่ใช่ความผิดของระบบเราหรือคีย์
+  // ต้องดักก่อนเงื่อนไข JSON ด้านล่าง ไม่งั้นจะตกไปเป็นข้อความ "เชื่อมต่อไม่ได้"
+  // ซึ่งทำให้ผู้ดูแลระบบไล่หาสาเหตุผิดทางไปหลายชั่วโมง
+  if (/\b50[0-3]\b|overload|UNAVAILABLE|INTERNAL/i.test(raw)) {
+    return "ตอนนี้ระบบ AI ของ Google มีคนใช้พร้อมกันจำนวนมาก ลองกดถามอีกครั้งในอีกสักครู่ " +
+           "ส่วนการตรวจโรคจากภาพยังใช้ได้ตามปกติ เพราะทำงานในเครื่องของคุณเอง";
   }
   if (/429|RESOURCE_EXHAUSTED|quota/i.test(raw)) {
     var m = /retry in ([\d.]+)s/i.exec(raw);
@@ -1444,7 +1475,29 @@ var Store = {
     var body = { prompt: prompt };
     if (image) body.image = image;
     if (opts && opts.search) body.search = true;
-    var data = await api("/gemini", { method: "POST", body: body });
+
+    // Gemini ตอบ 503 "The model is overloaded" เป็นระยะเมื่อมีคนใช้พร้อมกันเยอะ
+    // เป็นอาการชั่วคราวล้วนๆ ยิงซ้ำอีกครั้งมักผ่าน จึงลองเองก่อนสูงสุด 3 ครั้ง
+    // แทนที่จะโยนข้อความผิดพลาดใส่หน้าผู้ใช้ตั้งแต่ครั้งแรก
+    //
+    // เว้นระยะถ่างขึ้นเรื่อยๆ (1.2 วิ แล้ว 3 วิ) ไม่ยิงรัวติดกัน
+    // เพราะตอนเซิร์ฟเวอร์ปลายทางล้น การยิงถี่ยิ่งทำให้ถูกปฏิเสธซ้ำ
+    //
+    // ลองซ้ำเฉพาะ error ชั่วคราวเท่านั้น ห้ามลองซ้ำกรณีคีย์ผิดหรือโควตาหมด
+    // เพราะยิงกี่รอบก็ไม่ผ่าน มีแต่ทำให้ผู้ใช้รอนานขึ้นเปล่าๆ
+    var data = null;
+    var waits = [1200, 3000];
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        data = await api("/gemini", { method: "POST", body: body });
+        break;
+      } catch (err) {
+        var temporary = /\b50[0-3]\b|overload|UNAVAILABLE|INTERNAL|ไม่ตอบสนอง/i.test(err.message);
+        if (!temporary || attempt === 2) throw err;
+        await new Promise(function (resolve) { setTimeout(resolve, waits[attempt]); });
+      }
+    }
+
     // Worker เวอร์ชันเก่าไม่ส่ง imageReceived กลับมา ถือว่าภาพไม่ถึง Gemini
     return {
       text: data.text,
@@ -8314,7 +8367,6 @@ async function open(id) {
   kicker.textContent = page.kicker;
   replay(title, "swap");
   replay(kicker, "swap");
-  paintNav();
 
   var bar = document.getElementById("loadbar");
   if (bar) bar.classList.add("on");
@@ -8323,6 +8375,10 @@ async function open(id) {
   root.classList.remove("enter");
   root.innerHTML = "";
   try {
+    // paintNav อยู่ใน try ด้วย ไม่ใช่ก่อนหน้านี้
+    // เดิมถ้ามันพลาดขึ้นมา ข้อผิดพลาดจะหลุดออกนอก open() ทั้งก้อน
+    // ได้ผลลัพธ์เป็นหน้าเปล่าเงียบๆ ทั้งเมนูและเนื้อหา โดยไม่มีอะไรบอกผู้ใช้เลย
+    paintNav();
     await views[id](root);
     replay(root, "enter");
   } catch (err) {
