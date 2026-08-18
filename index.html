@@ -826,12 +826,28 @@
   }
   .stage-tab:hover { border-color: var(--blade); }
   .stage-tab.on { background: var(--blade); border-color: var(--blade); }
+  .stage-tab.done { opacity: .55; }          /* ระยะที่ผ่านไปแล้ว จางลงแต่ยังกดดูได้ */
+  .stage-tab.done.on { opacity: 1; }
   .stage-name { font-size: .87rem; font-weight: 600; color: var(--ink); }
-  .stage-age  { font-size: .74rem; color: var(--ink-faint); font-family: var(--f-data); }
-  .stage-tab.on .stage-name, .stage-tab.on .stage-age { color: #FFFFFF; }
+  .stage-when { font-size: .78rem; color: var(--ink-soft); font-family: var(--f-data); }
+  .stage-age  { font-size: .72rem; color: var(--ink-faint); font-family: var(--f-data); }
+  .stage-flag { font-size: .68rem; font-weight: 600; margin-top: 4px;
+                padding: 2px 7px; border-radius: 20px; }
+  .stage-flag.now  { background: var(--blade); color: #FFFFFF; }
+  .stage-flag.past { background: var(--rule); color: var(--ink-faint); }
+  .stage-tab.on .stage-name, .stage-tab.on .stage-when,
+  .stage-tab.on .stage-age { color: #FFFFFF; }
+  .stage-tab.on .stage-flag.now  { background: #FFFFFF; color: var(--blade); }
+  .stage-tab.on .stage-flag.past { background: rgba(255,255,255,.25); color: #FFFFFF; }
   @media (max-width: 700px) {
     .stage-tabs { grid-template-columns: 1fr 1fr; }
   }
+
+  /* ── บรรทัดตอบว่า "ตอนนี้ต้องทำอะไร" บนสุดของหน้า ──
+     ตัวใหญ่กว่าทุกอย่างในหน้าโดยตั้งใจ เพราะเป็นคำตอบของชื่อหน้าตรงๆ
+     ของเดิมเปิดมาเจอคำอธิบายพันธุ์ข้าว 3 ย่อหน้าก่อน กว่าจะรู้ว่าต้องทำอะไร */
+  .nowline { font-size: 1.15rem; font-weight: 600; color: var(--ink); line-height: 1.45; }
+  .nowsub  { font-size: .87rem; color: var(--ink-soft); margin-top: 5px; line-height: 1.6; }
 
   /* ── การ์ดคำแนะนำ ── */
   .care {
@@ -1086,16 +1102,16 @@
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=14"></script>
-<script src="soil-guide.js?v=14"></script>
-<script src="fertilizer-guide.js?v=14"></script>
+<script src="disease-guide.js?v=15"></script>
+<script src="soil-guide.js?v=15"></script>
+<script src="fertilizer-guide.js?v=15"></script>
 </body>
-<script src="cost-guide.js?v=14"></script>
-<script src="care-guide.js?v=14"></script>
-<script src="planting-guide.js?v=14"></script>
-<script src="pest-guide.js?v=14"></script>
-<script src="variety-guide.js?v=14"></script>
-  <script src="pest-page.js?v=14"></script>
+<script src="cost-guide.js?v=15"></script>
+<script src="care-guide.js?v=15"></script>
+<script src="planting-guide.js?v=15"></script>
+<script src="pest-guide.js?v=15"></script>
+<script src="variety-guide.js?v=15"></script>
+  <script src="pest-page.js?v=15"></script>
 <script>
 (function () {
 "use strict";
@@ -2723,6 +2739,11 @@ function setFieldSowDate(iso) {
 }
 
 // ปฏิทินของแปลงนี้ คืน null ถ้าข้อมูลไม่พอ ไม่เดาแทนผู้ใช้
+// แปลงวันเป็นข้อความไทย ใช้ตอนที่ยังไม่มีปฏิทินเต็มให้เรียก
+function thaiDateOf(d) {
+  return (typeof window.thaiDateText === "function" && d) ? window.thaiDateText(d) : "";
+}
+
 function fieldCalendar() {
   var k = fieldVarietyKey();
   var sow = fieldSowDate();
@@ -4882,9 +4903,78 @@ views.fert = async function (root) {
     // ── ขั้นตอนการทำ ──
     body.appendChild(bund("ขั้นตอนการทำ"));
     var fBox = plot(null);
+
+    // ── แสดงเฉพาะเรื่องที่ตรงกับแปลงนี้ ──
+    //
+    // ของเดิมยัดทุกกรณีไว้ในย่อหน้าเดียว ทั้งข้าวนาปีและนาปรัง ทั้งดินเหนียวและดินทราย
+    // ทั้งที่ระบบรู้อยู่แล้วว่าผู้ใช้ปลูกอะไรและดินแบบไหน
+    // ผลคือชาวนาต้องมานั่งอ่านหาว่าท่อนไหนคือของตัวเอง ซึ่งอ่านผิดได้ง่ายมาก
+    // และท่อนที่ไม่ใช่ของตัวเองก็มีตัวเลขอัตราปุ๋ยอยู่ด้วย ถ้าหยิบผิดท่อนคือใส่ปุ๋ยผิด
+    var myVarKey = myPhoto ? "photo" : "nonphoto";
+
     t.steps.forEach(function (st, i) {
-      fBox.appendChild(fold(i + 1, st.title, null, function (bd) {
-        paras(bd, st.detail);
+      // ── ขั้น "ต้องซื้อ 0-0-60 เพิ่มไหม" ── ตอบให้เลย ไม่ใช่ให้ไปไล่เงื่อนไขเอง
+      if (st.id === "kBoost") {
+        // ตัวเลขตัวท้ายของสูตร คือตัวทำให้ต้นแข็งที่มีมาให้ในกระสอบแล้ว
+        var kInPick = parseFloat(String(pickFormula).split("-")[2]) || 0;
+        var sandy = (mySoil === "sand");
+        var needK = kInPick === 0 && sandy;
+
+        var head = needK ? "ต้องซื้อ 0-0-60 เพิ่ม" : "ไม่ต้องซื้อ 0-0-60 เพิ่ม";
+        fBox.appendChild(fold(i + 1, head, null, function (bd) {
+          var verdict = el("div", needK ? "flash flash-warn" : "flash flash-ok");
+
+          if (!mySoil) {
+            // ยังไม่รู้ชนิดดิน = ตอบไม่ได้จริงๆ ต้องบอกตรงๆ ว่าขาดอะไร
+            // ไม่ใช่เดาให้แล้วปล่อยให้ซื้อของที่อาจไม่ต้องซื้อ
+            verdict.className = "flash flash-warn";
+            verdict.textContent = "ยังตอบไม่ได้ เพราะยังไม่ได้เลือกชนิดดิน " +
+              "ไปเลือกที่หน้าเตรียมดินก่อน แล้วกลับมาดูใหม่ ระบบจะตอบให้เลยว่าต้องซื้อหรือไม่";
+          } else if (needK) {
+            verdict.textContent = "แปลงคุณเป็นดินทราย และสูตร " + pickFormula +
+              " ที่ระบบเลือกให้ไม่มีตัวทำให้ต้นแข็ง (เลขตัวท้ายเป็น 0) " +
+              "จึงต้องซื้อ 0-0-60 เพิ่ม 5-10 กิโลกรัมต่อไร่ ใส่พร้อมปุ๋ยครั้งที่ 1";
+          } else if (kInPick > 0) {
+            verdict.textContent = "ไม่ต้องซื้อ เพราะสูตร " + pickFormula +
+              " ที่ระบบเลือกให้มีตัวทำให้ต้นแข็งมาแล้ว (เลขตัวท้ายคือ " + kInPick + ") " +
+              "ถ้าซื้อ 0-0-60 มาใส่ซ้ำจะได้เกินไปเท่าตัว เสียเงินฟรีและไม่ได้ผลผลิตเพิ่ม";
+          } else {
+            verdict.textContent = "ไม่ต้องซื้อ เพราะ" + (SOIL_WORD[mySoil] || "ดินของคุณ") +
+              "เก็บตัวทำให้ต้นแข็งไว้ได้ดีอยู่แล้ว มีพอให้ข้าวใช้ ไม่ต้องจ่ายเพิ่มในสิ่งที่ดินมีอยู่";
+          }
+          bd.appendChild(verdict);
+
+          bd.appendChild(el("div", "read-foot",
+            "ตัวทำให้ต้นแข็ง คือเลขตัวท้ายบนกระสอบ เช่น 16-16-8 คือมี 8% " +
+            "ส่วน 16-20-0 คือไม่มีเลย ถ้าขาดตัวนี้ ข้าวจะล้มง่ายและเมล็ดลีบ"));
+
+          if (fertPh) {
+            bd.appendChild(el("div", "read-foot",
+              "ถ้าเคยส่งดินไปตรวจที่ห้องแล็บ ให้ยึดผลตรวจเป็นหลักแทนการเดาจากชนิดดิน เพราะแม่นกว่า"));
+          }
+        }, false));
+        return;
+      }
+
+      // ขั้นอื่นๆ — คลี่ข้อความให้ตรงกับพันธุ์ที่ปลูกจริง
+      var title = window.careText(st.title, myVarKey);
+      var detail = window.careText(st.detail, myVarKey);
+      fBox.appendChild(fold(i + 1, title, null, function (bd) {
+        paras(bd, detail);
+
+        // ครั้งที่ 2 จังหวะสำคัญกว่าปริมาณ ถ้ารู้วันหว่านก็บอกวันจริงไปเลย
+        if (st.id === "second") {
+          var cal2 = fieldCalendar();
+          if (cal2) {
+            var f2 = el("div", "flash flash-ok",
+              "แปลงคุณต้องใส่ประมาณวันที่ " + cal2.text.fert2 +
+              " (ข้าวออกดอกประมาณ " + cal2.text.bloom + ")");
+            bd.appendChild(f2);
+          } else {
+            bd.appendChild(el("div", "read-foot",
+              "กรอกวันหว่านที่หน้าที่นาของฉัน แล้วระบบจะบอกวันที่ต้องใส่จริงของแปลงคุณให้เลย"));
+          }
+        }
       }, false));
     });
     body.appendChild(fBox);
@@ -6940,7 +7030,8 @@ views.weather = async function (root) {
     "ดัชนีความเสี่ยงที่ระบบคำนวณได้: " +
     ranked.map(function (r) { return r.rule.thai + " " + r.band.word; }).join(", ") + "\n\n" +
     buildFarmContext(logs) + "\n\n" +
-    "ตอบเป็นภาษาไทยแบบคุยกันธรรมดา 3-4 ประโยค บอกสิ่งที่ควรลงมือทำสัปดาห์นี้ให้ชัด ไม่ต้องใส่หัวข้อ " +
+    "ตอบไทย 3-4 ประโยค เข้าเรื่องทันที บอกสิ่งที่ต้องลงมือทำสัปดาห์นี้ให้ชัด ไม่ต้องใส่หัวข้อ " +
+    "ห้ามทักทาย ห้ามเรียกผู้อ่านว่า พี่ ป้า ลุง น้า คุณ ท่าน ห้ามลงท้ายว่า ครับ ค่ะ นะครับ นะคะ " +
     "ห้ามใช้ศัพท์วิชาการ เช่น ไนโตรเจน ธาตุอาหาร ความชื้นในอากาศ ให้ใช้คำที่ชาวนาพูดกันจริง " +
     "ห้ามแต่งชื่อสารเคมีหรือปริมาณที่ใช้ขึ้นเอง"
   ).then(function (answer) {
@@ -6987,50 +7078,67 @@ views.consult = async function (root) {
     var tabCard = plot(null);
     var cardHost = el("div");
 
-    // แถบบอกพันธุ์ที่ระบบกำลังใช้คำนวณปฏิทิน พร้อมทางลัดไปเปลี่ยน
-    // จำเป็นต้องเห็นตลอด เพราะคำแนะนำทั้งหน้าเปลี่ยนตามค่านี้
+    // ── แถบบนสุด: ตอบคำถามชื่อหน้าให้ได้ในบรรทัดเดียว ──
+    //
+    // หน้านี้ชื่อ "ต้องทำอะไรตอนนี้" แต่ของเดิมเปิดมาเจอคำอธิบายพันธุ์ข้าว 3 ย่อหน้า
+    // แล้วให้ผู้ใช้ไปกดเลือกเองว่าข้าวอยู่ระยะไหน ทั้งที่ระบบรู้วันหว่านอยู่แล้ว
+    // คนทำเว็บเองยังงง เพราะมันไม่ได้ตอบคำถามที่ชื่อหน้าถามไว้
+    //
+    // ตอนนี้บรรทัดแรกตอบเลยว่า ข้าวอายุกี่วัน อยู่ระยะไหน และงานถัดไปคืออะไร
+    // ส่วนคำอธิบายพันธุ์ยุบไปไว้ในปุ่มกดดู เพราะเป็นเรื่องที่รู้ครั้งเดียวก็พอ
+    var stageInfo = null;
     var vBar = plot(null);
+
     function paintVarietyBar() {
       vBar.innerHTML = "";
       var v = window.careVariety(vKey);
-      vBar.appendChild(el("div", "plot-title", "ปฏิทินนี้คำนวณสำหรับ " + v.thai + " (" + v.short + ")"));
-      vBar.appendChild(el("div", "plot-note", v.examples));
-      vBar.appendChild(el("div", "read-foot", v.note));
-      if (!fieldVarietyChosen()) {
-        vBar.appendChild(el("div", "read-foot",
-          "ยังไม่ได้เลือกพันธุ์ไว้ ระบบใช้ค่าเริ่มต้นนี้ไปก่อน ถ้าปลูกพันธุ์อีกกลุ่มให้เปลี่ยนก่อนใช้ปฏิทิน"));
-      }
-      // ถ้าผู้ใช้ระบุพันธุ์และวันหว่านแล้ว แสดงวันจริงแทนการบอกหลักการลอยๆ
-      // นี่คือความต่างระหว่างระบบที่มีข้อมูล กับระบบที่คิดให้
       var cal = fieldCalendar();
-      if (cal) {
-        vBar.appendChild(el("div", "plot-title", "ปฏิทินของแปลงคุณ: " + cal.variety.thai));
-        var cg = el("div", "row-3");
-        cg.style.marginTop = "10px";
-        [["ใส่ปุ๋ยครั้งที่ 2", cal.text.fert2],
-         ["ข้าวออกดอก", cal.text.bloom],
-         ["เก็บเกี่ยว", cal.text.harvest]].forEach(function (c) {
-          var b = el("div");
-          b.appendChild(readOut(c[0], c[1]));
-          cg.appendChild(b);
-        });
-        vBar.appendChild(cg);
+      stageInfo = (cal && typeof window.stageWindows === "function") ? window.stageWindows(cal) : null;
 
-        // นับถอยหลังจากวันนี้ ให้ผู้ใช้รู้ว่าต้องเตรียมตัวเมื่อไหร่
-        var daysLeft = Math.round((cal.fert2 - new Date()) / 86400000);
-        vBar.appendChild(el("div", daysLeft >= 0 && daysLeft <= 14 ? "flash flash-warn" : "read-foot",
-          daysLeft > 0
-            ? "เหลืออีก " + daysLeft + " วันถึงกำหนดใส่ปุ๋ยครั้งที่ 2"
-            : daysLeft === 0
-              ? "วันนี้คือกำหนดใส่ปุ๋ยครั้งที่ 2"
-              : "เลยกำหนดใส่ปุ๋ยครั้งที่ 2 มาแล้ว " + Math.abs(daysLeft) + " วัน"));
-        vBar.appendChild(el("div", "read-foot",
-          "ณ วันใส่ปุ๋ยครั้งที่ 2 ข้าวอายุประมาณ " + cal.ageAtFert2 + " วัน · แก้ไขพันธุ์และวันหว่านได้ที่หน้าที่นาของฉัน"));
+      if (stageInfo && stageInfo.current) {
+        var curStage = C.stages.filter(function (x) { return x.key === stageInfo.current; })[0];
+        vBar.appendChild(el("div", "nowline",
+          "ตอนนี้ข้าวอายุ " + stageInfo.age + " วัน อยู่" + (curStage ? curStage.thai : "")));
+
+        // งานถัดไป — เอาหมุดที่ใกล้ที่สุดที่ยังไม่ถึงมาแสดง
+        // ถ้าผ่านหมดแล้วก็บอกตรงๆ ว่าเหลือแค่รอเกี่ยว ไม่ต้องเดาเอง
+        var jobs = [
+          { name: "ใส่ปุ๋ยครั้งที่ 2", when: cal.fert2, text: cal.text.fert2 },
+          { name: "ข้าวออกดอก",      when: cal.bloom, text: cal.text.bloom },
+          { name: "เก็บเกี่ยว",       when: cal.harvest, text: cal.text.harvest }
+        ];
+        var next = jobs.filter(function (j) { return j.when >= stageInfo.today; })[0];
+        if (next) {
+          var left = Math.round((next.when - stageInfo.today) / 86400000);
+          vBar.appendChild(el("div", left <= 14 ? "flash flash-warn" : "nowsub",
+            left === 0 ? "วันนี้คือวัน" + next.name
+                       : "งานถัดไป: " + next.name + " วันที่ " + next.text + " · อีก " + left + " วัน"));
+        }
+      } else if (stageInfo && stageInfo.beforeSow) {
+        vBar.appendChild(el("div", "nowline", "ยังไม่ถึงวันหว่านที่กรอกไว้"));
+        vBar.appendChild(el("div", "nowsub", "จะหว่านวันที่ " + thaiDateOf(cal.sow)));
+      } else if (stageInfo && stageInfo.afterHarvest) {
+        vBar.appendChild(el("div", "nowline", "เลยวันเก็บเกี่ยวของฤดูนี้มาแล้ว"));
+        vBar.appendChild(el("div", "nowsub",
+          "ถ้าจะเริ่มฤดูใหม่ ให้ไปแก้วันหว่านที่หน้าที่นาของฉัน แล้วล้างบันทึกเก่าที่หน้าประวัติ"));
+      } else {
+        // ไม่มีวันหว่าน = คำนวณอะไรให้ไม่ได้เลย ต้องบอกให้ชัดว่าขาดอะไรและไปกรอกที่ไหน
+        // ไม่ใช่แสดงช่วงอายุกลางๆ แล้วปล่อยให้เข้าใจผิดว่าตรงกับแปลงตัวเอง
+        vBar.appendChild(el("div", "nowline", "ยังบอกไม่ได้ว่าตอนนี้ข้าวอยู่ระยะไหน"));
+        vBar.appendChild(el("div", "nowsub",
+          "เพราะยังไม่ได้กรอกวันหว่าน · ไปกรอกที่หน้า \"ที่นาของฉัน\" แล้วกลับมา " +
+          "ระบบจะคำนวณวันใส่ปุ๋ย วันออกดอก และวันเก็บเกี่ยวของแปลงคุณให้เอง"));
       }
 
-      var sw = el("button", "act act-line act-sm", "เปลี่ยนเป็น" +
+      // คำอธิบายพันธุ์ยุบไว้ ไม่ใช่เรื่องที่ต้องอ่านทุกครั้งที่เปิดหน้า
+      vBar.appendChild(more("ปฏิทินนี้คิดจากอะไร",
+        "คิดจากพันธุ์ " + v.thai + " (" + v.short + ") เช่น " + v.examples + "\n\n" + v.note +
+        (fieldVarietyChosen() ? "" : "\n\nคุณยังไม่ได้เลือกพันธุ์ ระบบใช้กลุ่มนี้ไปก่อน ถ้าปลูกอีกกลุ่มให้กดเปลี่ยนด้านล่าง") +
+        "\n\nแก้พันธุ์และวันหว่านได้ที่หน้าที่นาของฉัน"));
+
+      var sw = el("button", "act act-line act-sm", "ปลูกอีกกลุ่ม เปลี่ยนเป็น" +
         window.careVariety(vKey === "photo" ? "nonphoto" : "photo").thai);
-      sw.style.marginTop = "12px";
+      sw.style.marginTop = "10px";
       sw.onclick = function () {
         vKey = (vKey === "photo") ? "nonphoto" : "photo";
         setFieldVariety(vKey);
@@ -7042,14 +7150,42 @@ views.consult = async function (root) {
     root.appendChild(vBar);
     paintVarietyBar();
 
+    // ถ้ารู้วันหว่าน ให้เปิดหน้ามาที่ระยะที่ข้าวอยู่จริงเลย ไม่ใช่ระยะที่กดค้างไว้เมื่อเดือนก่อน
+    // ปฏิทินของแปลงเชื่อถือได้มากกว่าสิ่งที่ผู้ใช้เคยกด
+    if (stageInfo && stageInfo.current) pick = stageInfo.current;
+
     function paintStage() {
       tabCard.innerHTML = "";
 
+      // ── แถบระยะ 4 ระยะ ──
+      //
+      // ถ้ารู้วันหว่าน จะขึ้นเป็นวันที่จริงของแปลงนี้ เช่น "1 ก.ย. – 26 ก.ย. 2569"
+      // แทนคำอธิบายกลางๆ อย่าง "ตั้งแต่ประมาณ 25 วันหลังหว่าน ไปจนถึงก่อนตั้งท้อง"
+      // ซึ่งอ่านแล้วยังต้องมานั่งบวกวันเองว่าตกลงตอนนี้อยู่ระยะไหน
+      var win = {};
+      if (stageInfo) stageInfo.list.forEach(function (w) { win[w.key] = w; });
+
       var tabs = el("div", "stage-tabs");
       C.stages.forEach(function (st) {
-        var b = el("button", "stage-tab" + (st.key === pick ? " on" : ""));
-        b.appendChild(el("span", "stage-name", st.thai));
-        b.appendChild(el("span", "stage-age", window.careText(st.age, vKey)));
+        var w = win[st.key];
+        var cls = "stage-tab" + (st.key === pick ? " on" : "");
+        if (w && w.past) cls += " done";
+        var b = el("button", cls);
+
+        var nameRow = el("span", "stage-name", st.thai);
+        b.appendChild(nameRow);
+
+        if (w) {
+          b.appendChild(el("span", "stage-when", w.text));
+          b.appendChild(el("span", "stage-age",
+            "ข้าวอายุ " + w.ageFrom + "–" + w.ageTo + " วัน · รวม " + w.days + " วัน"));
+          if (w.now)  b.appendChild(el("span", "stage-flag now", "ตอนนี้อยู่ระยะนี้"));
+          if (w.past) b.appendChild(el("span", "stage-flag past", "ผ่านไปแล้ว"));
+        } else {
+          // ไม่มีวันหว่าน ก็ได้แค่ช่วงอายุกลางๆ ตามเดิม
+          b.appendChild(el("span", "stage-age", window.careText(st.age, vKey)));
+        }
+
         b.onclick = function () {
           pick = st.key;
           try { localStorage.setItem(SKEY, pick); } catch (e) {}
@@ -7060,8 +7196,17 @@ views.consult = async function (root) {
       tabCard.appendChild(tabs);
 
       var st = C.stages.filter(function (x) { return x.key === pick; })[0];
+      var wSel = win[pick];
+      if (wSel) {
+        tabCard.appendChild(el("div", "read-foot",
+          "ระยะนี้ของแปลงคุณคือ " + wSel.text +
+          (wSel.now ? " · ข้าวอยู่ระยะนี้อยู่ตอนนี้"
+                    : wSel.past ? " · ผ่านไปแล้ว"
+                                : " · ยังไม่ถึง อีก " + Math.round((wSel.from - stageInfo.today) / 86400000) + " วัน")));
+      } else {
+        tabCard.appendChild(el("div", "read-foot", "ช่วงเวลาโดยประมาณ: " + window.careText(st.age, vKey)));
+      }
       tabCard.appendChild(el("div", "read-foot", st.note));
-      tabCard.appendChild(el("div", "read-foot", "ช่วงเวลา: " + window.careText(st.age, vKey)));
 
       cardHost.innerHTML = "";
       st.cards.forEach(function (c) {
@@ -7160,9 +7305,9 @@ views.ask = async function (root) {
 
   var talk = el("div", "talk");
   talk.appendChild(el("div", "say say-ai",
-    "สวัสดีครับ ผมดูจากผลตรวจรูป ค่าความเปรี้ยวของดิน และบันทึกแปลงของคุณ แล้วค่อยตอบให้นะครับ\n\n" +
-    "ถามได้ทั้งเรื่องโรคข้าว การเตรียมดิน การเตรียมต้นกล้า ปุ๋ยอินทรีย์ และปุ๋ยเคมี " +
-    "เช่น ข้าวอายุ 25 วันควรใส่ปุ๋ยสูตรอะไร หรือจะแนบภาพใบข้าวมาให้ดูก็ได้ครับ"));
+    "ถามได้ทั้งเรื่องโรคข้าว เตรียมดิน เตรียมต้นกล้า ปุ๋ยคอกปุ๋ยหมัก และปุ๋ยเคมี\n\n" +
+    "เช่น ข้าวอายุ 25 วันใส่ปุ๋ยสูตรไหน · ใบข้าวเป็นจุดน้ำตาลทำยังไง · ฝนตกหนักสามวันต้องระวังอะไร\n\n" +
+    "แนบรูปใบข้าวมาด้วยก็ได้ จะดูให้ตรงขึ้น"));
   card.appendChild(talk);
 
   var clip = el("div", "clip");
@@ -7285,16 +7430,21 @@ views.ask = async function (root) {
       var prompt = "คุณเป็นผู้ช่วยเกษตรกรผู้ปลูกข้าวไทย ดูแลได้ครบทั้งโรคข้าว การเตรียมดิน " +
         "การแก้ปัญหาดิน ปุ๋ยอินทรีย์และปุ๋ยเคมี การดูแลตามช่วงอายุข้าว และต้นทุนการผลิต\n\n" +
         "วิธีตอบ:\n" +
-        "1. ตอบเป็นภาษาไทยแบบคุยกันธรรมดา ไม่เกิน 5-6 ประโยค ห้ามใช้ศัพท์วิชาการเด็ดขาด\n" +
-        "   ห้ามใช้คำว่า ไนโตรเจน ฟอสฟอรัส โพแทสเซียม ธาตุอาหาร อินทรียวัตถุ จุลินทรีย์ pH ไวต่อช่วงแสง\n" +
-        "   ให้พูดว่า ตัวเร่งใบเขียว ตัวเร่งราก ตัวทำให้ต้นแข็ง อาหารของต้นข้าว ซากพืชผุ ตัวจิ๋วในดิน "
-        "ความเปรี้ยวของดิน ข้าวออกรวงตามฤดู แทน\n" +
-        "   ถ้าจำเป็นต้องบอกตัวเลขบนกระสอบปุ๋ย ให้บอกตรงๆ เช่น กระสอบที่เขียนว่า 16-20-0\n" +
-        "2. บอกสิ่งที่ลงมือทำได้ก่อน แล้วค่อยอธิบายเหตุผลสั้นๆ\n" +
-        "3. ถ้าเรื่องที่ถามมีหน้าเฉพาะในระบบ ให้บอกชื่อหน้านั้นด้วยเพื่อให้ไปดูต่อได้\n" +
-        "4. ถ้าข้อมูลไม่พอตอบ ให้ถามกลับ 1 คำถามที่จะช่วยให้ตอบได้ตรงขึ้น " +
-        "เช่น ข้าวอายุกี่วัน ดินเป็นแบบไหน หรือมีผลตรวจดินไหม อย่าตอบว่าไม่ทราบเฉยๆ\n" +
-        "5. ห้ามแต่งชื่อสารเคมี ปริมาณที่ใช้ สูตรปุ๋ย หรือตัวเลขใดๆ ที่ไม่มีในข้อมูลด้านล่างเด็ดขาด\n\n" +
+        "1. เข้าเรื่องทันที บอกสิ่งที่ต้องลงมือทำเป็นประโยคแรกเลย ไม่เกิน 5-6 ประโยค\n" +
+        "   ห้ามทักทาย ห้ามขึ้นต้นว่า สวัสดี หรือ จากข้อมูลที่ให้มา\n" +
+        "2. ห้ามเรียกผู้ถามด้วยคำใดๆ ทั้งสิ้น ห้ามใช้คำว่า พี่ ป้า ลุง น้า คุณ ท่าน คุณลุง คุณป้า\n" +
+        "   ห้ามเรียกชื่อผู้ถาม และห้ามลงท้ายว่า ครับ ค่ะ นะครับ นะคะ\n" +
+        "   ให้พูดตรงๆ เหมือนคนคุ้นเคยกันบอกงานกัน เช่น ใส่ปุ๋ยได้เลย · ยังไม่ต้องใส่ รอไปอีกอาทิตย์\n" +
+        "3. ห้ามใช้ศัพท์วิชาการเด็ดขาด ห้ามใช้คำว่า ไนโตรเจน ฟอสฟอรัส โพแทสเซียม ธาตุอาหาร " +
+        "อินทรียวัตถุ จุลินทรีย์ pH ไวต่อช่วงแสง วัชพืช ศัตรูพืช\n" +
+        "   ให้พูดว่า ตัวเร่งใบเขียว ตัวเร่งราก ตัวทำให้ต้นแข็ง อาหารของต้นข้าว ซากพืชผุ " +
+        "ตัวจิ๋วในดิน ความเปรี้ยวของดิน ข้าวออกรวงตามฤดู หญ้า แมลงที่มากินข้าว แทน\n" +
+        "   ตัวเลขบนกระสอบปุ๋ยบอกตรงๆ ได้ เช่น กระสอบที่เขียนว่า 16-20-0\n" +
+        "4. บอกสิ่งที่ลงมือทำได้ก่อน แล้วค่อยอธิบายสั้นๆ ว่าถ้าไม่ทำจะเกิดอะไรขึ้น\n" +
+        "5. ถ้าเรื่องที่ถามมีแท็บเฉพาะในเว็บ ให้บอกชื่อแท็บนั้นด้วยเพื่อให้ไปดูต่อได้\n" +
+        "6. ถ้าข้อมูลไม่พอตอบ ให้ถามกลับ 1 คำถามที่จะช่วยให้ตอบได้ตรงขึ้น " +
+        "เช่น ข้าวอายุกี่วัน ดินเป็นแบบไหน หรือเคยส่งดินไปตรวจไหม อย่าตอบว่าไม่ทราบเฉยๆ\n" +
+        "7. ห้ามแต่งชื่อสารเคมี ปริมาณที่ใช้ สูตรปุ๋ย หรือตัวเลขใดๆ ที่ไม่มีในข้อมูลด้านล่างเด็ดขาด\n\n" +
         focus +
         "ข้อมูลแปลงนาของผู้ถาม (จากบันทึกในระบบ):\n" + farmContext + soilRef + "\n" +
         convo + carry + "\n" +

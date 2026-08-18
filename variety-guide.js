@@ -297,3 +297,62 @@ window.varietyCalendar = function (varietyKey, sowDate) {
 };
 
 window.thaiDateText = thaiDate;
+
+// ── ช่วงอายุข้าวจริงของแปลงนี้ ────────────────────
+//
+// เดิมหน้า "ต้องทำอะไรตอนนี้" บอกช่วงอายุเป็นคำอธิบายลอยๆ เช่น
+// "ตั้งแต่ประมาณ 25 วันหลังหว่าน ไปจนถึงก่อนตั้งท้อง ซึ่งอาจยาวถึง 3-4 เดือน"
+// ซึ่งอ่านแล้วยังต้องมานั่งบวกวันเองอยู่ดีว่าตกลงตอนนี้ข้าวอยู่ระยะไหน
+// คนทำเว็บเองยังงง ชาวนายิ่งไม่ต้องพูดถึง
+//
+// ฟังก์ชันนี้แปลงเป็นวันที่จริงจากวันหว่านที่ผู้ใช้กรอกไว้ แล้วบอกไปเลยว่า
+// วันนี้อยู่ระยะไหน เหลืออีกกี่วันจะเปลี่ยนระยะ
+//
+// เส้นแบ่งระยะยึดจากปฏิทินที่คำนวณไว้แล้ว ไม่ได้ตั้งตัวเลขใหม่ขึ้นมาเอง
+//   กล้า      หว่าน → หว่าน+25 วัน (นาปรังใช้ 20 วัน เพราะอายุสั้นกว่า)
+//   แตกกอ    จบระยะกล้า → วันใส่ปุ๋ยครั้งที่ 2
+//   ตั้งท้อง  วันใส่ปุ๋ยครั้งที่ 2 → วันข้าวออกดอก
+//   เก็บเกี่ยว วันออกดอก → วันเก็บเกี่ยว
+//
+// ที่ใช้ "วันใส่ปุ๋ยครั้งที่ 2" เป็นเส้นแบ่งเข้าระยะตั้งท้อง เพราะปุ๋ยครั้งที่ 2
+// ต้องใส่ตอนข้าวเริ่มสร้างรวงในลำต้นพอดี ซึ่งคือจุดเริ่มของระยะนี้อยู่แล้ว
+window.stageWindows = function (cal) {
+  if (!cal || !cal.sow) return null;
+
+  var seedlingDays = cal.variety && cal.variety.photo ? 25 : 20;
+  var seedlingEnd = addDays(cal.sow, seedlingDays);
+
+  var list = [
+    { key: "seedling", from: cal.sow,     to: seedlingEnd },
+    { key: "tiller",   from: seedlingEnd, to: cal.fert2 },
+    { key: "booting",  from: cal.fert2,   to: cal.bloom },
+    { key: "harvest",  from: cal.bloom,   to: cal.harvest }
+  ];
+
+  // เทียบด้วยวันที่ล้วน ตัดเวลาออก ไม่งั้นวันสุดท้ายของระยะจะหลุดไปโดยไม่มีเหตุผล
+  var now = new Date();
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var current = null;
+
+  list.forEach(function (s) {
+    s.text = thaiDate(s.from) + " – " + thaiDate(s.to);
+    s.days = Math.round((s.to - s.from) / 86400000);
+    s.ageFrom = Math.round((s.from - cal.sow) / 86400000);
+    s.ageTo = Math.round((s.to - cal.sow) / 86400000);
+    s.past = today >= s.to;
+    s.future = today < s.from;
+    s.now = !s.past && !s.future;
+    if (s.now) current = s.key;
+  });
+
+  var age = Math.round((today - cal.sow) / 86400000);
+
+  return {
+    list: list,
+    current: current,                       // null = ยังไม่หว่าน หรือเลยเก็บเกี่ยวไปแล้ว
+    age: age,
+    beforeSow: today < cal.sow,
+    afterHarvest: today >= cal.harvest,
+    today: today
+  };
+};
