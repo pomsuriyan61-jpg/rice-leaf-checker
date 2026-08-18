@@ -301,17 +301,51 @@
   .rx li { margin-bottom: 3px; }
   .rx-src { font-size: .73rem; color: var(--ink-faint); margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--rule); }
 
-  /* ─── กล่อง "ข้อมูลหน้านี้มาจากไหน" ท้ายทุกหน้า ───
-     หน้าตาเหมือนกันทุกหน้า ชาวนาจะได้รู้ว่ามองหาตรงไหน
-     สีจางกว่าเนื้อหาหลัก เพราะไม่ใช่สิ่งที่ต้องอ่านก่อนลงมือทำ
-     แต่ต้องหาเจอเมื่ออยากรู้ว่าใครเป็นคนบอก */
-  .srcbox { margin-top: 34px; padding: 17px 19px; background: var(--paper-up);
-            border: 1px solid var(--rule); border-radius: var(--r); }
-  .srcbox-head { font-size: .78rem; font-weight: 600; color: var(--ink-soft); margin-bottom: 10px; }
-  .srcbox ul { margin: 0 0 12px; padding-left: 17px; }
-  .srcbox li { font-size: .8rem; color: var(--ink-faint); margin-bottom: 4px; line-height: 1.55; }
-  .srcbox-warn { font-size: .8rem; color: var(--ink-soft); line-height: 1.6;
-                 padding-top: 11px; border-top: 1px solid var(--rule); }
+  /* ─── ช่องวัดค่าดิน จุดละ 3 ครั้ง ───
+     แยกเป็นกล่องต่อจุด ไม่ใช่ช่องเรียงติดกันยาวๆ
+     เพราะคนกรอกยืนอยู่กลางนาถือมือถือข้างเดียว ต้องรู้ตลอดว่ากรอกจุดไหนอยู่ */
+  .phpt { border: 1px solid var(--rule); border-radius: var(--r-sm);
+          padding: 12px 14px; margin-bottom: 10px; background: var(--paper); }
+  .phpt-head { display: flex; justify-content: space-between; align-items: center;
+               gap: 10px; margin-bottom: 9px; flex-wrap: wrap; }
+  .phpt-name { font-weight: 600; font-size: .89rem; color: var(--ink); }
+  .phpt-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .phpt-avg { font-size: .76rem; color: var(--ink-faint); font-family: "IBM Plex Mono", monospace; }
+  .phpt-avg.ok { color: var(--blade); }
+  .phpt-avg.warn { color: #9A6B18; }
+  .phpt-avg.bad { color: var(--rust); }
+  .phpt-drop { border: none; background: none; color: var(--rust);
+               cursor: pointer; font-size: .76rem; padding: 2px 4px; text-decoration: underline; }
+  .phpt-ins { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+  .phpt-ins .inp label { font-size: .72rem; }
+  @media (max-width: 560px) { .phpt-ins { gap: 6px; } }
+
+  .phsum { margin-top: 14px; padding: 13px 16px; background: var(--tint-ok);
+           border-radius: var(--r-sm); border: 1px solid var(--rule); }
+  .phsum:empty { display: none; padding: 0; border: none; margin: 0; }
+  .phsum-label { font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); }
+  .phsum-val { font-size: 1.7rem; font-weight: 600; font-family: "IBM Plex Mono", monospace;
+               color: var(--blade); line-height: 1.2; margin: 2px 0; }
+  .phsum-foot { font-size: .77rem; color: var(--ink-faint); }
+
+  /* ─── กล่องหัวแท็บ: ใช้ทำอะไร ทำยังไง ข้อมูลมาจากไหน ───
+     อยู่บนสุดของทุกแท็บ หน้าตาเหมือนกันหมด ชาวนาเรียนรู้ครั้งเดียวว่ามองหาตรงไหน
+     ใช้เส้นซ้ายแทนกรอบเต็ม เพื่อให้ต่างจากการ์ดเนื้อหาชัดเจน
+     และไม่แย่งสายตากับสิ่งที่ต้องลงมือทำจริงในหน้า */
+  .phead { margin-bottom: 22px; padding: 15px 18px; background: var(--paper-up);
+           border-left: 3px solid var(--blade); border-radius: 0 var(--r) var(--r) 0; }
+  .phead-what { font-size: .92rem; font-weight: 600; color: var(--ink); line-height: 1.55; }
+  .phead-cap { font-size: .7rem; letter-spacing: .13em; text-transform: uppercase;
+               color: var(--ink-faint); margin: 13px 0 5px; }
+  .phead-how { margin: 0; padding-left: 19px; }
+  .phead-how li { font-size: .85rem; color: var(--ink-soft); margin-bottom: 4px; line-height: 1.6; }
+  .phead-src { margin: 0; padding-left: 17px; list-style: none; }
+  .phead-src li { font-size: .79rem; color: var(--ink-faint); margin-bottom: 3px;
+                  line-height: 1.55; position: relative; }
+  .phead-src li::before { content: "·"; position: absolute; left: -11px; }
+  .phead-warn { font-size: .78rem; color: var(--ink-faint); line-height: 1.6;
+                margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--rule); }
+  @media (max-width: 560px) { .phead { padding: 13px 15px; margin-bottom: 18px; } }
 
   /* ─── สนทนา ─────────────────────────────── */
   .talk { min-height: 250px; max-height: 430px; overflow-y: auto; padding-right: 4px; }
@@ -1052,16 +1086,16 @@
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=13"></script>
-<script src="soil-guide.js?v=13"></script>
-<script src="fertilizer-guide.js?v=13"></script>
+<script src="disease-guide.js?v=14"></script>
+<script src="soil-guide.js?v=14"></script>
+<script src="fertilizer-guide.js?v=14"></script>
 </body>
-<script src="cost-guide.js?v=13"></script>
-<script src="care-guide.js?v=13"></script>
-<script src="planting-guide.js?v=13"></script>
-<script src="pest-guide.js?v=13"></script>
-<script src="variety-guide.js?v=13"></script>
-  <script src="pest-page.js?v=13"></script>
+<script src="cost-guide.js?v=14"></script>
+<script src="care-guide.js?v=14"></script>
+<script src="planting-guide.js?v=14"></script>
+<script src="pest-guide.js?v=14"></script>
+<script src="variety-guide.js?v=14"></script>
+  <script src="pest-page.js?v=14"></script>
 <script>
 (function () {
 "use strict";
@@ -1148,6 +1182,13 @@ var PAGES = [
     icon: "M12 3v18M8 7h6a2.5 2.5 0 010 5H9a2.5 2.5 0 000 5h7" },
   { id: "ledger",   label: "ประวัติที่ทำมา", kicker: "ปิดฤดู",   group: "3 · ปิดฤดู",
     icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
+
+  // ── ท้ายสุด ──
+  // ช่องถาม AI อยู่ท้ายสุดโดยตั้งใจ ไม่ใช่เพราะสำคัญน้อย
+  // แต่เพราะถ้าเห็นก่อน คนจะพิมพ์ถามอย่างเดียวแล้วไม่เปิดดูหน้าอื่นเลย
+  // ทั้งที่ปฏิทินปุ๋ย ตารางต้นทุน และคู่มือเตรียมดิน แม่นกว่าและไม่ต้องรอเน็ต
+  { id: "ask", label: "ถามเมื่อไม่รู้จะทำยังไง", kicker: "ถามเพิ่ม", group: "ถ้ายังไม่ได้คำตอบ",
+    icon: "M9.1 9a3 3 0 015.8 1c0 2-3 2.5-3 4.5M12 18h.01M12 21a9 9 0 110-18 9 9 0 010 18z" },
 
   // ── ตั้งค่า ──
   { id: "profile",  label: "ข้อมูลของฉัน",   kicker: "ตั้งค่า",  group: "ตั้งค่า",
@@ -2957,78 +2998,192 @@ function stateBlock(mark, lead, note) {
 }
 
 
-// ─── กล่อง "ข้อมูลหน้านี้มาจากไหน" ──────────────
+// ─── กล่องหัวแท็บ: ใช้ทำอะไร ทำยังไง ข้อมูลมาจากไหน ────
 //
-// ปัญหาเดิม: แหล่งที่มาของข้อมูลถูกเขียนไว้ครบในคอมเมนต์ของโค้ด
-// แต่ชาวนาไม่มีวันเห็นคอมเมนต์ ทั้งเว็บจึงมีแค่ 3 จุดที่ขึ้นคำว่า "อ้างอิง" ให้เห็นจริง
-// คนใช้จึงไม่มีทางรู้ว่าตัวเลขที่เห็นมาจากกรมการข้าว หรือใครแต่งขึ้นมา
+// ปัญหาเดิมมี 2 อย่าง
+//   1. แหล่งที่มาของข้อมูลเขียนไว้ครบในคอมเมนต์ของโค้ด แต่ชาวนาไม่มีวันเห็น
+//      ทั้งเว็บมีแค่ 3 จุดที่ขึ้นคำว่า "อ้างอิง" ให้ผู้ใช้เห็นจริง
+//      คนใช้จึงไม่มีทางรู้ว่าตัวเลขมาจากกรมการข้าว หรือใครแต่งขึ้นมา
+//   2. ไม่มีที่ไหนบอกว่าแท็บนี้เอาไว้ทำอะไรและต้องกดอะไรก่อน
+//      คนที่เปิดเว็บครั้งแรกกลางนาจึงต้องเดาเอาเองทุกหน้า
 //
-// วิธีแก้: รวมไว้ที่เดียวในตาราง SOURCES ด้านล่าง แล้วทุกหน้าเรียก srcBox(id) บรรทัดเดียว
-// ข้อดีคือหน้าตาเหมือนกันหมดทุกหน้า ชาวนาเรียนรู้ครั้งเดียวว่าต้องมองท้ายหน้า
-// และเวลาแหล่งข้อมูลเปลี่ยน แก้ที่เดียวเปลี่ยนทั้งเว็บ ไม่ต้องไล่แก้ทีละหน้า
+// แก้ด้วยกล่องเดียวบนสุดของทุกแท็บ หน้าตาเหมือนกันหมด บอก 3 อย่าง
+//   แท็บนี้ใช้ทำอะไร · ใช้ยังไง · ข้อมูลมาจากไหน
 //
-// วางไว้ท้ายหน้าเสมอ ไม่ใช่ทุกการ์ด เพราะการเตือนซ้ำทุกกล่อง
-// ทำให้คนอ่านข้ามไปเลยทั้งหมด ซึ่งแย่กว่าไม่เตือน
-var SOURCES = {
+// ทำไมต้องอยู่ "บนสุด" ไม่ใช่ท้ายหน้า: คนอ่านคู่มือตอนที่ยังไม่รู้ว่าจะทำอะไร
+// ซึ่งคือตอนเพิ่งเปิดหน้ามา ไม่ใช่ตอนเลื่อนถึงล่างสุดแล้ว
+// และแหล่งอ้างอิงที่อยู่ท้ายสุดมีค่าเท่ากับไม่มี เพราะไม่มีใครเลื่อนไปถึง
+//
+// เก็บไว้ที่เดียวในตารางนี้ แต่ละหน้าเรียก pageHead(id) บรรทัดเดียว
+// แหล่งข้อมูลเปลี่ยนเมื่อไหร่ แก้ที่นี่ที่เดียวเปลี่ยนทั้งเว็บ
+var PAGE_HELP = {
   overview: {
-    list: ["ตัวเลขทั้งหมดในหน้านี้มาจากที่คุณบันทึกไว้เอง ระบบไม่ได้เติมให้",
-           "อากาศ — Open-Meteo (บริการพยากรณ์อากาศฟรี)"]
+    what: "หน้าสรุปว่าตอนนี้แปลงเป็นยังไง เปิดดูก่อนเป็นอันดับแรกทุกครั้ง",
+    how: [
+      "ดูคะแนนสุขภาพข้าวและโรคที่เจอล่าสุด",
+      "ดูกราฟว่าดินเปรี้ยวขึ้นหรือดีขึ้นเทียบกับครั้งก่อน",
+      "ถ้ายังว่างเปล่า แปลว่ายังไม่ได้บันทึกอะไร เริ่มที่แท็บ \"ที่นาของฉัน\" ก่อน"
+    ],
+    sources: [
+      "ตัวเลขทั้งหมดมาจากที่คุณบันทึกไว้เอง เว็บไม่ได้เติมให้",
+      "อากาศ — Open-Meteo (บริการพยากรณ์อากาศฟรี)"
+    ]
   },
   map: {
-    list: ["แผนที่ — OpenStreetMap",
-           "อายุข้าวและวันเก็บเกี่ยวของแต่ละพันธุ์ — กรมการข้าว"]
+    what: "บอกเว็บว่าที่นาคุณอยู่ตรงไหน กี่ไร่ และปลูกข้าวพันธุ์อะไร",
+    how: [
+      "กดเปิดแผนที่ แล้วปักหมุดที่นา หรือเดินรอบแปลงให้เว็บจับพิกัดเอง",
+      "กรอกจำนวนไร่ตามที่เขียนในโฉนด",
+      "เลือกพันธุ์ข้าวและกรอกวันหว่าน แล้วกดบันทึก"
+    ],
+    sources: [
+      "แผนที่ — OpenStreetMap",
+      "อายุข้าวและวันเก็บเกี่ยวของแต่ละพันธุ์ — กรมการข้าว",
+      "ทำแท็บนี้ให้เสร็จก่อนเสมอ เพราะแท็บอื่นดึงข้อมูลจากตรงนี้ไปใช้หมด"
+    ]
   },
   soil: {
-    list: ["การอ่านค่าดินเปรี้ยว-ดินเค็ม — กรมพัฒนาที่ดิน",
-           "ขั้นตอนเตรียมดินแต่ละวิธีทำนา — กรมพัฒนาที่ดิน และกรมการข้าว"]
+    what: "วัดว่าดินเปรี้ยวแค่ไหน แล้วบอกว่าต้องแก้ยังไงก่อนลงมือทำนา",
+    how: [
+      "เอาเครื่องวัดจิ้มดินจุดแรก อ่านเลข 3 ครั้ง กรอกลงช่อง \"จุดที่ 1\"",
+      "ย้ายไปจุดอื่นให้ทั่วแปลง ทำแบบเดิมจนครบ 5 จุด (แปลงใหญ่กดเพิ่มจุดได้)",
+      "กดบันทึก แล้วเลื่อนลงไปดูว่าดินคุณเป็นแบบไหนและต้องทำอะไรต่อ"
+    ],
+    sources: [
+      "การอ่านค่าดินเปรี้ยว-ดินด่าง — กรมพัฒนาที่ดิน",
+      "ขั้นตอนเตรียมดินแต่ละวิธีทำนา — กรมพัฒนาที่ดิน และกรมการข้าว"
+    ]
   },
   fert: {
-    list: ["ปุ๋ยควรใส่กี่กิโลต่อไร่ — กรมการข้าว (สำหรับคนที่ยังไม่เคยส่งดินไปตรวจ)",
-           "วิธีทำปุ๋ยหมักและปุ๋ยพืชสด — กรมพัฒนาที่ดิน",
-           "ราคาปุ๋ย — สำนักงานเศรษฐกิจการเกษตร"]
+    what: "บอกว่าต้องซื้อปุ๋ยกระสอบไหน กี่กระสอบ และใส่ตอนไหน",
+    how: [
+      "อ่านกล่องบนสุด มันบอกเลยว่าซื้อสูตรอะไร กี่กระสอบ",
+      "จดตัวเลขบนกระสอบไปบอกร้าน เช่น 16-20-0 ไม่ต้องสนใจยี่ห้อ",
+      "เลื่อนลงล่างถ้าอยากทำปุ๋ยหมักหรือปุ๋ยพืชสดใช้เอง"
+    ],
+    sources: [
+      "ปุ๋ยควรใส่กี่กิโลต่อไร่ — กรมการข้าว (สำหรับคนที่ยังไม่เคยส่งดินไปตรวจ)",
+      "วิธีทำปุ๋ยหมักและปุ๋ยพืชสด — กรมพัฒนาที่ดิน",
+      "ราคาปุ๋ย — สำนักงานเศรษฐกิจการเกษตร"
+    ]
   },
   diagnose: {
-    list: ["อาการโรคและวิธีจัดการ — กรมการข้าว",
-           "ข้อมูลแมลง — กรมการข้าว",
-           "ตัวตรวจรูปเป็นโปรแกรมที่เรียนจากรูปตัวอย่าง ไม่ใช่คน จึงตอบผิดได้"]
+    what: "เห็นใบข้าวผิดปกติหรือเจอตัวแมลง เข้ามาดูที่นี่",
+    how: [
+      "ถ่ายรูปใบข้าวให้เห็นแผลชัด ใบเต็มจอ อย่าถ่ายย้อนแสง แล้วกดตรวจ",
+      "ถ้าเจอตัวแมลง เลื่อนลงล่างไปดูรูปเทียบว่าใช่ตัวเดียวกันไหม",
+      "กดเก็บผลไว้ในประวัติ จะได้ย้อนดูได้ว่าฤดูนี้เจออะไรมาบ้าง"
+    ],
+    sources: [
+      "อาการโรคและวิธีจัดการ — กรมการข้าว",
+      "ข้อมูลแมลง — กรมการข้าว",
+      "ตัวตรวจรูปเป็นโปรแกรมที่เรียนจากรูปตัวอย่าง ไม่ใช่คน จึงตอบผิดได้ ก่อนซื้อยาให้เกษตรอำเภอดูยืนยันก่อนทุกครั้ง"
+    ]
   },
   consult: {
-    list: ["สิ่งที่ต้องทำในแต่ละช่วงอายุข้าว — กรมการข้าว",
-           "คำตอบจากช่องถาม AI สร้างโดยปัญญาประดิษฐ์ของ Google โดยอ้างข้อมูลข้างต้น"]
+    what: "บอกว่าข้าวอายุเท่านี้ ตอนนี้ต้องทำอะไรบ้าง",
+    how: [
+      "เช็กว่าพันธุ์ข้าวด้านบนตรงกับที่ปลูกจริง ถ้าไม่ตรงกดเปลี่ยนก่อน",
+      "กดแถบช่วงอายุที่ข้าวคุณอยู่ตอนนี้",
+      "อ่านรายการที่ต้องทำ กดดูรายละเอียดถ้าอยากรู้ว่าทำไมต้องทำ"
+    ],
+    sources: [
+      "สิ่งที่ต้องทำในแต่ละช่วงอายุข้าว — กรมการข้าว",
+      "วันที่ในปฏิทินคำนวณจากพันธุ์และวันหว่านที่คุณกรอกไว้ในแท็บ \"ที่นาของฉัน\""
+    ]
   },
   weather: {
-    list: ["ฝน แดด อุณหภูมิ — Open-Meteo และ WeatherAPI",
-           "อากาศแบบไหนทำให้โรคระบาด — กรมการข้าว",
-           "ตัวเลขอากาศมาจากการคำนวณคาดการณ์ ไม่ใช่เครื่องวัดที่ตั้งในแปลงคุณ"]
+    what: "ดูฝนฟ้าที่แปลง และเตือนล่วงหน้าว่าอากาศแบบนี้โรคไหนจะมา",
+    how: [
+      "ดูฝนย้อนหลังกับฝนที่จะมาอีก 7 วัน เอาไว้ตัดสินใจว่าจะใส่ปุ๋ยวันไหน",
+      "ดูรายการโรคที่ต้องระวัง อันไหนขึ้นว่าเสี่ยงสูงให้เดินสำรวจแปลงเลย",
+      "ถ้าขึ้นว่าหาตำแหน่งไม่ได้ ให้ไปปักหมุดที่แท็บ \"ที่นาของฉัน\" ก่อน"
+    ],
+    sources: [
+      "ฝน แดด อุณหภูมิ — Open-Meteo และ WeatherAPI",
+      "อากาศแบบไหนทำให้โรคระบาด — กรมการข้าว",
+      "ตัวเลขอากาศมาจากการคำนวณคาดการณ์ ไม่ใช่เครื่องวัดที่ตั้งอยู่ในแปลงคุณจริง"
+    ]
   },
   cost: {
-    list: ["ต้นทุนทำนาต่อไร่ — สำนักงานเศรษฐกิจการเกษตร",
-           "ราคาข้าวเปลือกและราคาปุ๋ย — กรมการค้าภายใน กระทรวงพาณิชย์",
-           "ราคาขึ้นลงทุกสัปดาห์ ตัวเลขที่เห็นเป็นค่าตั้งต้นไว้คิดเล่นๆ ก่อน"]
+    what: "คิดว่าฤดูนี้ลงทุนเท่าไหร่ ขายได้เท่าไหร่ เหลือกำไรเท่าไหร่",
+    how: [
+      "แก้ตัวเลขทุกช่องให้ตรงกับที่คุณจ่ายจริง เว็บจะจำไว้ให้",
+      "ดูบรรทัด \"ราคาที่ต้องขายให้ได้อย่างน้อย\" นั่นคือจุดที่ขายแล้วเท่าทุนพอดี",
+      "เลื่อนลงล่างสุดดูตารางราคาของที่ต้องซื้อ ก่อนไปคุยกับร้าน"
+    ],
+    sources: [
+      "ต้นทุนทำนาต่อไร่ — สำนักงานเศรษฐกิจการเกษตร",
+      "ราคาข้าวเปลือกและราคาปุ๋ย — กรมการค้าภายใน กระทรวงพาณิชย์",
+      "ราคาขึ้นลงทุกสัปดาห์ ตัวเลขที่เห็นเป็นค่าตั้งต้นไว้คิดคร่าวๆ ก่อนเท่านั้น"
+    ]
   },
   ledger: {
-    list: ["ทุกบรรทัดในหน้านี้คือสิ่งที่คุณบันทึกไว้เอง ระบบไม่ได้เติมให้"]
+    what: "ที่เก็บทุกอย่างที่เคยบันทึกไว้ ย้อนดูได้ว่าฤดูนี้เจออะไรมาบ้าง",
+    how: [
+      "พิมพ์ในช่องค้นหาถ้าอยากหาเฉพาะวันที่หรือชื่อโรค",
+      "กดปุ่มบันทึกเป็นไฟล์ตาราง ถ้าอยากเอาไปเปิดใน Excel",
+      "ขึ้นฤดูใหม่ให้เลื่อนลงล่างสุด กดล้างข้อมูลเก่าออกก่อน ไม่งั้นค่าเฉลี่ยจะเพี้ยน"
+    ],
+    sources: [
+      "ทุกบรรทัดในหน้านี้คือสิ่งที่คุณบันทึกไว้เอง เว็บไม่ได้เติมให้"
+    ]
+  },
+  ask: {
+    what: "ที่สุดท้ายที่จะมา ถ้าหาคำตอบจากแท็บอื่นไม่เจอแล้วจริงๆ",
+    how: [
+      "ลองหาจากแท็บอื่นก่อน เพราะข้อมูลตรงนั้นมาจากกรมการข้าวโดยตรง แม่นกว่าและไม่ต้องรอเน็ต",
+      "พิมพ์เล่าอาการที่เห็นให้ละเอียด เช่น ข้าวอายุกี่วัน ใบเป็นยังไง",
+      "แนบรูปใบข้าวไปด้วยก็ได้ จะตอบได้ตรงขึ้น"
+    ],
+    sources: [
+      "คำตอบสร้างโดยปัญญาประดิษฐ์ของ Google โดยให้อ่านฐานข้อมูลกรมการข้าวและกรมพัฒนาที่ดินของเว็บนี้ประกอบ",
+      "AI ตอบผิดได้ ถ้าเป็นเรื่องยาหรือเรื่องเงิน ให้เอาคำตอบไปถามเกษตรอำเภอยืนยันอีกที",
+      "รูปที่แนบตรงนี้จะถูกส่งออกไปให้ Google ไม่เหมือนแท็บ \"ข้าวมีปัญหา\" ที่ตรวจอยู่ในเครื่องคุณเอง"
+    ]
   },
   profile: {
-    list: ["ข้อมูลนี้เก็บไว้กับบัญชีของคุณ คนอื่นเปิดดูไม่ได้"]
+    what: "ชื่อและเบอร์ติดต่อของคุณ ใช้แสดงบนบันทึกที่เก็บไว้",
+    how: [
+      "กรอกชื่อที่อยากให้ขึ้นบนบันทึก",
+      "กดบันทึกข้อมูล"
+    ],
+    sources: [
+      "ข้อมูลนี้เก็บไว้กับบัญชีของคุณ คนอื่นเปิดดูไม่ได้"
+    ]
   }
 };
 
-// คำเตือนท้ายกล่อง ใช้ข้อความเดียวกันทุกหน้าโดยตั้งใจ
-// เพราะข้อจำกัดของเว็บนี้เหมือนกันทุกหน้าจริงๆ คือเป็นแนวทางกลาง ไม่ใช่คำสั่งเฉพาะแปลง
+// คำเตือนท้ายกล่อง ใช้ข้อความเดียวกันทุกแท็บโดยตั้งใจ
+// เพราะข้อจำกัดของเว็บนี้เหมือนกันทุกแท็บจริงๆ คือเป็นแนวทางกลาง ไม่ใช่คำสั่งเฉพาะแปลง
 var SRC_WARN = "ข้อมูลนี้เป็นแนวทางกลางของทั้งประเทศ ดิน น้ำ และอากาศของแต่ละที่ไม่เหมือนกัน " +
                "ก่อนใช้ยา ใส่ปูน หรือตัดสินใจเรื่องเงิน ถามเกษตรอำเภอหรือหมอดินอาสาแถวบ้านอีกที";
 
-function srcBox(pageId) {
-  var s = SOURCES[pageId];
-  var box = el("div", "srcbox");
-  box.appendChild(el("div", "srcbox-head", "ข้อมูลหน้านี้มาจากไหน"));
-  if (s && s.list && s.list.length) {
-    var ul = el("ul");
-    s.list.forEach(function (line) { ul.appendChild(el("li", "", line)); });
+function pageHead(pageId) {
+  var h = PAGE_HELP[pageId];
+  if (!h) return el("div");
+
+  var box = el("div", "phead");
+
+  if (h.what) {
+    box.appendChild(el("div", "phead-what", h.what));
+  }
+
+  if (h.how && h.how.length) {
+    box.appendChild(el("div", "phead-cap", "ใช้ยังไง"));
+    var ol = el("ol", "phead-how");
+    h.how.forEach(function (step) { ol.appendChild(el("li", "", step)); });
+    box.appendChild(ol);
+  }
+
+  if (h.sources && h.sources.length) {
+    box.appendChild(el("div", "phead-cap", "ข้อมูลมาจากไหน"));
+    var ul = el("ul", "phead-src");
+    h.sources.forEach(function (line) { ul.appendChild(el("li", "", line)); });
     box.appendChild(ul);
   }
-  box.appendChild(el("div", "srcbox-warn", SRC_WARN));
+
+  box.appendChild(el("div", "phead-warn", SRC_WARN));
   return box;
 }
 
@@ -3545,6 +3700,7 @@ function buildVerifyPanel(saved, res) {
 var views = {};
 
 views.overview = async function (root) {
+  root.appendChild(pageHead("overview"));
   var logs = await Store.list();
   var newest = logs[0];
   var phValues = logs.map(function (l) { return l.ph; }).filter(function (v) { return typeof v === "number"; });
@@ -3646,7 +3802,6 @@ views.overview = async function (root) {
     if (f) f.textContent = msg;
   }
 
-  root.appendChild(srcBox("overview"));
 };
 
 // ─── หน้า "ข้าวมีปัญหา" ─────────────────────────
@@ -3657,6 +3812,7 @@ views.overview = async function (root) {
 // ถึงจะเลือกเมนูถูก แต่คนที่ตอบคำถามนั้นได้ก็แทบไม่ต้องใช้เว็บนี้แล้ว
 // คนที่ต้องใช้จริงคือคนที่ยังไม่รู้ว่ามันคืออะไร ซึ่งเดิมจะเลือกเมนูผิดตั้งแต่ก้าวแรก
 views.diagnose = function (root) {
+  root.appendChild(pageHead("diagnose"));
   root.appendChild(bund("เห็นอะไรผิดปกติในนา"));
 
   // บอกทางเลือกทั้งหมดตั้งแต่บนสุด คนที่ไม่รู้ว่าเจออะไรจะได้ไม่ต้องเดา
@@ -3828,7 +3984,6 @@ views.diagnose = function (root) {
   // ส่วนนี้จึงเป็นรูปให้เทียบเอาเอง ไม่ใช่การตรวจอัตโนมัติ
   renderPestSection(root);
 
-  root.appendChild(srcBox("diagnose"));
 };
 
 // แยกเป็นฟังก์ชันธรรมดา ไม่ใช่ views.* แล้ว เพราะไม่ได้เป็นหน้าของตัวเองอีกต่อไป
@@ -3857,6 +4012,7 @@ function renderPestSection(root) {
 // เพราะขั้นตอนของนาหว่านน้ำตมกับนาหว่านข้าวแห้งต่างกันคนละทิศ
 // การให้อ่านคู่มือกลางที่รวมทุกแบบไว้ด้วยกันจะทำให้ทำผิดขั้นตอนได้ง่ายกว่า
 views.soil = async function (root) {
+  root.appendChild(pageHead("soil"));
   var G = window.SOIL_GUIDE;
   if (!G) {
     root.appendChild(stateBlock("!", "ไม่พบไฟล์ฐานความรู้",
@@ -3890,48 +4046,115 @@ views.soil = async function (root) {
   // ถ้าสองหน้าใช้จำนวนจุดไม่เท่ากัน ค่าที่ได้จะเทียบกันไม่ได้เพราะวิธีได้มาต่างกัน
   root.appendChild(bund("วัดความเปรี้ยวของดิน"));
 
-  // บอกที่มาตั้งแต่ต้นหน้า ไม่ใช่ซ่อนไว้ท้ายสุด
-  //
-  // ผู้ใช้ควรรู้ก่อนอ่านว่าเกณฑ์ที่ระบบใช้มาจากไหน
-  // เพราะเป็นข้อมูลที่เขาจะเอาไปตัดสินใจใช้เงินจริง
-  // และเวลานำเสนอ คนดูจะเห็นทันทีว่าตัวเลขไม่ได้แต่งขึ้นเอง
-  var srcLine = el("div", "read-foot",
-    "อ่านเลขจากเครื่องวัดค่าดิน ยิ่งเลขน้อยยิ่งเปรี้ยว · " +
-    "ขั้นตอนเตรียมดินอ้างอิงคู่มือกรมพัฒนาที่ดินและกรมการข้าว");
+  // แหล่งอ้างอิงย้ายไปอยู่ในกล่องคู่มือบนสุดของแท็บแล้ว เหลือแค่คำใบ้วิธีอ่านเลข
+  var srcLine = el("div", "read-foot", "ยิ่งเลขน้อยยิ่งเปรี้ยว · ข้าวชอบช่วง 5.5 ถึง 6.5");
   srcLine.style.cssText = "margin:-6px 0 13px";
   root.appendChild(srcLine);
-  var phForm = plot("บันทึกค่าที่วัดได้", "อ่านเลขจากเครื่องวัด (ช่อง pH) แล้วใส่ 5 จุดให้ทั่วแปลง ระบบเฉลี่ยให้เอง");
+  var phForm = plot("บันทึกค่าที่วัดได้",
+    "แต่ละจุดจิ้มวัด 3 ครั้ง ระบบเฉลี่ยให้เอง · เริ่มต้นให้ 5 จุด เพิ่มได้ถ้าแปลงใหญ่");
 
-  function phInput(label, id, placeholder, readonly) {
-    var f = el("div", "inp");
-    f.appendChild(el("label", "", label));
-    var i = el("input");
-    i.id = id;
-    i.className = "num-in";
-    i.inputMode = "decimal";
-    i.placeholder = placeholder || "";
-    if (readonly) i.readOnly = true;
-    f.appendChild(i);
-    return f;
-  }
+  // ── ทำไมต้องวัดจุดละ 3 ครั้ง ──
+  //
+  // เครื่องวัดค่าดินราคาถูกอ่านค่าเพี้ยนได้ง่ายมาก จิ้มลงไปตรงเดิมสองครั้ง
+  // ค่าอาจต่างกันได้ถึง 0.3-0.5 หน่วย ขึ้นกับว่าหัววัดแนบดินแค่ไหนและดินชื้นพอไหม
+  // ถ้าเชื่อค่าจากการจิ้มครั้งเดียว แล้วเอาไปคิดว่าจะใส่ปูนกี่ตัน
+  // ความเพี้ยนของเครื่องจะกลายเป็นเงินจริงที่ชาวนาเสียไปโดยไม่รู้ตัว
+  //
+  // จิ้ม 3 ครั้งแล้วเฉลี่ย ทำให้ค่าที่เพี้ยนครั้งเดียวถูกกลบไป
+  // และถ้าทั้ง 3 ครั้งต่างกันมาก ระบบจะเตือนให้วัดใหม่ ไม่ปล่อยให้เอาไปใช้เลย
+  //
+  // ── ทำไมต้องเพิ่มจุดได้ ──
+  //
+  // 5 จุดพอสำหรับแปลงขนาดทั่วไป แต่แปลงใหญ่หรือแปลงที่ดินไม่เหมือนกันทั้งผืน
+  // เช่น มีที่ลุ่มที่ดอนในแปลงเดียวกัน 5 จุดจะน้อยเกินไปจนค่าเฉลี่ยไม่ได้เรื่อง
+  var READS = 3;          // จิ้มกี่ครั้งต่อจุด
+  var START_POINTS = 5;   // เริ่มต้นให้กี่จุด
+  var phPoints = [];      // เก็บช่องกรอกของทุกจุดไว้ที่นี่
 
-  var phGrid = el("div", "grid");
-  for (var pn = 1; pn <= 5; pn++) {
-    phGrid.appendChild(phInput("จุดที่ " + pn, "spPh" + pn, "0.0"));
-  }
-  phGrid.appendChild(phInput("ค่าเฉลี่ย", "spAvg", "คำนวณให้อัตโนมัติ", true));
-  phForm.appendChild(phGrid);
+  var phBody = el("div");
+  phForm.appendChild(phBody);
 
-  // เฉลี่ยเฉพาะจุดที่กรอกจริง ไม่นับช่องว่างเป็นศูนย์
-  // ถ้านับเป็นศูนย์ คนที่วัดได้ 3 จุด เช่น 6.0 6.2 6.1 จะได้ค่าเฉลี่ย 3.7
-  // ซึ่งระบบจะแปลว่าดินเปรี้ยวจัดทั้งที่ดินปกติดี
-  function phValues() {
-    var vals = [];
-    for (var i = 1; i <= 5; i++) {
-      var v = parseFloat(document.getElementById("spPh" + i).value);
-      if (!isNaN(v) && v > 0) vals.push(v);
+  function addPoint() {
+    var idx = phPoints.length;
+    var row = el("div", "phpt");
+
+    var head = el("div", "phpt-head");
+    head.appendChild(el("div", "phpt-name", "จุดที่ " + (idx + 1)));
+    var right = el("div", "phpt-right");
+    var avgTag = el("div", "phpt-avg", "ยังไม่ได้กรอก");
+    right.appendChild(avgTag);
+
+    // จุดที่เพิ่มเองเอาออกได้ ส่วน 5 จุดแรกเอาออกไม่ได้
+    // เพราะกดพลาดแล้วต้องกรอกใหม่หมด ซึ่งน่าหงุดหงิดกว่าประโยชน์ที่ได้
+    if (idx >= START_POINTS) {
+      var drop = el("button", "phpt-drop", "เอาจุดนี้ออก");
+      drop.onclick = function () {
+        row.remove();
+        phPoints = phPoints.filter(function (p) { return p.row !== row; });
+        renumber();
+        phRecalc();
+      };
+      right.appendChild(drop);
     }
-    return vals;
+    head.appendChild(right);
+    row.appendChild(head);
+
+    var ins = el("div", "phpt-ins");
+    var fields = [];
+    for (var r = 0; r < READS; r++) {
+      var f = el("div", "inp");
+      f.appendChild(el("label", "", "ครั้งที่ " + (r + 1)));
+      var inp = el("input");
+      inp.className = "num-in";
+      inp.inputMode = "decimal";
+      inp.placeholder = "0.0";
+      inp.oninput = phRecalc;
+      f.appendChild(inp);
+      ins.appendChild(f);
+      fields.push(inp);
+    }
+    row.appendChild(ins);
+
+    phPoints.push({ row: row, fields: fields, avgTag: avgTag, name: head.firstChild });
+    phBody.appendChild(row);
+  }
+
+  // เลขจุดต้องเรียง 1,2,3 เสมอ ถ้าเอาจุดกลางออกแล้วไม่เรียงใหม่
+  // จะเหลือ "จุดที่ 1, จุดที่ 3, จุดที่ 4" ซึ่งคนกรอกจะงงว่าจุดที่ 2 หายไปไหน
+  function renumber() {
+    phPoints.forEach(function (p, i) { p.name.textContent = "จุดที่ " + (i + 1); });
+  }
+
+  for (var pn = 0; pn < START_POINTS; pn++) addPoint();
+
+  var addBtn = el("button", "act act-line act-wide", "+ เพิ่มอีก 1 จุด");
+  addBtn.style.marginTop = "4px";
+  addBtn.onclick = function () { addPoint(); phRecalc(); };
+  phForm.appendChild(addBtn);
+
+  var phOut = el("div", "phsum");
+  phForm.appendChild(phOut);
+
+  // ── ค่าเฉลี่ยของแต่ละจุด ──
+  //
+  // เฉลี่ยเฉพาะครั้งที่กรอกจริง ไม่นับช่องว่างเป็นศูนย์
+  // ถ้านับเป็นศูนย์ คนที่จิ้มได้ 2 ครั้ง เช่น 6.0 กับ 6.2 จะได้ค่าเฉลี่ย 4.07
+  // ซึ่งระบบจะแปลว่าดินเปรี้ยวจัดทั้งที่ดินปกติดี
+  function pointAvg(p) {
+    var v = p.fields
+      .map(function (f) { return parseFloat(f.value); })
+      .filter(function (x) { return !isNaN(x) && x > 0; });
+    if (!v.length) return null;
+    return { avg: v.reduce(function (a, b) { return a + b; }, 0) / v.length,
+             n: v.length,
+             spread: Math.max.apply(null, v) - Math.min.apply(null, v) };
+  }
+
+  // ค่าของทั้งแปลง = เฉลี่ยของ "ค่าเฉลี่ยรายจุด" ไม่ใช่เฉลี่ยจากทุกช่องรวมกัน
+  // เพราะถ้าจุดหนึ่งกรอกครบ 3 ครั้ง อีกจุดกรอกครั้งเดียว
+  // การเฉลี่ยรวมทุกช่องจะทำให้จุดที่กรอกเยอะมีน้ำหนักมากกว่าจุดอื่นโดยไม่มีเหตุผล
+  function phValues() {
+    return phPoints.map(pointAvg).filter(Boolean).map(function (p) { return p.avg; });
   }
 
   function phAverage(vals) {
@@ -3943,28 +4166,51 @@ views.soil = async function (root) {
   phHint.style.marginTop = "8px";
 
   function phRecalc() {
+    // ป้ายบอกผลรายจุด อัปเดตทุกครั้งที่พิมพ์ จะได้รู้ทันทีว่าจุดไหนวัดเพี้ยน
+    phPoints.forEach(function (p) {
+      var r = pointAvg(p);
+      if (!r) {
+        p.avgTag.textContent = "ยังไม่ได้กรอก";
+        p.avgTag.className = "phpt-avg";
+        return;
+      }
+      if (r.avg < 3 || r.avg > 10) {
+        p.avgTag.textContent = "เลขนี้ผิดปกติ";
+        p.avgTag.className = "phpt-avg bad";
+        return;
+      }
+      // 3 ครั้งที่จิ้มจุดเดียวกันไม่ควรต่างกันเกิน 0.5
+      // ถ้าต่างกันมากกว่านั้นแปลว่าหัววัดแนบดินไม่ดี ไม่ใช่ดินต่างกันจริง
+      if (r.n >= 2 && r.spread > 0.5) {
+        p.avgTag.textContent = "เฉลี่ย " + r.avg.toFixed(2) + " · 3 ครั้งต่างกันมาก ควรจิ้มใหม่";
+        p.avgTag.className = "phpt-avg warn";
+        return;
+      }
+      p.avgTag.textContent = "เฉลี่ย " + r.avg.toFixed(2) + (r.n < READS ? " (จาก " + r.n + " ครั้ง)" : "");
+      p.avgTag.className = "phpt-avg ok";
+    });
+
     var vals = phValues();
-    var avgField = document.getElementById("spAvg");
     phMsg.innerHTML = "";
+    phOut.innerHTML = "";
 
     if (!vals.length) {
-      avgField.value = "";
       phHint.textContent = "";
       return;
     }
 
     var bad = vals.filter(function (v) { return v < 3 || v > 10; });
     if (bad.length) {
-      avgField.value = "";
       phHint.textContent = "เลขบนเครื่องวัดควรอยู่ระหว่าง 3 ถึง 10 ลองเช็กเครื่องวัดดูอีกที";
       return;
     }
 
     var avg = phAverage(vals);
-    avgField.value = avg.toFixed(2);
+    phOut.appendChild(el("div", "phsum-label", "ค่าเฉลี่ยของทั้งแปลง"));
+    phOut.appendChild(el("div", "phsum-val", avg.toFixed(2)));
+    phOut.appendChild(el("div", "phsum-foot", "เฉลี่ยจาก " + vals.length + " จุดที่กรอกแล้ว"));
 
     var parts = [];
-    if (vals.length < 5) parts.push("เฉลี่ยจาก " + vals.length + " จุด");
 
     // เตือนเมื่อจุดต่างๆ กระจายกันมาก ซึ่งค่าเฉลี่ยเดียวอธิบายไม่ได้
     // ดินที่ต่างกันเกิน 1 หน่วยระหว่างจุดควรแยกจัดการเป็นโซน
@@ -3999,10 +4245,6 @@ views.soil = async function (root) {
     phHint.textContent = parts.join(" · ");
   }
 
-  for (var pk = 1; pk <= 5; pk++) {
-    phGrid.querySelector("#spPh" + pk).oninput = phRecalc;
-  }
-
   var phSave = el("button", "act act-go act-wide", "บันทึกค่าที่วัดได้");
   phSave.style.marginTop = "15px";
   phForm.appendChild(phSave);
@@ -4014,7 +4256,7 @@ views.soil = async function (root) {
     phMsg.innerHTML = "";
 
     if (!vals.length) {
-      phMsg.appendChild(el("div", "flash flash-warn", "ใส่ค่าที่วัดได้อย่างน้อย 1 จุดก่อนกดบันทึก"));
+      phMsg.appendChild(el("div", "flash flash-warn", "กรอกค่าที่วัดได้อย่างน้อย 1 จุดก่อนกดบันทึก"));
       return;
     }
     if (vals.filter(function (v) { return v < 3 || v > 10; }).length) {
@@ -4346,7 +4588,6 @@ views.soil = async function (root) {
   root.appendChild(stepsHost);
   repaint();
 
-  root.appendChild(srcBox("soil"));
 };
 
 // ─── หน้าปุ๋ยอินทรีย์ ───────────────────────────
@@ -4356,6 +4597,7 @@ views.soil = async function (root) {
 // เช่น สูตรกอง 1 ตัน และอัตราใส่นาข้าว 2 ตันต่อไร่ ซึ่งเป็นค่าที่กรมพัฒนาที่ดินกำหนด
 // ไม่ใช่ค่าที่ระบบคำนวณเอง จึงปลอดภัยพอที่จะแสดงเป็นตัวเลขตรงๆ ได้
 views.fert = async function (root) {
+  root.appendChild(pageHead("fert"));
   var G = window.FERT_GUIDE;
   if (!G) {
     root.appendChild(stateBlock("!", "ไม่พบไฟล์ฐานความรู้",
@@ -5393,7 +5635,6 @@ views.fert = async function (root) {
   over.appendChild(el("div", "flash flash-warn", G.overview.key));
   root.appendChild(over);
 
-  root.appendChild(srcBox("fert"));
 };
 
 // ─── ส่วน "ราคาของที่ต้องซื้อ" (เดิมเป็นเมนู "ร้านค้า") ───
@@ -5789,6 +6030,7 @@ async function renderPriceSection(root) {
 // สิ่งที่ระบบทำได้ดีกว่าคนคือ "เลขคณิตที่ไม่ผิด" ไม่ใช่ "การรู้ราคาปัจจุบัน"
 // หน้านี้จึงเน้นให้กรอกง่ายและคำนวณครบ แทนการพยายามเดาราคาให้
 views.cost = async function (root) {
+  root.appendChild(pageHead("cost"));
   var C = window.COST_GUIDE;
   if (!C) {
     root.appendChild(stateBlock("!", "ไม่พบไฟล์ฐานข้อมูล",
@@ -6177,40 +6419,11 @@ views.cost = async function (root) {
   // ราคาของที่ต้องซื้อต่อท้ายเลย จะได้ดูราคาแล้วเลื่อนขึ้นไปแก้ตัวเลขข้างบนได้ทันที
   await renderPriceSection(root);
 
-  root.appendChild(srcBox("cost"));
 };
 
-// เดิมเป็นเมนู "โรคที่เคยเจอ" ที่มีแค่รายการโรคเรียงกัน
-// ตอนนี้เป็นส่วนหัวของหน้าประวัติ เพราะเป็นเรื่องเดียวกันกับตารางข้างล่าง
-// การแยกเป็นสองเมนูทำให้ชาวนาไม่รู้ว่าประวัติของตัวเองอยู่หน้าไหนกันแน่
-function renderDiseaseRoll(root, logs) {
-  root.appendChild(bund("โรคที่เคยตรวจเจอ"));
-  var card = plot();
-  if (!logs.length) {
-    card.appendChild(stateBlock("◇", "ยังไม่เคยเจอโรค",
-      "ไปที่หน้า \"ข้าวมีปัญหา\" ถ่ายรูปใบข้าวมาตรวจสักครั้ง แล้วรายการจะขึ้นตรงนี้"));
-  } else {
-    logs.forEach(function (l) {
-      var item = el("div", "stack-item");
-      var chip = el("div", "stack-chip " + statusOf(l.score), scoreText(l.score));
-      item.appendChild(chip);
-      var main = el("div", "stack-main");
-      main.appendChild(el("div", "stack-lead", l.disease));
-      main.appendChild(el("div", "stack-sub",
-        l.date + " · ค่าดิน " + (l.ph != null ? l.ph : "—") + " · " + (l.gps || "ไม่ได้จดที่ตั้ง")));
-      item.appendChild(main);
-      card.appendChild(item);
-    });
-  }
-  root.appendChild(card);
-}
-
 views.ledger = async function (root) {
+  root.appendChild(pageHead("ledger"));
   var logs = await Store.list();
-
-  // รายชื่อโรคที่เคยเจอขึ้นก่อน เพราะคนเปิดหน้านี้ส่วนใหญ่อยากรู้แค่ว่า
-  // "ฤดูนี้เจออะไรมาบ้าง" ไม่ได้อยากอ่านตารางเต็มทุกครั้ง
-  renderDiseaseRoll(root, logs);
 
   root.appendChild(bund("ทุกอย่างที่บันทึกไว้"));
   var card = plot(null);
@@ -6362,7 +6575,6 @@ views.ledger = async function (root) {
   }
   root.appendChild(wipe);
 
-  root.appendChild(srcBox("ledger"));
 };
 
 // ขยายดูภาพเต็ม ปิดด้วยปุ่ม คลิกพื้นหลัง หรือกด Escape
@@ -6391,6 +6603,7 @@ function openLens(src, log) {
 
 
 views.weather = async function (root) {
+  root.appendChild(pageHead("weather"));
   root.appendChild(bund("สภาพอากาศแปลงนา"));
 
   var host = el("div");
@@ -6740,7 +6953,6 @@ views.weather = async function (root) {
     aiBody.appendChild(stateBlock("!", "ยังให้ AI ช่วยดูไม่ได้", friendlyError(err.message)));
   });
 
-  root.appendChild(srcBox("weather"));
 };
 
 // ─── หน้าต้องทำอะไรตอนนี้ ────────────
@@ -6753,6 +6965,7 @@ views.weather = async function (root) {
 // ซึ่งตอบได้จากอายุข้าวอย่างเดียว ไม่ต้องใช้ AI เลย
 // การให้พิมพ์ถามทุกครั้งจึงเป็นภาระเกินจำเป็นและเปลืองโควตาที่มีจำกัด
 views.consult = async function (root) {
+  root.appendChild(pageHead("consult"));
   var C = window.CARE_GUIDE;
 
   // ══ การ์ดคำแนะนำแยกตามระยะ ══
@@ -6886,8 +7099,27 @@ views.consult = async function (root) {
     paintStage();
   }
 
-  // ══ ถาม AI เรื่องเฉพาะของแปลง ══
-  root.appendChild(bund("ถามเพิ่มเติมกับ AI"));
+  // ส่วนถาม AI ย้ายไปเป็นเมนูของตัวเองท้ายสุดแล้ว (views.ask)
+  //
+  // เหตุผล: ถ้าช่องถาม AI อยู่ก่อนหรือปนกับฟังก์ชันอื่น คนจะพิมพ์ถามอย่างเดียว
+  // แล้วไม่เปิดดูอะไรอีกเลย ทั้งที่ปฏิทินและคู่มือในหน้านี้แม่นกว่าและไม่ต้องรอเน็ต
+  // วางไว้ท้ายสุดของเมนู = ใช้เมื่อหาคำตอบจากหน้าอื่นไม่เจอแล้วจริงๆ
+
+};
+
+
+// ─── หน้า "ถามเมื่อไม่รู้จะทำยังไง" ────────────
+//
+// เดิมช่องถาม AI ซ่อนอยู่ท้ายหน้าคำแนะนำการดูแล ตอนนี้แยกออกมาเป็นเมนูของตัวเอง
+// และวางไว้ "ท้ายสุด" ของเมนูโดยตั้งใจ
+//
+// ทำไมต้องท้ายสุด: ถ้าเห็นช่องถาม AI ก่อน คนจะพิมพ์ถามอย่างเดียวแล้วไม่เปิดดูอะไรอีกเลย
+// ทั้งที่ปฏิทินปุ๋ย ตารางต้นทุน และคู่มือเตรียมดินในหน้าอื่น แม่นกว่า เร็วกว่า
+// และใช้ได้ตอนเน็ตไม่ดีด้วย ส่วน AI ตอบผิดได้และต้องรอเน็ตเสมอ
+// หน้านี้จึงควรเป็นที่สุดท้ายที่ไป ไม่ใช่ที่แรก
+views.ask = async function (root) {
+  root.appendChild(pageHead("ask"));
+  root.appendChild(bund("ถามเมื่อหาคำตอบจากหน้าอื่นไม่เจอ"));
 
   // ── บอกตามจริงว่าภาพเดินทางไปไหนบ้าง (เพิ่ม 2026-08) ──
   //
@@ -7112,8 +7344,6 @@ views.consult = async function (root) {
 
   sendBtn.onclick = ask;
   q.onkeydown = function (e) { if (e.key === "Enter") ask(); };
-
-  root.appendChild(srcBox("consult"));
 };
 
 // ─── หน้าที่นาของฉัน ───────────────────────────
@@ -7125,6 +7355,7 @@ views.consult = async function (root) {
 // พิกัดที่ล็อกไว้ถูกใช้เป็นตำแหน่งหลักของทั้งระบบ หน้าฝนฟ้าและโรคที่ต้องระวังจะดึงไปใช้ด้วย
 // เพื่อให้ทุกหน้าอ้างอิงจุดเดียวกัน ไม่ใช่ต่างคนต่างใช้พิกัดคนละที่
 views.map = async function (root) {
+  root.appendChild(pageHead("map"));
   var logs = await Store.list();
   var pins = logs.filter(function (l) { return l.gps && l.gps.indexOf(",") !== -1; });
 
@@ -7814,11 +8045,11 @@ views.map = async function (root) {
   paintTools();
   draw();
 
-  root.appendChild(srcBox("map"));
 };
 
 
 views.profile = function (root) {
+  root.appendChild(pageHead("profile"));
   var p = Store.profile();
   root.appendChild(bund("ข้อมูลผู้ใช้"));
   var card = plot("ข้อมูลของฉัน", "ข้อมูลนี้เก็บไว้กับบัญชีของคุณ เปิดจากเครื่องไหนก็เห็นเหมือนกัน");
@@ -7869,7 +8100,6 @@ views.profile = function (root) {
     }
   };
   root.appendChild(card);
-  root.appendChild(srcBox("profile"));
 };
 
 views.admin = async function (root) {
