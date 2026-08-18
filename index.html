@@ -1112,24 +1112,24 @@ var PAGES = [
     icon: "M4 8h16l-1 11a2 2 0 01-2 2H7a2 2 0 01-2-2zm4 0V6a4 4 0 018 0v2" },
 
   // ── ช่วงที่ 2 ดูแลระหว่างปลูก ──
-  { id: "consult",  label: "คำแนะนำการดูแล", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
-    icon: "M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v13a2 2 0 01-2 2z" },
-  { id: "diagnose", label: "วินิจฉัยใบข้าว", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
+  { id: "diagnose", label: "ถ่ายรูปตรวจโรค", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
     icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
-  { id: "weather",  label: "อากาศและความเสี่ยง", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
+  { id: "consult",  label: "ดูแลข้าวช่วงนี้", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
+    icon: "M7 8h10M7 12h6m5 8H6a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2v13a2 2 0 01-2 2z" },
+  { id: "weather",  label: "อากาศและเตือนโรค", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
     icon: "M7 17a4 4 0 010-8 5.5 5.5 0 0110.5 1.5A3.5 3.5 0 0117 17zm-1 2l-1 2m4-2l-1 2m4-2l-1 2" },
   { id: "survey",   label: "บันทึกสำรวจ",   kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
     icon: "M8 3h8a2 2 0 012 2v14a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2zm2 5h4m-4 4h4m-4 4h2" },
-  { id: "pest", label: "แมลงศัตรูข้าว", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
+  { id: "pest", label: "แมลงที่กินข้าว", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
          icon: "M12 4v5m0 0a4 4 0 00-4 4v3a4 4 0 008 0v-3a4 4 0 00-4-4zm-4 5L4 7m4 6H4m4 4l-4 2m12-12l4-2m-4 6h4m-4 4l4 2" },
 
   // ── ช่วงที่ 3 สรุปและทบทวน ──
-  { id: "plots",    label: "โรคที่พบ",       kicker: "สรุปผล",   group: "3 · สรุปผล",
-    icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
-  { id: "ledger",   label: "ทะเบียนบันทึก", kicker: "สรุปผล",   group: "3 · สรุปผล",
-    icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
   { id: "cost",     label: "ต้นทุนและกำไร",  kicker: "สรุปผล",   group: "3 · สรุปผล",
     icon: "M12 3v18M8 7h6a2.5 2.5 0 010 5H9a2.5 2.5 0 000 5h7" },
+  { id: "plots",    label: "โรคที่เคยเจอ",       kicker: "สรุปผล",   group: "3 · สรุปผล",
+    icon: "M12 3a9 9 0 100 18 9 9 0 000-18zm0 5v8m-4-4h8" },
+  { id: "ledger",   label: "ประวัติที่บันทึกไว้", kicker: "สรุปผล",   group: "3 · สรุปผล",
+    icon: "M6 3h9l4 4v14H6zm9 0v5h5M9 12h7M9 16h7" },
 
   // ── ตั้งค่า ──
   { id: "profile",  label: "ข้อมูลผู้ใช้",   kicker: "ตั้งค่า",  group: "ตั้งค่า",
@@ -2938,6 +2938,34 @@ function stateBlock(mark, lead, note) {
   return s;
 }
 
+
+// ชื่อพันธุ์ข้าวที่ชาวนาเรียกกันจริง
+//
+// ชื่อทางการมีรหัสตัวเลขเพราะกรมการข้าวต้องแยกพันธุ์ให้ไม่ซ้ำ
+// แต่คนซื้อขายจริงเรียกด้วยชื่อสั้นที่จำง่าย การแสดงรหัสให้ชาวนาดู
+// จึงเป็นการเอาระบบจัดเก็บเอกสารมาใส่ในหน้าจอโดยไม่จำเป็น
+//
+// เก็บ key เดิมไว้ทุกอย่าง เปลี่ยนแค่คำที่แสดง ตรรกะปฏิทินจึงไม่กระทบ
+var FARMER_RICE_NAME = {
+  "ขาวดอกมะลิ 105": "ข้าวหอมมะลิ",
+  "กข6": "ข้าวเหนียว",
+  "กข15": "ข้าวหอมมะลิพันธุ์เบา",
+  "กข41": "ข้าวเจ้าพันธุ์เบา",
+  "กข47": "ข้าวเจ้าพันธุ์กลาง",
+  "ปทุมธานี 1": "ข้าวหอมปทุม",
+  "เหลืองประทิว 123": "ข้าวเหลืองประทิว",
+  "สุพรรณบุรี 1": "ข้าวเจ้าสุพรรณ",
+  "ชัยนาท 1": "ข้าวเจ้าชัยนาท"
+};
+
+function farmerName(v) {
+  if (!v) return "";
+  var name = FARMER_RICE_NAME[v.thai];
+  if (name) return name;
+  // ไม่มีในรายการ ใช้ชื่อเดิมแต่ตัดวงเล็บชนิดข้าวออก เพราะซ้ำกับหัวข้อกลุ่มอยู่แล้ว
+  return v.thai;
+}
+
 function todayStamp() {
   var d = new Date();
   return String(d.getDate()).padStart(2,"0") + "/" +
@@ -3548,7 +3576,7 @@ views.diagnose = function (root) {
   left.appendChild(flashHost);
   wrap.appendChild(left);
 
-  var right = plot("ผลวินิจฉัย");
+  var right = plot("ผลตรวจ");
   var resultHost = el("div");
   resultHost.appendChild(stateBlock("◇", "ยังไม่มีผล", "เลือกภาพแล้วกดตรวจ ผลจะแสดงที่นี่"));
   right.appendChild(resultHost);
@@ -4331,6 +4359,21 @@ views.soil = async function (root) {
       pick.soil = k; remember(); repaint();
     }));
 
+    // ── วิธีทดสอบชนิดดินด้วยมือ ──
+    //
+    // ปุ่มสามปุ่มด้านบนคาดหวังให้ผู้ใช้รู้อยู่แล้วว่าแปลงตัวเองเป็นดินอะไร
+    // ซึ่งหลายคนไม่รู้ และถ้ากดมั่ว สูตรปุ๋ยที่ระบบแนะนำจะผิดตาม
+    //
+    // วิธีกำแล้วคลึงเป็นวิธีที่หมอดินใช้จริงในภาคสนาม ไม่ต้องใช้เครื่องมือ
+    // ทำได้ทันทีที่ยืนอยู่ในนา และแม่นพอสำหรับการเลือกสูตรปุ๋ย
+    pickCard.appendChild(more("ไม่รู้ว่าแปลงเราเป็นดินอะไร กดดูวิธีทดสอบ",
+      "ใช้มือทดสอบได้เลย ไม่ต้องใช้เครื่องมืออะไร\n\n" +
+      "กำดินชื้นหมาดๆ ขึ้นมาหนึ่งกำ แล้วลองคลึงเป็นเส้นในฝ่ามือ\n\n" +
+      "ดินทราย — กำไม่เป็นก้อน พอแบมือก็ร่วนแตกทันที จับแล้วรู้สึกสากปลายนิ้ว\n\n" +
+      "ดินร่วน — กำเป็นก้อนได้ แต่เขี่ยเบาๆ ก็แตก คลึงเป็นเส้นได้สั้นๆ แล้วขาด\n\n" +
+      "ดินเหนียว — กำเป็นก้อนแน่น คลึงเป็นเส้นยาวได้โดยไม่ขาด จับแล้วลื่นและติดมือ\n\n" +
+      "อีกวิธีที่ดูง่ายคือตอนน้ำแห้ง ดินเหนียวจะแตกระแหงเป็นแผ่นใหญ่ ส่วนดินทรายจะร่วนเป็นผง"));
+
     var m = G.methods[pick.method], sl = G.soils[pick.soil];
 
     stepsHost.innerHTML = "";
@@ -4578,36 +4621,6 @@ views.fert = async function (root) {
 
   root.appendChild(meCard);
 
-  // ══ ความรู้พื้นฐาน ══
-  root.appendChild(bund("ปุ๋ยสำหรับนาข้าว"));
-  var over = plot(null);
-  var w = el("p", "", G.overview.what);
-  w.style.cssText = "margin:0 0 14px;font-size:.89rem";
-  over.appendChild(w);
-
-  var cols = el("div", "row-3");
-  function listCard(title, items, tone) {
-    var c = el("div");
-    c.appendChild(el("div", "rx-sect", title));
-    var ul = el("ul");
-    ul.style.cssText = "margin:0;padding-left:18px;font-size:.85rem";
-    items.forEach(function (x) {
-      var li = el("li", "", x);
-      li.style.marginBottom = "5px";
-      ul.appendChild(li);
-    });
-    c.appendChild(ul);
-    return c;
-  }
-  cols.appendChild(listCard("ข้อดี", G.overview.pros));
-  cols.appendChild(listCard("ข้อจำกัด", G.overview.cons));
-  over.appendChild(cols);
-  cols.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:22px";
-
-  // ข้อความนี้คือใจความสำคัญที่สุดของทั้งหน้า จึงให้เด่นกว่ารายการข้อดีข้อเสีย
-  over.appendChild(el("div", "flash flash-warn", G.overview.key));
-  root.appendChild(over);
-
   // ══ เลือกชนิดปุ๋ย ══
   root.appendChild(bund("เลือกชนิดปุ๋ยที่ต้องการทำ"));
   var pickCard = plot(null);
@@ -4668,18 +4681,59 @@ views.fert = async function (root) {
     }
 
     // ── วัตถุดิบที่ต้องเตรียม ──
+    //
+    // ปุ๋ยเคมีมีสูตรให้เลือกหลายตัว ซึ่งถูกต้องในแง่ข้อมูล
+    // แต่คนที่เพิ่งอ่านการ์ดสรุปด้านบนมาแล้วจะสับสนว่าตกลงต้องซื้ออันไหน
+    // เพราะเห็นสูตรหกเจ็ดตัวเรียงกันโดยไม่มีตัวไหนถูกชี้ว่าเป็นของเขา
+    //
+    // จึงเน้นบรรทัดที่มีสูตรที่ระบบแนะนำไว้ให้เห็นชัด
+    // และพับสูตรทางเลือกอื่นเก็บไว้ ใครอยากดูค่อยกด
     if (t.materials) {
       var mc = plot(null);
       mc.style.marginTop = "13px";
       mc.appendChild(el("div", "rx-sect", "สิ่งที่ต้องเตรียม"));
+
+      // เฉพาะปุ๋ยเคมีที่ต้องเขียนใหม่ ชนิดอื่นวัตถุดิบไม่ได้มีทางเลือกให้สับสน
+      //
+      // ข้อมูลต้นทางเขียนรวมทุกสูตรไว้ในบรรทัดเดียว เช่น
+      // "สูตร 16-20-0 หรือ 16-16-8 (หรือ 18-22-0, 20-20-0, 18-46-0 แทนได้)"
+      // ซึ่งครบถ้วนดีสำหรับคนอ่านเอกสาร แต่คนที่จะไปซื้อของต้องการชื่อเดียว
+      //
+      // จึงประกอบรายการขึ้นใหม่ให้เหลือเฉพาะสูตรที่แนะนำ
+      // แล้วเก็บรายการเต็มไว้ในส่วนที่กดดูได้ ข้อมูลไม่หาย แค่ไม่มาขวาง
+      var isChem = (current === "chem");
+      var mainItems = t.materials;
+      var showFullList = false;
+
+      if (isChem && typeof pickFormula === "string") {
+        mainItems = ["ปุ๋ยครั้งที่ 1: กระสอบที่เขียนว่า " + pickFormula];
+        mainItems.push("ปุ๋ยครั้งที่ 2: ยูเรีย 46-0-0 (ถ้าร้านไม่มี ใช้แอมโมเนียมซัลเฟต 21-0-0 แทนได้)");
+        if (isAcidSoil && mySoil === "sand") {
+          mainItems.push("โพแทสเซียมคลอไรด์ 0-0-60 เสริมอีกเล็กน้อย เพราะดินทรายเก็บโพแทสเซียมไม่อยู่");
+        }
+        showFullList = true;
+      }
+
       var mul = el("ul");
       mul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
-      t.materials.forEach(function (x) {
+      mainItems.forEach(function (x) {
         var li = el("li", "", x);
         li.style.marginBottom = "5px";
         mul.appendChild(li);
       });
       mc.appendChild(mul);
+
+      // บอกว่าทำไมถึงเหลือเท่านี้ ไม่ให้ดูเหมือนข้อมูลหาย
+      if (showFullList) {
+        mc.appendChild(el("div", "read-foot",
+          "แสดงเฉพาะสูตรที่เหมาะกับแปลงของคุณ ตามที่สรุปไว้ด้านบนสุด"));
+        mc.appendChild(more("ดูสูตรทั้งหมดที่ใช้แทนกันได้",
+          t.materials.join("\n\n") +
+          "\n\nสูตรเหล่านี้ใช้แทนกันได้ในอัตราเดียวกัน ระบบเลือก " + pickFormula +
+          " ให้เพราะตรงกับชนิดดินและค่า pH ของแปลงคุณที่สุด " +
+          "ถ้าร้านไม่มีสูตรที่แนะนำ ใช้ตัวอื่นในรายการนี้แทนได้"));
+      }
+
       body.appendChild(mc);
     }
 
@@ -5164,7 +5218,7 @@ views.fert = async function (root) {
 
           outHost.appendChild(el("div", "flash flash-warn",
             "คำนวณจากพันธุ์ที่บันทึกไว้ในแปลง คือ" +
-            (isPhoto ? "ข้าวไวต่อช่วงแสง เช่น ขาวดอกมะลิ 105 กข6" : "ข้าวไม่ไวต่อช่วงแสง เช่น พันธุ์นาปรัง") +
+            (isPhoto ? "ข้าวนาปี เช่น หอมมะลิ ข้าวเหนียว" : "ข้าวนาปรัง") +
             " ถ้าไม่ตรงให้แก้ที่หน้าที่นาของฉันก่อน เพราะปุ๋ยครั้งที่ 2 ของสองกลุ่มต่างกันเท่าตัว"));
 
         } else if (t.calc.perRai != null) {
@@ -5403,6 +5457,43 @@ views.fert = async function (root) {
   root.appendChild(pickCard);
   root.appendChild(body);
   repaint();
+
+  // ══ ความรู้พื้นฐาน ══
+  //
+  // ย้ายมาไว้ท้ายสุด เพราะเป็นเนื้อหาอ่านเสริม ไม่ใช่สิ่งที่ทุกคนต้องอ่าน
+  //
+  // คนที่เปิดหน้านี้ส่วนใหญ่มาหาคำตอบว่า "ของฉันต้องใช้อะไร กี่กระสอบ"
+  // ซึ่งอยู่ในการ์ดสรุปด้านบนสุดแล้ว ถ้าเอาความรู้พื้นฐานมาขวางตรงกลาง
+  // เขาต้องเลื่อนผ่านสี่ย่อหน้าก่อนจะถึงส่วนที่ใช้งานได้จริง
+  root.appendChild(bund("ปุ๋ยสำหรับนาข้าว"));
+  var over = plot(null);
+  var w = el("p", "", G.overview.what);
+  w.style.cssText = "margin:0 0 14px;font-size:.89rem";
+  over.appendChild(w);
+
+  var cols = el("div", "row-3");
+  function listCard(title, items, tone) {
+    var c = el("div");
+    c.appendChild(el("div", "rx-sect", title));
+    var ul = el("ul");
+    ul.style.cssText = "margin:0;padding-left:18px;font-size:.85rem";
+    items.forEach(function (x) {
+      var li = el("li", "", x);
+      li.style.marginBottom = "5px";
+      ul.appendChild(li);
+    });
+    c.appendChild(ul);
+    return c;
+  }
+  cols.appendChild(listCard("ข้อดี", G.overview.pros));
+  cols.appendChild(listCard("ข้อจำกัด", G.overview.cons));
+  over.appendChild(cols);
+  cols.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:22px";
+
+  // ข้อความนี้คือใจความสำคัญที่สุดของทั้งหน้า จึงให้เด่นกว่ารายการข้อดีข้อเสีย
+  over.appendChild(el("div", "flash flash-warn", G.overview.key));
+  root.appendChild(over);
+
 };
 
 // ─── หน้าร้านค้า ───────────────────────────────
@@ -7126,9 +7217,9 @@ views.map = async function (root) {
     // แทนการใช้คำว่าไวหรือไม่ไวต่อช่วงแสง ซึ่งถูกต้องทางวิชาการแต่คนส่วนใหญ่ไม่คุ้น
     // ศัพท์วิชาการยังอยู่ในคำอธิบายรายพันธุ์ด้านล่างสำหรับคนที่อยากรู้ลึก
     vCard.appendChild(el("div", "read-foot",
-      "นาปี คือปลูกตามฤดูฝน เก็บเกี่ยวปลายปีพร้อมกันทั้งอำเภอไม่ว่าจะหว่านเร็วหรือช้า " +
-      "เช่น ขาวดอกมะลิ 105 กข6 · นาปรัง คือปลูกนอกฤดูโดยใช้น้ำชลประทาน " +
-      "เก็บเกี่ยวตามอายุข้าวนับจากวันหว่าน เช่น กข41 ปทุมธานี 1"));
+      "นาปี คือปลูกตามฤดูฝน เก็บเกี่ยวปลายปีพร้อมกันทั้งอำเภอ ไม่ว่าจะหว่านเร็วหรือช้า " +
+      "เช่น ข้าวหอมมะลิ ข้าวเหนียว · " +
+      "นาปรัง คือปลูกนอกฤดูโดยใช้น้ำจากคลองชลประทาน เก็บเกี่ยวนับตามอายุข้าวจากวันหว่าน"));
 
     var vRow = el("div");
     vRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap";
@@ -7160,7 +7251,15 @@ views.map = async function (root) {
 
     function paintVariety() {
       var v = window.careVariety(vSelect.value);
-      vNote.textContent = "ตัวอย่างพันธุ์: " + v.examples;
+      // ตัวอย่างพันธุ์แปลงเป็นชื่อที่ชาวนาเรียก ไม่ใช่รหัสทางการ
+      var exText = String(v.examples || "")
+        .replace(/ขาวดอกมะลิ\s*105/g, "ข้าวหอมมะลิ")
+        .replace(/กข\s*6\b/g, "ข้าวเหนียว")
+        .replace(/กข\s*15\b/g, "ข้าวหอมมะลิพันธุ์เบา")
+        .replace(/กข\s*41\b/g, "ข้าวเจ้าพันธุ์เบา")
+        .replace(/ปทุมธานี\s*1\b/g, "ข้าวหอมปทุม")
+        .replace(/เหลืองประทิว\s*123/g, "ข้าวเหลืองประทิว");
+      vNote.textContent = "เช่น " + exText;
       vWarn.textContent = fieldVarietyChosen()
         ? ""
         : "ยังไม่ได้ยืนยันพันธุ์ ระบบใช้ค่าเริ่มต้นเป็นข้าวไวต่อช่วงแสงไปก่อน ถ้าปลูกนาปรังให้เปลี่ยนแล้วกดบันทึก";
@@ -7206,7 +7305,15 @@ views.map = async function (root) {
         window.VARIETY_GUIDE.varieties
           .filter(function (v) { return (g[0] === "photo") === !!v.photo; })
           .forEach(function (v) {
-            var o = el("option", null, v.thai + " (" + v.grain + ")");
+            // ชื่อที่ชาวนาเรียกกันจริง ไม่ใช่ชื่อทางการที่มีรหัสตัวเลข
+            //
+            // ในนา ไม่มีใครพูดว่า "ขาวดอกมะลิ 105" กัน เขาพูดว่า "หอมมะลิ"
+            // และไม่มีใครพูดว่า "กข6" เขาพูดว่า "ข้าวเหนียว"
+            // ชื่อทางการมีไว้ในเอกสารราชการ ไม่ใช่ในบทสนทนาที่ร้านขายข้าวเปลือก
+            //
+            // พันธุ์ที่ไม่มีในรายการนี้จะใช้ชื่อเดิม เพราะเดาชื่อเล่นแทนไม่ได้
+            // ถ้าเจอพันธุ์ที่ควรเพิ่ม ให้เติมในรายการนี้ที่เดียว
+            var o = el("option", null, farmerName(v));
             o.value = v.key;
             grp.appendChild(o);
           });
