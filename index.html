@@ -988,6 +988,15 @@
   }
   .fold.on .fold-arrow { transform: rotate(-135deg); border-color: var(--deep); }
   .fold-body { padding: 0 15px 15px 54px; font-size: .88rem; }
+  /* กางแล้วค่อยๆ ไหลลงมา แทนการกระตุกโผล่ทั้งก้อน */
+  @media (prefers-reduced-motion: no-preference) {
+    .fold.on .fold-body { animation: foldIn .22s cubic-bezier(.22,.85,.3,1); }
+    .more-body:not([hidden]) { animation: foldIn .2s cubic-bezier(.22,.85,.3,1); }
+  }
+  @keyframes foldIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to   { opacity: 1; transform: none; }
+  }
   .fold-body p { margin: 0 0 9px; }
   .fold-body p:last-child { margin-bottom: 0; }
   @media (max-width: 520px) { .fold-body { padding-left: 15px; } }
@@ -1006,7 +1015,7 @@
     font-family: var(--f-body); font-size: .82rem; color: var(--deep);
     text-decoration: underline; text-underline-offset: 3px;
   }
-  .more-body { margin-top: 9px; font-size: .82rem; color: var(--ink-soft); line-height: 1.7; }
+  .more-body { margin-top: 9px; font-size: .82rem; color: var(--ink-soft); line-height: 1.7; white-space: pre-line; }
 
   /* การ์ดซ้อนในการ์ดไม่ต้องมีเงา ไม่งั้นหน้าดูรกเป็นชั้นๆ */
   .plot .plot { box-shadow: none; }
@@ -4427,9 +4436,11 @@ views.soil = async function (root) {
           if (k === "acid" && usesLime && !isSevereAcid) {
             costLabel = "สำหรับดินที่วัดได้ต่ำกว่า 4.5 · " + fx.cost;
           }
+          // เปิดเฉพาะข้อแรก ที่เหลือย่อไว้
+          // เดิมกางหมดทุกข้อ ทำให้หน้าเดียวยาวเป็นสิบจอจนหาสิ่งที่ต้องทำไม่เจอ
           card.appendChild(fold(i + 1, fx.title, costLabel, function (body) {
             body.appendChild(el("p", "", fx.detail));
-          }, true));
+          }, i === 0));
         });
         if (pr.warn) card.appendChild(el("div", "flash flash-bad", "ข้อควรระวัง: " + pr.warn));
 
@@ -4451,7 +4462,7 @@ views.soil = async function (root) {
       stepBox.appendChild(fold(i + 1, st.title, st.when, function (body) {
         body.appendChild(el("p", "", st.detail));
         if (st.watch) body.appendChild(el("div", "fold-note", "จุดที่พลาดบ่อย: " + st.watch));
-      }, true));
+      }, i === 0));
     });
     resultHost.appendChild(stepBox);
 
@@ -4471,7 +4482,7 @@ views.soil = async function (root) {
         nBox.appendChild(fold("ก" + (i + 1), st.title, st.when, function (body) {
           body.appendChild(el("p", "", st.detail));
           if (st.watch) body.appendChild(el("div", "fold-note", "จุดที่พลาดบ่อย: " + st.watch));
-        }, true));
+        }, i === 0));
       });
       resultHost.appendChild(nBox);
       if (N.tip) resultHost.appendChild(el("div", "flash flash-bad", N.tip));
@@ -7124,15 +7135,18 @@ views.ask = async function (root) {
   // หรือเอกสารที่วางอยู่ข้างๆ ความไว้ใจที่ตั้งอยู่บนข้อมูลไม่ครบไม่ใช่ความไว้ใจ
   //
   // เขียนเป็นภาษาที่เกษตรกรอ่านแล้วตัดสินใจได้เอง ไม่ใช่ศัพท์กฎหมายที่ไม่มีใครอ่าน
-  var privacy = plot("ภาพของคุณถูกใช้อย่างไร");
-  [
-    "ขั้นตรวจโรคจากภาพ ทำงานในเครื่องของคุณทั้งหมด ภาพไม่ถูกส่งออกไปไหน",
-    "พอกดเก็บผลไว้ในประวัติ รูปเล็กๆ จะถูกเก็บไว้ในบัญชีของคุณ เพื่อให้เปิดดูย้อนหลังจากเครื่องอื่นได้",
-    "เมื่อแนบภาพมาถามในช่องด้านล่าง ภาพจะถูกส่งไปยังบริการ AI ของ Google เพื่อให้ช่วยอธิบาย",
-    "ถ้าไม่ต้องการให้ภาพออกจากเครื่อง ให้ใช้หน้าวินิจฉัยโรคและแมลงอย่างเดียว และไม่ต้องแนบภาพตอนถาม AI"
-  ].forEach(function (line) {
-    privacy.appendChild(el("div", "read-foot", "· " + line));
-  });
+  //
+  // ── ย่อเหลือบรรทัดเดียว (แก้ 2026-08) ──
+  // เดิมกาง 4 บรรทัดเต็มไว้เหนือช่องแชท กินพื้นที่จนผู้ใช้ต้องเลื่อนผ่านทุกครั้ง
+  // ผลคือคนอ่านน้อยลง ไม่ใช่มากขึ้น สรุปใจความสำคัญไว้บรรทัดเดียวแล้วให้กดดูรายละเอียด
+  var privacy = plot(null);
+  privacy.appendChild(el("div", "read-foot",
+    "ตรวจโรคจากภาพทำในเครื่องคุณ ภาพไม่ออกไปไหน · แนบภาพถาม AI ภาพจะถูกส่งไปที่ Google"));
+  privacy.appendChild(more("อ่านรายละเอียดการใช้ภาพ",
+    "ขั้นตรวจโรคจากภาพ ทำงานในเครื่องของคุณทั้งหมด ภาพไม่ถูกส่งออกไปไหน\n\n" +
+    "พอกดเก็บผลไว้ในประวัติ รูปเล็กๆ จะถูกเก็บไว้ในบัญชีของคุณ เพื่อให้เปิดดูย้อนหลังจากเครื่องอื่นได้\n\n" +
+    "เมื่อแนบภาพมาถามในช่องด้านล่าง ภาพจะถูกส่งไปยังบริการ AI ของ Google เพื่อให้ช่วยอธิบาย\n\n" +
+    "ถ้าไม่ต้องการให้ภาพออกจากเครื่อง ให้ใช้หน้าวินิจฉัยโรคและแมลงอย่างเดียว และไม่ต้องแนบภาพตอนถาม AI"));
   root.appendChild(privacy);
 
   var card = plot(null);
