@@ -149,6 +149,24 @@ function info(key) {
 }
 
 // ══════════════════════════════════════════════════════════
+// ตัดข้อความไทยให้สั้นเท่ากันทุกการ์ด
+//
+// ── ทำไมต้องมีฟังก์ชันนี้ (แก้ 2026-08) ──
+//
+// ของเดิมใช้ text.split(" ").slice(0, 14).join(" ") ซึ่งเป็นวิธีของภาษาอังกฤษ
+// ที่เว้นวรรคระหว่างทุกคำ แต่ภาษาไทยเว้นวรรคเฉพาะจบวลี การนับ 14 ช่องว่าง
+// จึงได้ความยาวไม่เท่ากันเลยในแต่ละตัว บางตัวได้เกือบทั้งย่อหน้า บางตัวได้ไม่กี่คำ
+// ผลคือการ์ดสูงไม่เท่ากันจนตารางดูรก และกินพื้นที่เกินจำเป็นไปมาก
+//
+// ตัดตามจำนวนตัวอักษรแทน แล้วถอยกลับไปจบที่ช่องว่างล่าสุด จะได้ไม่ตัดกลางคำ
+// ══════════════════════════════════════════════════════════
+function clip(text, limit) {
+  const s = String(text || "");
+  if (s.length <= limit) return s;
+  return s.slice(0, limit).replace(/\s+\S*$/, "") + "…";
+}
+
+// ══════════════════════════════════════════════════════════
 // สไตล์ ใส่ครั้งเดียวตอนเปิดหน้าครั้งแรก
 // ทำแบบเดียวกับ camStyles ใน index.html เพื่อให้ไฟล์นี้จบในตัวเอง
 // ══════════════════════════════════════════════════════════
@@ -169,6 +187,12 @@ function installStyles() {
     "@media(max-width:680px){.tri-head{display:none}" +
       ".tri-row{grid-template-columns:1fr;gap:4px;padding:11px 14px}}" +
     ".pest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:11px}" +
+    /* กางแล้วค่อยๆ ไหลลงมา ให้เข้าชุดกับการกางรายการที่อื่นในระบบ */
+    "@media(prefers-reduced-motion:no-preference){" +
+      ".pest-grid:not([hidden]){animation:pestIn .22s cubic-bezier(.22,.85,.3,1)}}" +
+    "@keyframes pestIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}" +
+    ".pest-grid[hidden]{display:none}" +
+    ".pest-toggle-wrap{margin-bottom:11px}" +
     ".pest-card{display:flex;flex-direction:column;gap:7px;padding:15px 16px;text-align:left;" +
       "background:#FFFFFF;border:1px solid var(--rule);border-radius:var(--r);cursor:pointer;" +
       "font-family:var(--f-body);transition:border-color .16s ease,box-shadow .16s ease}" +
@@ -243,9 +267,12 @@ window.buildPestPage = function (root, ui) {
 
   // ══ ตัวแยกว่าเป็นโรคหรือแมลง ══
   //
-  // อยู่บนสุดของทั้งหน้าเพราะเป็นคำถามที่ต้องตอบก่อนเสมอ
+  // อยู่บนสุดของทั้งส่วนนี้เพราะเป็นคำถามที่ต้องตอบก่อนเสมอ
   // ถ้าอาการที่เห็นเกิดจากเชื้อรา การไล่ดูรายชื่อแมลงคือการเดินผิดทางตั้งแต่ต้น
   // และจะจบด้วยการซื้อยาฆ่าแมลงมาพ่นโรคพืช ซึ่งเสียเงินแล้วไม่ได้ผลเลย
+  //
+  // ตารางนี้ตั้งใจไม่ยุบ ต่างจากรายชื่อแมลงด้านล่าง เพราะมันคือเครื่องมือตัดสินใจ
+  // ที่ใช้ได้ทันทีโดยไม่ต้องกดอะไร และกินพื้นที่น้อยกว่าการ์ดสิบใบมาก
   //
   // ข้อมูลเขียนในรูป "อาการ = ตัวการ" อยู่แล้ว จึงแสดงเป็นสองคอลัมน์
   // อาการที่เห็นอยู่ซ้าย ตัวการอยู่ขวา กวาดตาหาแถวที่ตรงกับที่เจอได้เร็วกว่ารายการหัวข้อย่อยยาวๆ
@@ -293,8 +320,33 @@ window.buildPestPage = function (root, ui) {
   // ══ รายชื่อแมลง ══
   root.appendChild(bund("แมลงและสัตว์ที่กินข้าว"));
 
+  // ── ยุบไว้ก่อน กดค่อยกาง (แก้ 2026-08) ──
+  //
+  // การ์ดสิบใบกางพร้อมกันกินพื้นที่เกือบสองจอเต็ม ซึ่งเดิมเป็นปัญหาหนักเพราะ
+  // ส่วนนี้อยู่บนสุดของหน้า คนที่เข้ามาเพื่อถ่ายรูปตรวจโรคต้องเลื่อนผ่านทั้งหมดก่อน
+  //
+  // พอย้ายมาไว้ท้ายหน้าแล้ว ปัญหาเบาลงแต่ยังทำให้หน้ายาวเกินจำเป็นอยู่ดี
+  // คนที่เลื่อนลงมาถึงตรงนี้คือคนที่ตั้งใจจะดูแมลงจริงๆ กดเปิดเองไม่ลำบาก
+  // ส่วนคนที่แค่ผ่านมาก็ไม่ต้องเสียเวลาเลื่อนผ่านการ์ดที่ไม่ได้ตั้งใจจะดู
   const gridCard = plot(null, "เรียงจากที่อันตรายที่สุดลงมา · แดง 3 จุด = ต้องรีบจัดการ, ทอง 2 จุด = เดินสำรวจก่อน, เขียว 1 จุด = เฝ้าดูตามปกติ");
+
   const grid = el("div", "pest-grid");
+  grid.hidden = true;
+
+  const toggleWrap = el("div", "pest-toggle-wrap");
+  const gridToggle = el("button", "act act-line act-wide");
+  const openLabel = "ดูรายชื่อแมลงและสัตว์ " + keys.length + " ชนิด";
+  gridToggle.textContent = openLabel;
+  gridToggle.setAttribute("aria-expanded", "false");
+  gridToggle.onclick = function () {
+    const nowOpen = grid.hidden;
+    grid.hidden = !nowOpen;
+    gridToggle.textContent = nowOpen ? "ย่อรายชื่อกลับ" : openLabel;
+    gridToggle.setAttribute("aria-expanded", nowOpen ? "true" : "false");
+  };
+  toggleWrap.appendChild(gridToggle);
+
+  gridCard.appendChild(toggleWrap);
   gridCard.appendChild(grid);
   root.appendChild(gridCard);
 
@@ -311,11 +363,9 @@ window.buildPestPage = function (root, ui) {
     if (pest.sci) card.appendChild(el("div", "pest-sci", pest.sci));
 
     // ใส่ลักษณะเด่นแบบสั้นในการ์ด ให้กวาดตาหาตัวที่ตรงกับที่เจอได้เลย
-    // ไม่ต้องกดเข้าไปทีละตัวแล้วกดกลับ ซึ่งช้ามากเมื่อมี 9 ชนิด
-    if (r.look) {
-      const short = r.look.split(" ").slice(0, 14).join(" ");
-      card.appendChild(el("div", "pest-quick", short + "…"));
-    }
+    // ไม่ต้องกดเข้าไปทีละตัวแล้วกดกลับ ซึ่งช้ามากเมื่อมีสิบชนิด
+    // ความยาวคุมด้วย clip() เพื่อให้ทุกการ์ดสูงเท่ากัน ดูเป็นตารางที่กวาดตาง่าย
+    if (r.look) card.appendChild(el("div", "pest-quick", clip(r.look, 68)));
     if (pest.stage) card.appendChild(el("div", "pest-when", "พบระยะ " + pest.stage));
 
     card.onclick = function () {
@@ -433,7 +483,10 @@ window.buildPestPage = function (root, ui) {
     }
 
     if (pest.manage && pest.manage.length) {
-      // เปิดไว้ด้วย เพราะนี่คือสิ่งที่ควรทำก่อนเสมอก่อนคิดถึงสารเคมี
+      // ── ยุบไว้ก่อน (แก้ 2026-08) ──
+      // เดิมเปิดไว้พร้อมกับบล็อกด้านบน ทำให้เห็นเนื้อหายาวสองก้อนซ้อนกันทันที
+      // ที่เปิดค้างไว้ควรมีก้อนเดียวคือ "ลักษณะการทำลาย" ซึ่งเป็นตัวยืนยันว่ามาถูกตัว
+      // ส่วนวิธีจัดการค่อยกดอ่านเมื่อยืนยันแล้วว่าใช่ตัวนี้จริง
       box.appendChild(fold(++n, "วิธีจัดการโดยไม่ใช้สารเคมี", "ทำได้ทันทีและไม่มีผลข้างเคียง", (b) => {
         const ul = el("ul");
         ul.style.cssText = "margin:0;padding-left:19px";
@@ -443,7 +496,7 @@ window.buildPestPage = function (root, ui) {
           ul.appendChild(li);
         });
         b.appendChild(ul);
-      }, true));
+      }, false));
     }
 
     if (pest.threshold) {
@@ -470,6 +523,7 @@ window.buildPestPage = function (root, ui) {
 
     if (pest.avoid) {
       // ตัวอันตรายสูงเปิดไว้เลย เพราะพลาดแล้วเสียหายหนักและแก้ไม่ทัน
+      // นี่คือข้อยกเว้นเดียวที่ยอมให้เปิดค้างเพิ่มจากก้อนแรก เพราะเป็นเรื่องความเสียหายถาวร
       box.appendChild(fold(++n, "สารที่ห้ามใช้เด็ดขาด", "ความผิดพลาดที่ทำให้เสียหายหนักที่สุด", (b) => {
         b.appendChild(el("div", "flash flash-bad", pest.avoid));
       }, r.level === "high"));
@@ -490,7 +544,7 @@ window.buildPestPage = function (root, ui) {
     help.style.marginTop = "13px";
     help.appendChild(el("div", "rx-sect", "ยังไม่แน่ใจว่าใช่ตัวนี้หรือไม่"));
     const hp = el("p", "",
-      "ไปที่หน้าระยะการเจริญเติบโต แล้วพิมพ์บรรยายสิ่งที่เห็นในช่องถาม AI " +
+      "ไปที่หน้าผู้ช่วยตอบคำถาม แล้วพิมพ์บรรยายสิ่งที่เห็น " +
       "เช่น ข้าวอายุกี่วัน อาการอยู่ที่ใบ ยอด หรือรวง เห็นตัวแมลงไหม สีอะไร ขนาดเท่าไหร่ " +
       "ระบบจะช่วยเทียบกับแมลงทุกชนิดในฐานข้อมูลแล้วถามกลับเพื่อแยกให้ชัดขึ้น");
     hp.style.cssText = "margin:0;font-size:.88rem";
@@ -499,9 +553,16 @@ window.buildPestPage = function (root, ui) {
   }
 
   // ══ หลักการทั่วไป วางท้ายหน้า ══
+  //
+  // ── ยุบไว้ก่อน (แก้ 2026-08) ──
+  // เป็นความรู้พื้นฐานที่ควรมี แต่ไม่ใช่สิ่งที่คนกำลังมีปัญหาในแปลงต้องอ่านตอนนี้
+  // ห้าข้อยาวๆ ต่อท้ายหน้าที่ยาวอยู่แล้ว ทำให้คนเลื่อนผ่านโดยไม่อ่านอยู่ดี
   if (P.principles && P.principles.length) {
     root.appendChild(bund("หลักการกำจัดแมลงที่ควรจำ"));
     const pc = plot(null);
+
+    const list = el("div");
+    list.hidden = true;
     const ul = el("ul");
     ul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
     P.principles.forEach((x) => {
@@ -509,13 +570,27 @@ window.buildPestPage = function (root, ui) {
       li.style.marginBottom = "7px";
       ul.appendChild(li);
     });
-    pc.appendChild(ul);
-    pc.appendChild(more("ที่มาและข้อจำกัดของข้อมูลนี้",
+    list.appendChild(ul);
+
+    list.appendChild(more("ที่มาและข้อจำกัดของข้อมูลนี้",
       "ข้อมูลการทำลาย วิธีจัดการ เกณฑ์ตัดสินใจ และสารเคมี อ้างอิงเอกสารความรู้ " +
       "Rice Knowledge Bank กรมการข้าว ส่วนการจัดระดับความอันตรายและคำบรรยายลักษณะตัวแมลง " +
       "เป็นส่วนที่ระบบเขียนเสริมเพื่อให้ใช้งานง่ายขึ้น ไม่ใช่การจัดระดับอย่างเป็นทางการของหน่วยงานใด " +
       "ความรุนแรงจริงขึ้นกับอายุข้าว พันธุ์ที่ปลูก และสภาพแปลงของแต่ละพื้นที่ " +
       "ก่อนใช้สารเคมีทุกครั้งควรปรึกษาเกษตรอำเภอ หมอดินอาสา หรือศูนย์วิจัยข้าวในพื้นที่"));
+
+    const pLabel = "ดูหลักการ " + P.principles.length + " ข้อ";
+    const pBtn = el("button", "act act-line act-wide", pLabel);
+    pBtn.setAttribute("aria-expanded", "false");
+    pBtn.onclick = function () {
+      const nowOpen = list.hidden;
+      list.hidden = !nowOpen;
+      pBtn.textContent = nowOpen ? "ย่อกลับ" : pLabel;
+      pBtn.setAttribute("aria-expanded", nowOpen ? "true" : "false");
+    };
+
+    pc.appendChild(pBtn);
+    pc.appendChild(list);
     root.appendChild(pc);
   }
 };
@@ -523,25 +598,27 @@ window.buildPestPage = function (root, ui) {
 })();
 
 /* ══════════════════════════════════════════════════════════
-   วิธีเชื่อมกับ index.html — แก้ 3 จุด
+   วิธีเชื่อมกับ index.html
 
-   จุดที่ 1  ใต้บรรทัด <script src="pest-guide.js?v=12"></script> เพิ่ม
-       <script src="pest-page.js?v=2"></script>
+   ไฟล์นี้ถูกเรียกจาก renderPestSection() ใน index.html อยู่แล้ว
+   เมื่ออัปเดตไฟล์นี้ ต้องเปลี่ยนเลขเวอร์ชันในแท็ก script ด้วย
+   ไม่งั้นเบราว์เซอร์จะใช้ไฟล์เก่าที่ค้างอยู่ใน cache
 
-   จุดที่ 2  ในตัวแปร PAGES เพิ่มรายการนี้ต่อจากบล็อกของ diagnose
-       { id: "pest", label: "แมลงศัตรูข้าว", kicker: "ระหว่างปลูก", group: "2 · ระหว่างปลูก",
-         icon: "M12 4v5m0 0a4 4 0 00-4 4v3a4 4 0 008 0v-3a4 4 0 00-4-4zm-4 5L4 7m4 6H4m4 4l-4 2m12-12l4-2m-4 6h4m-4 4l4 2" },
+       <script src="pest-page.js?v=17"></script>
 
-   จุดที่ 3  ก่อนบรรทัด views.survey = async function (root) { เพิ่ม
-       views.pest = function (root) {
-         if (typeof window.buildPestPage !== "function") {
-           root.appendChild(stateBlock("!", "ยังโหลดหน้าแมลงไม่ได้",
-             "ยังโหลดข้อมูลเรื่องแมลงขึ้นมาไม่ได้ ลองรีเฟรชหน้าดูอีกที"));
-           return;
-         }
-         window.buildPestPage(root, {
-           el: el, plot: plot, bund: bund, fold: fold,
-           more: more, stateBlock: stateBlock, readOut: readOut
-         });
-       };
+   ── สิ่งที่เปลี่ยนในรุ่นนี้ (2026-08) ──
+
+   1. รายชื่อแมลงยุบไว้ก่อน มีปุ่มกดกาง
+      เดิมกางการ์ดสิบใบเสมอ กินพื้นที่เกือบสองจอเต็ม
+
+   2. แก้การตัดข้อความในการ์ดให้ใช้จำนวนตัวอักษรแทนช่องว่าง
+      ของเดิมใช้ split(" ") ซึ่งใช้ไม่ได้กับภาษาไทยที่ไม่เว้นวรรคระหว่างคำ
+      ทำให้การ์ดแต่ละใบสูงไม่เท่ากันจนตารางดูรก
+
+   3. "วิธีจัดการโดยไม่ใช้สารเคมี" ยุบไว้ก่อน เหลือเปิดค้างแค่ก้อนแรก
+
+   4. "หลักการกำจัดแมลงที่ควรจำ" ยุบไว้ก่อน มีปุ่มกดกาง
+
+   5. แก้ข้อความชี้ทางให้ตรงกับชื่อหน้าจริง คือหน้าผู้ช่วยตอบคำถาม
+      ของเดิมเขียนว่าหน้าระยะการเจริญเติบโต ซึ่งไม่มีช่องถาม AI อยู่
    ══════════════════════════════════════════════════════════ */
