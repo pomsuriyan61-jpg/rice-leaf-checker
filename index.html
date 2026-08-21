@@ -1177,7 +1177,7 @@
 <script src="planting-guide.js?v=16"></script>
 <script src="pest-guide.js?v=16"></script>
 <script src="variety-guide.js?v=16"></script>
-  <script src="pest-page.js?v=17"></script>
+  <script src="pest-page.js?v=18"></script>
 <script>
 (function () {
 "use strict";
@@ -3869,7 +3869,17 @@ views.overview = async function (root) {
 views.diagnose = function (root) {
   root.appendChild(pageHead("diagnose"));
 
-  // ── ย้ายส่วนแมลงไปท้ายหน้า (แก้ 2026-08) ──
+  // ── ตารางแยกโรคกับแมลงอยู่บนสุด (แก้ 2026-08) ──
+  //
+  // คำถามแรกที่คนยืนอยู่ในนาต้องตอบให้ได้คือ "นี่โรคหรือแมลง"
+  // ถ้าเป็นแมลงแล้วไปถ่ายรูปตรวจ จะได้ชื่อโรคที่ไม่เกี่ยวกันเลย เพราะตัวตรวจรูป
+  // เรียนมาจากใบข้าวเป็นโรคเท่านั้น ตารางนี้จึงต้องมาก่อนกล้อง
+  //
+  // แต่รายชื่อแมลงสิบชนิดไม่ต้องมาด้วย เพราะยาวเกินไปและยังไม่จำเป็นตอนนี้
+  // ตารางกินพื้นที่ไม่มากและกวาดตาหาแถวที่ตรงกับที่เจอได้ใน 5 วินาที
+  renderPestSection(root, "triage");
+
+  // ── ย้ายรายชื่อแมลงไปท้ายหน้า (แก้ 2026-08) ──
   //
   // เดิมวางแมลงไว้บนสุดเพราะคนต้องรู้ก่อนว่าเป็นแมลงหรือโรค
   // แต่ของจริงคือการ์ดแมลง 8 ใบกินพื้นที่เกือบสองจอเต็ม ผู้ใช้ที่เข้ามาเพื่อ
@@ -4044,21 +4054,22 @@ views.diagnose = function (root) {
 
   markBrain();
 
-  // ส่วนแมลงอยู่ท้ายสุด สำหรับคนที่ตรวจแล้วสงสัยว่าอาจไม่ใช่โรค
+  // รายชื่อแมลงอยู่ท้ายสุด สำหรับคนที่ตรวจแล้วสงสัยว่าอาจไม่ใช่โรค
   var pestHost = el("div");
   pestHost.id = "pestSection";
   root.appendChild(pestHost);
-  renderPestSection(pestHost);
+  renderPestSection(pestHost, "list");
 };
 
 // แยกเป็นฟังก์ชันธรรมดา ไม่ใช่ views.* แล้ว เพราะไม่ได้เป็นหน้าของตัวเองอีกต่อไป
-function renderPestSection(root) {
+function renderPestSection(root, part) {
   if (typeof window.buildPestPage !== "function") {
     root.appendChild(stateBlock("!", "ยังเปิดส่วนแมลงไม่ได้",
       "ยังโหลดข้อมูลเรื่องแมลงขึ้นมาไม่ได้ ลองรีเฟรชหน้าดูอีกที"));
     return;
   }
   window.buildPestPage(root, {
+    part: part,
     el: el, plot: plot, bund: bund, fold: fold,
     more: more, stateBlock: stateBlock, readOut: readOut
   });
