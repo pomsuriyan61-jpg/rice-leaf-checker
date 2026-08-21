@@ -1177,7 +1177,7 @@
 <script src="planting-guide.js?v=16"></script>
 <script src="pest-guide.js?v=16"></script>
 <script src="variety-guide.js?v=16"></script>
-  <script src="pest-page.js?v=16"></script>
+  <script src="pest-page.js?v=17"></script>
 <script>
 (function () {
 "use strict";
@@ -3869,13 +3869,15 @@ views.overview = async function (root) {
 views.diagnose = function (root) {
   root.appendChild(pageHead("diagnose"));
 
-  // ── แมลงมาก่อน AI ตรวจโรค ──
+  // ── ย้ายส่วนแมลงไปท้ายหน้า (แก้ 2026-08) ──
   //
-  // ลำดับนี้ตามลำดับที่คนตัดสินใจจริงในนา คือต้องรู้ก่อนว่าเป็นแมลงหรือโรค
-  // ตัวตรวจรูปเรียนมาจากรูปใบข้าวเป็นโรคเท่านั้น มันดูแมลงไม่เป็น
-  // ถ้าเอา AI ขึ้นก่อน คนที่เจอแมลงจะถ่ายรูปเข้าไปตรวจแล้วได้ชื่อโรคที่ไม่เกี่ยวกันเลย
-  renderPestSection(root);
-
+  // เดิมวางแมลงไว้บนสุดเพราะคนต้องรู้ก่อนว่าเป็นแมลงหรือโรค
+  // แต่ของจริงคือการ์ดแมลง 8 ใบกินพื้นที่เกือบสองจอเต็ม ผู้ใช้ที่เข้ามาเพื่อ
+  // ถ่ายรูปตรวจโรคต้องเลื่อนผ่านทั้งหมดก่อนจะเจอปุ่มที่เขาตั้งใจมาใช้
+  // ซึ่งบนมือถือกลางนาที่สัญญาณช้าคือการทำให้คนเลิกใช้ไปเลย
+  //
+  // ตอนนี้เอาสิ่งที่คนตั้งใจมาทำขึ้นก่อน แล้วให้ตัวตรวจโรคเป็นตัวชี้ไปหาแมลงเอง
+  // เมื่อผลตรวจไม่ชัดหรือไม่ใช่ใบข้าว ซึ่งตรงกับลำดับการตัดสินใจจริงมากกว่า
   root.appendChild(bund("ถ่ายรูปใบข้าวมาตรวจโรค"));
 
   var wrap = el("div", "row-2");
@@ -3965,6 +3967,20 @@ views.diagnose = function (root) {
         // เพราะคนที่อยากรู้ว่าทำไมระบบตัดสินแบบนี้ควรตรวจสอบย้อนกลับได้
         var why = res.gated ? res.pre.why : "ตัวตรวจรูปบอกว่านี่ไม่ใช่ใบข้าว";
         resultHost.appendChild(el("div", "verdict-src", "เหตุผลของระบบ: " + why));
+
+        // ตัวตรวจรูปเรียนมาจากใบข้าวเป็นโรคเท่านั้น มันดูแมลงไม่เป็น
+        // คนที่ถ่ายรูปแมลงหรือใบที่ถูกแมลงกัดมาจะมาถึงตรงนี้ ต้องชี้ทางต่อให้
+        // ไม่งั้นเขาจะคิดว่าเว็บใช้ไม่ได้ ทั้งที่ข้อมูลที่เขาต้องการอยู่ท้ายหน้าเดียวกันนี้
+        var toPest = el("button", "act act-line act-sm", "อาจเป็นแมลง ดูรูปแมลงท้ายหน้า");
+        toPest.style.marginTop = "10px";
+        toPest.onclick = function () {
+          var host = document.getElementById("pestSection");
+          if (host) {
+            try { host.scrollIntoView({ behavior: "smooth", block: "start" }); }
+            catch (e) { host.scrollIntoView(true); }
+          }
+        };
+        resultHost.appendChild(toPest);
       }
 
       // คำเตือนถาวร — ขึ้นทุกครั้งที่มีผล ไม่ว่าผลจะออกมาแบบไหน
@@ -4027,6 +4043,12 @@ views.diagnose = function (root) {
   };
 
   markBrain();
+
+  // ส่วนแมลงอยู่ท้ายสุด สำหรับคนที่ตรวจแล้วสงสัยว่าอาจไม่ใช่โรค
+  var pestHost = el("div");
+  pestHost.id = "pestSection";
+  root.appendChild(pestHost);
+  renderPestSection(pestHost);
 };
 
 // แยกเป็นฟังก์ชันธรรมดา ไม่ใช่ views.* แล้ว เพราะไม่ได้เป็นหน้าของตัวเองอีกต่อไป
