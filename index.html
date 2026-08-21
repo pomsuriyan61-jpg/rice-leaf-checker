@@ -2369,7 +2369,15 @@ function knowledgeFor(text, opts) {
     if (tri) blocks.push(tri);
   }
 
+  // ── ส่งสารบัญไปเสมอ ไม่ใช่เฉพาะตอนจับหมวดไม่ได้ (แก้ 2026-08) ──
+  //
+  // เดิมส่งสารบัญเฉพาะตอนไม่มีบล็อกไหนตรงเลย ผลคือถ้าคำถามตรงกับหมวดหนึ่ง
+  // AI จะไม่รู้เลยว่าระบบมีข้อมูลหมวดอื่นอยู่ด้วย จึงตอบจากความรู้ทั่วไปของตัวเอง
+  // แทนที่จะชวนผู้ใช้ถามต่อเพื่อดึงข้อมูลจริงที่มีอยู่แล้วในเว็บออกมาใช้
+  //
+  // สารบัญสั้นมากเมื่อเทียบกับบล็อกเนื้อหา ต้นทุนที่เพิ่มจึงน้อยกว่าประโยชน์มาก
   if (!blocks.length) blocks.push(knowledgeIndex());
+  else blocks.push(knowledgeIndex());
   return "\n\n" + blocks.join("\n\n");
 }
 
@@ -2424,12 +2432,58 @@ function varietyContext() {
   return line;
 }
 
+// ── ข้อมูลแปลงที่ผู้ใช้ตั้งค่าไว้ตามหน้าต่างๆ (เพิ่ม 2026-08) ──
+//
+// เดิม AI เห็นแค่บันทึกการสำรวจกับพันธุ์ข้าว ไม่เห็นสิ่งที่ผู้ใช้กรอกไว้หน้าอื่น
+// ทั้งขนาดแปลง ชนิดดิน และวิธีทำนา ทั้งที่สามอย่างนี้เปลี่ยนคำตอบเรื่องปุ๋ยและน้ำทั้งหมด
+// ผลคือผู้ใช้กรอกข้อมูลไปหลายหน้า แล้วยังได้คำตอบกลางๆ เหมือนไม่เคยกรอกอะไรเลย
+function fieldSetupContext() {
+  var out = [];
+
+  var d = readDeed();
+  var f = readField();
+  var measured = null;
+  if (f) {
+    if (f.mode === "poly" && f.points && f.points.length >= 3) {
+      measured = polygonArea(f.points) / 1600;
+    } else if (f.lat != null && f.radius) {
+      measured = (Math.PI * f.radius * f.radius) / 1600;
+    }
+  }
+  if (d) out.push("ขนาดแปลงตามโฉนด: " + (Math.round(d.rai * 100) / 100) + " ไร่");
+  if (measured && measured > 0) out.push("ขนาดที่เดินวัดจริง: " + measured.toFixed(2) + " ไร่");
+  if (!d && !measured) out.push("ขนาดแปลง: ยังไม่ได้กรอก");
+
+  try {
+    var sKey = "smartrice-soil:" + (Session.user ? Session.user.username : "guest");
+    var sv = JSON.parse(localStorage.getItem(sKey) || "{}");
+    var SW = { clay: "ดินเหนียว", loam: "ดินร่วน", sand: "ดินทราย" };
+    var MW = { wet: "นาดำ (ปักดำ)", dry: "นาหว่านแห้ง", broadcast: "นาหว่านน้ำตม" };
+    if (sv.soil) out.push("ชนิดดินที่ผู้ใช้เลือก: " + (SW[sv.soil] || sv.soil));
+    else out.push("ชนิดดิน: ยังไม่ได้เลือก");
+    if (sv.method) out.push("วิธีทำนาที่ผู้ใช้เลือก: " + (MW[sv.method] || sv.method));
+  } catch (e) { /* อ่านไม่ได้ก็ข้าม ไม่ต้องทำให้ทั้ง prompt พัง */ }
+
+  // สภาพอากาศแปลงนี้ ถ้าผู้ใช้เคยเปิดหน้าอากาศแล้ว
+  try {
+    var w = window.LAST_WEATHER;
+    if (w && w.summary) {
+      out.push("อากาศแปลงนี้: ฝนสะสม 7 วัน " + w.summary.rain7 + " มม. · " +
+               "ความชื้นเฉลี่ย 3 วัน " + w.summary.humidity + "%");
+    }
+  } catch (e) { /* ข้าม */ }
+
+  return out.length ? out.join("\n") : "";
+}
+
 function buildFarmContext(logs) {
   var prof = Store.profile();
   if (!logs.length) {
+    var setupEmpty = fieldSetupContext();
     return "ข้อมูลผู้ใช้: " + prof.name + (prof.farm ? " แปลง " + prof.farm : "") +
            "\n" + varietyContext() +
-           "\nยังไม่มีบันทึกอะไรในระบบ";
+           (setupEmpty ? "\n" + setupEmpty : "") +
+           "\nยังไม่มีบันทึกการสำรวจในระบบ";
   }
 
   var scores = logs.map(function (l) { return l.score; }).filter(function (v) { return typeof v === "number"; });
@@ -2444,6 +2498,8 @@ function buildFarmContext(logs) {
   lines.push("ข้อมูลผู้ใช้: " + prof.name + (prof.farm ? " แปลง " + prof.farm : ""));
   lines.push("จำนวนการสำรวจสะสม: " + logs.length + " ครั้ง");
   lines.push(varietyContext());
+  var setup = fieldSetupContext();
+  if (setup) lines.push(setup);
   if (scores.length) {
     lines.push("คะแนนสุขภาพเฉลี่ย: " + Math.round(avg(scores)) + " (" + statusWord(statusOf(Math.round(avg(scores)))) + ")");
   }
