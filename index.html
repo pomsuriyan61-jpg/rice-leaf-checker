@@ -4722,6 +4722,13 @@ views.fert = async function (root) {
         current = k;
         try { localStorage.setItem(KEY, k); } catch (e) { /* พื้นที่เต็ม ข้ามไป */ }
         repaint();
+        // เนื้อหาแต่ละชนิดปุ๋ยยาวไม่เท่ากัน ถ้าไม่เลื่อนกลับ ผู้ใช้ที่อยู่ท้ายแท็บเดิม
+        // จะเห็นแท็บใหม่โผล่กลางเรื่องหรือหลุดท้ายสุดจนคิดว่ากดไม่ติด
+        try {
+          pickCard.scrollIntoView({ behavior: "smooth", block: "start" });
+        } catch (e) {
+          pickCard.scrollIntoView(true);
+        }
       };
       row.appendChild(b);
     });
@@ -4924,9 +4931,7 @@ views.fert = async function (root) {
       var mRaiIn = el("input");
       mRaiIn.className = "num-in";
       mRaiIn.inputMode = "decimal";
-      mRaiIn.value = "1";
       mRaiIn.placeholder = "1";
-      mf1.appendChild(mRaiIn);
 
       var mDeed = readDeed();
       var mFld = readField();
@@ -4959,7 +4964,26 @@ views.fert = async function (root) {
         };
         mBtns.appendChild(mUseMeas);
       }
+      // ── เติมขนาดแปลงให้อัตโนมัติ (แก้ 2026-08) ──
+      //
+      // เดิมตั้งต้นที่ 1 ไร่เสมอเพื่อให้อ่านอัตราต่อไร่ได้ตรงๆ แต่ผลจริงคือ
+      // ผู้ใช้กรอกขนาดแปลงไว้แล้วที่หน้าข้อมูลแปลงนา กลับต้องมากดปุ่มดึงซ้ำทุกครั้ง
+      // และคนที่ไม่ทันสังเกตปุ่มจะได้ยอดรวมของ 1 ไร่ไปใช้ทั้งที่มีแปลงหลายสิบไร่
+      // การคำนวณผิดพลาดแบบนั้นเสียหายมากกว่าประโยชน์ของการอ่านอัตราต่อไร่
+      //
+      // ยังมีปุ่ม "ดูต่อ 1 ไร่" ไว้ให้กดกลับได้ทันทีเมื่ออยากเทียบอัตราระหว่างชนิดปุ๋ย
+      var mAutoRai = mDeed ? mDeed.rai : (mMeasured && mMeasured > 0 ? mMeasured : null);
+      mRaiIn.value = mAutoRai ? String(Math.round(mAutoRai * 100) / 100) : "1";
+
+      var mPerRai = el("button", "act act-line act-sm", "ดูต่อ 1 ไร่");
+      mPerRai.onclick = function () { mRaiIn.value = "1"; mRecalc(); };
+      mBtns.appendChild(mPerRai);
+
       if (mBtns.children.length) mf1.appendChild(mBtns);
+      if (mAutoRai) {
+        mf1.appendChild(el("div", "read-foot",
+          "เติมขนาดแปลงจากที่บันทึกไว้ให้แล้ว แก้ได้ถ้าจะใส่แค่บางส่วน"));
+      }
       mRow.appendChild(mf1);
 
       var mf2 = el("div", "inp");
@@ -5080,9 +5104,26 @@ views.fert = async function (root) {
       // การเติมขนาดทั้งแปลงให้เลยทำให้เห็นแต่ยอดรวมก้อนใหญ่ ซึ่งเทียบระหว่าง
       // ปุ๋ยแต่ละชนิดยากกว่า และถ้าผู้ใช้ใส่แค่บางส่วนของแปลงก็ต้องมาลบออกเอง
       // ปุ่มด้านล่างยังกดดึงขนาดจริงได้ทันทีเมื่อต้องการยอดรวม
+      // ── เติมขนาดแปลงให้อัตโนมัติ (แก้ 2026-08) ──
+      // เหตุผลเดียวกับตัวคำนวณปุ๋ยคอกด้านบน คนที่กรอกขนาดไว้แล้วไม่ควรต้องกดดึงซ้ำ
+      // และคนที่ไม่ทันสังเกตปุ่มจะได้ยอดของ 1 ไร่ไปใช้กับแปลงหลายสิบไร่
       var deed = readDeed();
-      raiIn.value = "1";
+      var autoFld = readField();
+      var autoMeasured = null;
+      if (autoFld) {
+        if (autoFld.mode === "poly" && autoFld.points && autoFld.points.length >= 3) {
+          autoMeasured = polygonArea(autoFld.points) / 1600;
+        } else if (autoFld.lat != null && autoFld.radius) {
+          autoMeasured = (Math.PI * autoFld.radius * autoFld.radius) / 1600;
+        }
+      }
+      var autoRai = deed ? deed.rai : (autoMeasured && autoMeasured > 0 ? autoMeasured : null);
+      raiIn.value = autoRai ? String(Math.round(autoRai * 100) / 100) : "1";
       f1.appendChild(raiIn);
+      if (autoRai) {
+        f1.appendChild(el("div", "read-foot",
+          "เติมขนาดแปลงจากที่บันทึกไว้ให้แล้ว แก้ได้ถ้าจะใส่แค่บางส่วน"));
+      }
 
       var areaBtns = el("div");
       areaBtns.style.cssText = "display:flex;gap:7px;flex-wrap:wrap;margin-top:7px";
@@ -5119,10 +5160,15 @@ views.fert = async function (root) {
         areaBtns.appendChild(useMeasured);
       }
 
+      var perRaiBtn = el("button", "act act-line act-sm", "ดูต่อ 1 ไร่");
+      perRaiBtn.onclick = function () { raiIn.value = "1"; recalc(); };
+      areaBtns.appendChild(perRaiBtn);
+
       if (areaBtns.children.length) f1.appendChild(areaBtns);
 
-      var areaFoot = el("div", "read-foot",
-        "ตอนนี้คิดที่ 1 ไร่ ตัวเลขที่เห็นคือใช้ต่อไร่ ถ้าอยากรู้ยอดทั้งแปลง กดปุ่มด้านบน");
+      var areaFoot = el("div", "read-foot", autoRai
+        ? "คิดจากขนาดแปลงที่บันทึกไว้ ถ้าอยากเทียบอัตราต่อไร่ กดปุ่มดูต่อ 1 ไร่"
+        : "ตอนนี้คิดที่ 1 ไร่ ตัวเลขที่เห็นคือใช้ต่อไร่ ถ้าอยากรู้ยอดทั้งแปลง กดปุ่มด้านบน");
       areaFoot.style.marginTop = "6px";
 
       if (deed && measuredRai && measuredRai > 0) {
@@ -8443,6 +8489,19 @@ function replay(node, cls) {
 async function open(id) {
   here = id;
   clearPageTimers();
+
+  // ── เลื่อนกลับขึ้นบนสุดทุกครั้งที่เปลี่ยนหน้า (แก้ 2026-08) ──
+  //
+  // เดิมเบราว์เซอร์คงตำแหน่ง scroll เดิมไว้ ผู้ใช้ที่เลื่อนลงไปท้ายหน้าดินแล้วกดเมนูอื่น
+  // จะเปิดหน้าใหม่มาโผล่กลางเนื้อหาโดยไม่เห็นหัวเรื่อง จนคิดว่ากดผิดหน้าหรือหน้าโหลดไม่ครบ
+  // ปัญหานี้หนักเป็นพิเศษบนมือถือที่หน้าจอสั้น และหน้าเนื้อหายาวมากอย่างหน้าเตรียมดิน
+  try {
+    window.scrollTo(0, 0);
+    if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+    var scroller = document.getElementById("field");
+    if (scroller && scroller.parentElement) scroller.parentElement.scrollTop = 0;
+  } catch (e) { /* เบราว์เซอร์เก่าไม่รองรับก็ข้ามไป */ }
+
   var page = PAGES.find(function (p) { return p.id === id; });
 
   var title = document.getElementById("barTitle");
