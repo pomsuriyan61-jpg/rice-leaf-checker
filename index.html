@@ -4805,7 +4805,8 @@ views.fert = async function (root) {
     "ซื้อประมาณ " + (sacks(myRai * firstLo) === sacks(myRai * firstHi)
       ? sacks(myRai * firstHi) + " กระสอบ"
       : sacks(myRai * firstLo) + "-" + sacks(myRai * firstHi) + " กระสอบ") +
-    " (กระสอบละ 50 กิโล) สำหรับพื้นที่ " + (Math.round(myRai * 100) / 100) + " ไร่",
+    " (กระสอบละ 50 กิโล) สำหรับพื้นที่ " + (Math.round(myRai * 100) / 100) + " ไร่" +
+    " · อัตรา " + firstLo + "-" + firstHi + " กก./ไร่",
     pickWhy + (pickAlt ? " · " + pickAlt : "")));
 
   // ดินเปรี้ยว + ดินทราย ต้องเสริมตัวทำให้ต้นแข็งแยก เพราะสูตรที่เลือกไม่มีตัวทำให้ต้นแข็ง
@@ -4813,7 +4814,7 @@ views.fert = async function (root) {
   if (isAcidSoil && mySoil === "sand") {
     steps.appendChild(plainStep("1ก",
       "ซื้อ 0-0-60 เพิ่มอีกนิดหน่อย",
-      "ใช้ประมาณ " + Math.ceil(myRai * 10) + " กิโล ใส่พร้อมกับปุ๋ยครั้งแรก",
+      "ใช้ประมาณ " + Math.ceil(myRai * 10) + " กิโล (อัตรา 10 กก./ไร่) ใส่พร้อมกับปุ๋ยครั้งแรก",
       "ต้องเสริมเพราะสูตรที่เลือกไม่มีตัวทำให้ต้นแข็ง และดินทรายเก็บตัวทำให้ต้นแข็งไม่อยู่ " +
       "ถ้าขาด ข้าวจะล้มง่ายและเมล็ดลีบ"));
   }
@@ -4824,7 +4825,8 @@ views.fert = async function (root) {
     "ห้ามระบายน้ำออกภายใน 7 วันหลังใส่ ไม่งั้นปุ๋ยไหลไปกับน้ำหมด"));
 
   steps.appendChild(plainStep(3,
-    "ครั้งที่สอง ซื้อยูเรีย 46-0-0 อีก " + sacks(myRai * ureaRate) + " กระสอบ",
+    "ครั้งที่สอง ซื้อยูเรีย 46-0-0 อีก " + sacks(myRai * ureaRate) +
+    " กระสอบ (อัตรา " + ureaRate + " กก./ไร่)",
     myPhoto
       ? "ใส่ประมาณปลายเดือนกันยายน ก่อนข้าวออกดอกราวหนึ่งเดือน"
       : "ใส่ตอนข้าวอายุ 45-50 วันหลังหว่าน หรือนับจากใส่ครั้งแรกไปอีก 30 วัน",
@@ -5088,7 +5090,13 @@ views.fert = async function (root) {
       // แต่การล็อกไม่ให้กรอกเลยก็ปิดประตูใส่คนที่ปรึกษาหมอดินมาแล้ว
       // และมีตัวเลขของแปลงตัวเองอยู่ในมือ จึงให้กรอกอัตราเอง
       // ระบบทำหน้าที่คูณเลขและแปลงหน่วยให้ ไม่ใช่ตัดสินใจแทน
-      calcCard.appendChild(el("div", "flash flash-warn", t.calcNote));
+      // ── ไม่ใช้ calcNote เดิม (แก้ 2026-08) ──
+      // ข้อความเดิมจบด้วยการให้ไปถามคนอื่นมาก่อน ซึ่งทำให้ตัวคำนวณใช้ไม่ได้ทันที
+      // เขียนใหม่ให้บอกเหตุผลเดียวกัน แต่ชี้ทางต่อได้ในหน้านี้เลย
+      calcCard.appendChild(el("div", "flash flash-warn",
+        "ปุ๋ยคอกไม่มีอัตราเดียวที่ใช้ได้กับทุกคน เพราะมูลไก่เข้มข้นกว่ามูลวัวควายหลายเท่า " +
+        "และดินที่สมบูรณ์อยู่แล้วก็ต้องการน้อยกว่า เลือกชนิดมูลด้านล่างเพื่อดูช่วงที่ใช้กันทั่วไป " +
+        "ถ้าเคยส่งดินไปตรวจแล้วมีอัตราของแปลงตัวเอง ให้ใช้เลขนั้นแทน"));
 
       var mRow = el("div");
       mRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap;margin:14px 0";
@@ -5161,8 +5169,45 @@ views.fert = async function (root) {
       var mRateIn = el("input");
       mRateIn.className = "num-in";
       mRateIn.inputMode = "decimal";
-      mRateIn.placeholder = "ถามหมอดินอาสาได้";
+      mRateIn.placeholder = "เช่น 1500";
       mf2.appendChild(mRateIn);
+
+      // ── ปุ่มเลือกชนิดมูลสัตว์ (เพิ่ม 2026-08) ──
+      //
+      // เดิมปล่อยช่องนี้ว่างแล้วเขียนว่าให้ไปถามคนอื่นมา ซึ่งในทางปฏิบัติแปลว่า
+      // คนที่เปิดหน้านี้ตอนกลางคืนหรือวันหยุดจะใช้ตัวคำนวณไม่ได้เลย
+      // และคนส่วนใหญ่ก็จะปิดหน้าไปโดยไม่ได้คำตอบอะไรกลับไป
+      //
+      // เหตุผลเดิมที่ไม่ใส่ตัวเลขยังถูกอยู่ คือมูลไก่เข้มข้นกว่ามูลวัวหลายเท่า
+      // การให้เลขเดียวกับทุกคนคือการเดาแทนเกษตรกร
+      //
+      // ทางออกคือไม่ให้เลขเดียว แต่ให้เลือกตามชนิดมูลที่เขามีอยู่จริง
+      // แล้วบอกตรงๆ ว่านี่เป็นช่วงที่ใช้กันทั่วไป ไม่ใช่ค่าทางการที่ผ่านการวิเคราะห์ดิน
+      // ผู้ใช้จึงเริ่มคำนวณได้ทันที และยังแก้เป็นเลขของตัวเองได้ตลอด
+      var MANURE_RATES = [
+        { key: "cow",     word: "มูลวัว ควาย",  start: 1500, range: "1,000-2,000" },
+        { key: "chicken", word: "มูลไก่",       start: 750,  range: "500-1,000" },
+        { key: "pig",     word: "มูลหมู",       start: 1000, range: "800-1,500" }
+      ];
+
+      var mRateBtns = el("div");
+      mRateBtns.style.cssText = "display:flex;gap:7px;flex-wrap:wrap;margin-top:7px";
+      var mRateNote = el("div", "read-foot",
+        "เลือกชนิดมูลที่มี แล้วระบบจะเติมอัตราเริ่มต้นให้ ปรับเป็นเลขของคุณเองได้");
+
+      MANURE_RATES.forEach(function (r) {
+        var rb = el("button", "act act-line act-sm", r.word);
+        rb.onclick = function () {
+          mRateIn.value = String(r.start);
+          mRateNote.textContent =
+            r.word + " ใช้กันทั่วไปประมาณ " + r.range + " กก./ไร่ · " +
+            "ระบบเติม " + r.start.toLocaleString("th-TH") + " กก./ไร่ ให้เป็นจุดเริ่ม แก้เป็นเลขของคุณได้";
+          mRecalc();
+        };
+        mRateBtns.appendChild(rb);
+      });
+      mf2.appendChild(mRateBtns);
+      mf2.appendChild(mRateNote);
       mRow.appendChild(mf2);
 
       // ราคาปุ๋ยคอกต่างกันมากตามแหล่ง คนที่เลี้ยงสัตว์เองได้ฟรี
@@ -5207,6 +5252,10 @@ views.fert = async function (root) {
         var totalKg = rai * rate;
         var mGrid = el("div");
         mGrid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px";
+
+        mGrid.appendChild(readOut("ใส่ต่อไร่",
+          rate.toLocaleString("th-TH") + " กก.",
+          rate >= 1000 ? "คิดเป็น " + (rate / 1000).toFixed(2) + " ตันต่อไร่" : "อัตราที่คุณเลือก"));
 
         mGrid.appendChild(readOut("รวมทั้งแปลง",
           (Math.round(totalKg * 100) / 100).toLocaleString("th-TH") + " กก.",
