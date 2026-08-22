@@ -4717,7 +4717,66 @@ views.fert = async function (root) {
   var firstLo = myPhoto ? 20 : 30;
   var firstHi = myPhoto ? 25 : 35;
   var ureaRate = myPhoto ? 10 : 20;
-  var myRai = myDeed ? myDeed.rai : 1;
+
+  // ── ช่องกรอกพื้นที่ ให้เหมือนกับตัวคำนวณชนิดอื่น (เพิ่ม 2026-08) ──
+  //
+  // เดิมส่วนนี้ใช้ขนาดจากโฉนดอย่างเดียวและแก้ไม่ได้เลย ต่างจากปุ๋ยหมัก
+  // ปุ๋ยพืชสด และปุ๋ยคอก ที่กรอกพื้นที่เองได้ทั้งหมด
+  //
+  // ปัญหาจริงคือคนไม่ได้ใส่ปุ๋ยเคมีทั้งแปลงพร้อมกันเสมอ บางฤดูทำแค่บางส่วน
+  // บางคนแบ่งแปลงให้ลูกหลานทำ พอแก้ตัวเลขไม่ได้ก็ต้องไปคูณเองในกระดาษ
+  // ซึ่งเป็นจุดที่คำนวณผิดได้ง่ายที่สุด และผิดแล้วเสียเงินค่าปุ๋ยจริง
+  var myMeasured = null;
+  var myFld = readField();
+  if (myFld) {
+    if (myFld.mode === "poly" && myFld.points && myFld.points.length >= 3) {
+      myMeasured = polygonArea(myFld.points) / 1600;
+    } else if (myFld.lat != null && myFld.radius) {
+      myMeasured = (Math.PI * myFld.radius * myFld.radius) / 1600;
+    }
+  }
+  var myRai = myDeed ? myDeed.rai : (myMeasured && myMeasured > 0 ? myMeasured : 1);
+
+  var meRow = el("div");
+  meRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap;margin:14px 0";
+
+  var meF1 = el("div", "inp");
+  meF1.style.cssText = "flex:1;min-width:150px";
+  meF1.appendChild(el("label", "", "ขนาดแปลง (ไร่)"));
+  var meRaiIn = el("input");
+  meRaiIn.className = "num-in";
+  meRaiIn.inputMode = "decimal";
+  meRaiIn.placeholder = "1";
+  meRaiIn.value = String(Math.round(myRai * 100) / 100);
+  meF1.appendChild(meRaiIn);
+
+  var meBtns = el("div");
+  meBtns.style.cssText = "display:flex;gap:7px;flex-wrap:wrap;margin-top:7px";
+  if (myDeed) {
+    var meUseDeed = el("button", "act act-line act-sm",
+      "ใช้ขนาดจากโฉนด (" + (Math.round(myDeed.rai * 100) / 100) + " ไร่)");
+    meUseDeed.onclick = function () {
+      meRaiIn.value = String(Math.round(myDeed.rai * 100) / 100);
+      paintSteps();
+    };
+    meBtns.appendChild(meUseDeed);
+  }
+  if (myMeasured && myMeasured > 0) {
+    var meUseMeas = el("button", "act act-line act-sm",
+      "ใช้พื้นที่ที่เดินวัด (" + myMeasured.toFixed(2) + " ไร่)");
+    meUseMeas.onclick = function () {
+      meRaiIn.value = myMeasured.toFixed(2);
+      paintSteps();
+    };
+    meBtns.appendChild(meUseMeas);
+  }
+  var mePerRai = el("button", "act act-line act-sm", "ดูต่อ 1 ไร่");
+  mePerRai.onclick = function () { meRaiIn.value = "1"; paintSteps(); };
+  meBtns.appendChild(mePerRai);
+  meF1.appendChild(meBtns);
+
+  meRow.appendChild(meF1);
+  meCard.appendChild(meRow);
 
   function sacks(kg) { return Math.ceil(kg / 50); }
 
@@ -4735,6 +4794,11 @@ views.fert = async function (root) {
     if (foot) b.appendChild(el("div", "read-foot", foot));
     return b;
   }
+
+  function paintSteps() {
+  var typed = parseFloat(meRaiIn.value);
+  myRai = (isFinite(typed) && typed > 0) ? typed : 1;
+  steps.innerHTML = "";
 
   steps.appendChild(plainStep(1,
     "ไปร้านปุ๋ย บอกเขาว่าขอกระสอบที่เขียนว่า " + pickFormula,
@@ -4783,6 +4847,10 @@ views.fert = async function (root) {
       "ห้ามใส่ปูนขาว ปูนมาร์ล หรือวัสดุปูนทุกชนิดเพิ่มเด็ดขาด เพราะจะยิ่งดันค่าขึ้นไปอีก " +
       "ให้เพิ่มซากพืชผุแทน และดูวิธีแก้ที่หน้าดินและการเตรียมแปลง"));
   }
+  }
+
+  meRaiIn.oninput = paintSteps;
+  paintSteps();
 
   meCard.appendChild(steps);
 
@@ -5032,6 +5100,7 @@ views.fert = async function (root) {
       mRaiIn.className = "num-in";
       mRaiIn.inputMode = "decimal";
       mRaiIn.placeholder = "1";
+      mf1.appendChild(mRaiIn);
 
       var mDeed = readDeed();
       var mFld = readField();
