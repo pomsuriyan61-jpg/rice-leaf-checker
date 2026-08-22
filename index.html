@@ -7367,6 +7367,50 @@ views.ask = async function (root) {
     if (history.length > 20) history = history.slice(-20);
   }
 
+  // ── เก็บบทสนทนาไว้ข้ามการเปลี่ยนหน้า (เพิ่ม 2026-08) ──
+  //
+  // เดิมทั้งฟองข้อความและ history อยู่ในตัวแปรของฟังก์ชันนี้เท่านั้น
+  // พอผู้ใช้กดไปหน้าอื่นแล้วกลับมา ทุกอย่างหายหมดเหมือนไม่เคยคุยกัน
+  //
+  // ปัญหาจริงคือการใช้งานตามธรรมชาติต้องสลับหน้าตลอด ถาม AI ว่าใส่ปุ๋ยสูตรไหน
+  // แล้วไปดูหน้าปุ๋ยเพื่อเทียบ พอกลับมาถามต่อว่า "แล้วครั้งที่สองล่ะ"
+  // AI ก็ไม่รู้แล้วว่ากำลังพูดถึงอะไร เพราะความจำถูกล้างไปพร้อมหน้าจอ
+  //
+  // เก็บเฉพาะข้อความ ไม่เก็บรูป เพราะรูป base64 จะทำให้ localStorage เต็มเร็วมาก
+  // รูปที่เคยแนบจะแทนด้วยหมายเหตุสั้นๆ ให้รู้ว่าตรงนั้นเคยมีรูป
+  var CHAT_KEY = "smartrice-chat:" + (Session.user ? Session.user.username : "guest");
+  var MAX_SAVED = 40;
+  var saved = [];
+
+  function loadChat() {
+    try {
+      var raw = localStorage.getItem(CHAT_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveChat() {
+    try {
+      localStorage.setItem(CHAT_KEY, JSON.stringify(saved.slice(-MAX_SAVED)));
+    } catch (e) {
+      // พื้นที่เต็ม: ตัดครึ่งแล้วลองใหม่ครั้งเดียว ถ้ายังไม่ได้ก็ปล่อยไป
+      // ไม่ควรทำให้การถามตอบพังเพราะเก็บประวัติไม่ได้
+      try {
+        saved = saved.slice(-10);
+        localStorage.setItem(CHAT_KEY, JSON.stringify(saved));
+      } catch (e2) { /* ยอมแพ้เงียบๆ */ }
+    }
+  }
+
+  function keep(who, text, hadImage) {
+    saved.push({ who: who, text: text, img: !!hadImage });
+    if (saved.length > MAX_SAVED) saved = saved.slice(-MAX_SAVED);
+    saveChat();
+  }
+
   // ผลตรวจภาพล่าสุด เก็บแยกจาก history เพราะเป็นข้อมูลจากระบบเอง ไม่ใช่คำพูด
   // คำถามต่อเนื่องทุกคำถามจะได้อ้างอิงผลตรวจนี้ได้ แม้ผู้ใช้ไม่แนบรูปซ้ำ
   var lastVision = null;
@@ -7376,6 +7420,18 @@ views.ask = async function (root) {
     "ถามได้ทั้งเรื่องโรคข้าว เตรียมดิน เตรียมต้นกล้า ปุ๋ยคอกปุ๋ยหมัก และปุ๋ยเคมี\n\n" +
     "เช่น ข้าวอายุ 25 วันใส่ปุ๋ยสูตรไหน · ใบข้าวเป็นจุดน้ำตาลทำยังไง · ฝนตกหนักสามวันต้องระวังอะไร\n\n" +
     "แนบรูปใบข้าวมาด้วยก็ได้ จะดูให้ตรงขึ้น"));
+
+  // วาดบทสนทนาเดิมกลับมา แล้วเติม history ให้ AI จำเรื่องที่คุยค้างไว้ได้ด้วย
+  saved = loadChat();
+  saved.forEach(function (m) {
+    var isMe = (m.who === "ผู้ใช้");
+    var bub = el("div", "say " + (isMe ? "say-me" : "say-ai"));
+    bub.textContent = (m.img && isMe ? "(เคยแนบรูปใบข้าว) " : "") + m.text;
+    talk.appendChild(bub);
+    history.push(m.who + ": " + m.text);
+  });
+  if (history.length > 20) history = history.slice(-20);
+
   card.appendChild(talk);
 
   var clip = el("div", "clip");
@@ -7399,6 +7455,30 @@ views.ask = async function (root) {
   var sendBtn = el("button", "act act-go", "ถาม");
   bar.appendChild(camBtn); bar.appendChild(fileIn); bar.appendChild(q); bar.appendChild(sendBtn);
   card.appendChild(bar);
+
+  // เปิดหน้ามาให้เห็นข้อความล่าสุดเลย ไม่ใช่ข้อความแนะนำตัวเมื่อสัปดาห์ที่แล้ว
+  setTimeout(function () { talk.scrollTop = talk.scrollHeight; }, 0);
+
+  // ── ปุ่มล้างบทสนทนา ──
+  //
+  // จำเป็นเมื่อเก็บประวัติถาวรแล้ว เพราะบทสนทนาเก่าที่ค้างอยู่จะถูกส่งเข้า prompt ทุกครั้ง
+  // ถ้าผู้ใช้เปลี่ยนไปถามเรื่องอื่นคนละเรื่อง AI จะยังพยายามโยงกลับไปเรื่องเดิม
+  // และผู้ใช้ที่ให้คนอื่นยืมเครื่องดูก็ควรลบสิ่งที่เคยถามได้เอง
+  var clearRow = el("div");
+  clearRow.style.cssText = "display:flex;justify-content:flex-end;margin-top:9px";
+  var clearBtn = el("button", "act act-line act-sm", "ล้างบทสนทนา");
+  clearBtn.onclick = function () {
+    saved = [];
+    history = [];
+    lastVision = null;
+    try { localStorage.removeItem(CHAT_KEY); } catch (e) { /* ลบไม่ได้ก็ข้าม */ }
+    talk.innerHTML = "";
+    talk.appendChild(el("div", "say say-ai",
+      "ล้างบทสนทนาแล้ว ถามใหม่ได้เลย"));
+  };
+  clearRow.appendChild(clearBtn);
+  card.appendChild(clearRow);
+
   root.appendChild(card);
 
   var pinned = null;
@@ -7556,6 +7636,8 @@ views.ask = async function (root) {
       reply.textContent = answer.text;
       remember("ผู้ใช้", (text || "(แนบภาพใบข้าวมาให้ดู)"));
       remember("ผู้เชี่ยวชาญ", answer.text.slice(0, 400));
+      keep("ผู้ใช้", (text || "(แนบภาพใบข้าวมาให้ดู)"), !!shot);
+      keep("ผู้เชี่ยวชาญ", answer.text, false);
 
       // แสดงแหล่งอ้างอิงเมื่อ AI ค้นเว็บมาตอบ
       // จำเป็นมากสำหรับงานนี้ เพราะคำแนะนำเรื่องสารเคมีที่ผิดทำให้เสียหายจริง
