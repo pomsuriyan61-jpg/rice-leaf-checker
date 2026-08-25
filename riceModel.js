@@ -126,7 +126,7 @@ export async function classifyLeaf(imageElement) {
   };
 }
 
-/** คืนหน่วยความจำ GPU เมื่อออกจากหน้าวินิจฉัยโรคและแมลง */
+/** คืนหน่วยความจำ GPU เมื่อออกจากแท็บตรวจแปลง */
 export function disposeRiceModel() {
   model?.dispose();
   model = null;
