@@ -292,6 +292,9 @@ window.buildPestPage = function (root, ui) {
   if (wantTriage && P.triage && P.triage.length) {
     root.appendChild(bund("อาการนี้คืออะไร"));
     const tri = plot(null);
+    // รูปเทียบใบข้าว แทนกฎที่ว่า "โรคไม่ทำให้เนื้อใบหายไป" ซึ่งอ่านแล้วนึกภาพไม่ออก
+    // เป็นคำถามแรกที่ต้องตอบให้ได้ก่อนจะไล่ดูตารางด้านล่าง
+    if (typeof ui.picLeafCompare === "function") tri.appendChild(ui.picLeafCompare());
 
     const table = el("div", "tri");
     const th = el("div", "tri-head");

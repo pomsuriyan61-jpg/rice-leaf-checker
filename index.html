@@ -279,6 +279,33 @@
   .be-val { font-size: 1.9rem; font-weight: 500; line-height: 1.2; letter-spacing: -.02em; }
   .pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; align-items: start; }
   @media (max-width: 900px) { .pgrid { grid-template-columns: 1fr; } }
+  /* ── รูปอธิบาย ─────────────────────────────
+     รูปทำหน้าที่แทนย่อหน้า จึงต้องได้พื้นที่เท่าย่อหน้า ไม่ใช่ไอคอนจิ๋วข้างข้อความ
+     กำหนด max-width ไว้เพราะบนจอกว้าง รูปที่ยืดเต็มความกว้างการ์ดจะใหญ่จนดูเล่อล่า */
+  .pic { margin: 12px 0; }
+  .pic svg { display: block; width: 100%; height: auto; }
+  .pic-bag  { max-width: 330px; }
+  .pic-ph   { max-width: 330px; margin: 14px auto 4px; }
+  .pic-pile { max-width: 380px; }
+  .pic-leaf { max-width: 84px; margin: 0 auto; }
+  /* เทียบใบสองแบบ วางคู่กันเสมอ ต้องเห็นพร้อมกันถึงจะเทียบได้ */
+  .leafrow { display: flex; justify-content: center; gap: 26px; margin: 6px 0 14px; }
+  .leafrow .leafcol { flex: 0 1 130px; text-align: center; }
+  .leafcol-name { font-weight: 600; font-size: .95rem; margin-top: 4px; }
+
+  /* แถวมือทดสอบดิน 3 แบบเรียงกัน บีบให้พอดีจอแคบโดยไม่ต้องเลื่อนแนวนอน */
+  .handrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 9px; }
+  .handrow .pic { margin: 0; }
+  .pic-cap { text-align: center; font-size: .8rem; color: var(--ink-soft); margin-top: 2px; line-height: 1.3; }
+
+  /* ไอคอนวัตถุดิบหน้าชื่อของ */
+  .matico { display: inline-block; width: 22px; height: 22px; vertical-align: -5px; margin-right: 7px; flex: 0 0 22px; }
+  .matico svg { display: block; width: 100%; height: 100%; }
+
+  /* ต้นข้าวบนปุ่มเลือกระยะ */
+  .stageico { display: block; width: 38px; height: 38px; margin-bottom: 2px; color: var(--blade); }
+  .stage-tab.on .stageico { color: #FFFFFF; }
+  .stageico svg { display: block; width: 100%; height: 100%; }
   .cellrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
   /* ตัวเลขกับหน่วยต้องอยู่บรรทัดเดียวกัน "4,650 บาท/" ขึ้นบรรทัดใหม่เป็น "ไร่" อ่านแล้วสะดุด */
   .cellrow .read-value { font-size: 1.28rem; white-space: nowrap; }
@@ -1185,15 +1212,15 @@
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=19"></script>
-<script src="soil-guide.js?v=19"></script>
-<script src="fertilizer-guide.js?v=19"></script>
-<script src="cost-guide.js?v=19"></script>
-<script src="care-guide.js?v=19"></script>
-<script src="planting-guide.js?v=19"></script>
-<script src="pest-guide.js?v=19"></script>
-<script src="variety-guide.js?v=19"></script>
-  <script src="pest-page.js?v=19"></script>
+<script src="disease-guide.js?v=20"></script>
+<script src="soil-guide.js?v=20"></script>
+<script src="fertilizer-guide.js?v=20"></script>
+<script src="cost-guide.js?v=20"></script>
+<script src="care-guide.js?v=20"></script>
+<script src="planting-guide.js?v=20"></script>
+<script src="pest-guide.js?v=20"></script>
+<script src="variety-guide.js?v=20"></script>
+  <script src="pest-page.js?v=20"></script>
 <script>
 (function () {
 "use strict";
@@ -2526,8 +2553,7 @@ function buildFarmContext(logs) {
     return k + " " + tally[k] + " ครั้ง";
   }).join(", "));
 
-  var withGps = logs.filter(function (l) { return l.gps; });
-  if (withGps.length) lines.push("พิกัดแปลงล่าสุด: " + withGps[0].gps);
+
 
   // ผลตรวจดินคือข้อมูลที่ทำให้ AI แนะนำปุ๋ยเฉพาะแปลงได้จริง
   // ต่างจากค่า pH อย่างเดียวซึ่งบอกไม่ได้ว่าดินขาดธาตุอะไร
@@ -4031,7 +4057,8 @@ function renderPestSection(root, part) {
   window.buildPestPage(root, {
     part: part,
     el: el, plot: plot, bund: bund, fold: fold,
-    more: more, stateBlock: stateBlock, readOut: readOut
+    more: more, stateBlock: stateBlock, readOut: readOut,
+    picLeafCompare: picLeafCompare
   });
 }
 
@@ -4047,6 +4074,315 @@ function renderPestSection(root, part) {
 // สิ่งที่ระบบทำได้จริงคือ "ปรับคู่มือให้ตรงกับบริบทของแปลงนี้"
 // เพราะขั้นตอนของนาหว่านน้ำตมกับนาหว่านข้าวแห้งต่างกันคนละทิศ
 // การให้อ่านคู่มือกลางที่รวมทุกแบบไว้ด้วยกันจะทำให้ทำผิดขั้นตอนได้ง่ายกว่า
+// ═══════════════════════════════════════════════════
+// รูปอธิบาย — วาดด้วย SVG ในหน้าเว็บเอง
+// ═══════════════════════════════════════════════════
+//
+// ทำไมต้องเป็น SVG ไม่ใช่ไฟล์รูป
+//   1. ไม่ต้องโหลดไฟล์เพิ่ม เปิดได้ตอนสัญญาณอ่อนกลางนา ซึ่งเป็นที่ที่คนใช้จริง
+//   2. ใช้สีจากธีมเดียวกับทั้งเว็บ เปลี่ยนธีมแล้วรูปเปลี่ยนตาม ไม่ใช่รูปขาวโพลนบนพื้นมืด
+//   3. ขยายเท่าไหร่ก็คม บนจอมือถือความละเอียดสูงไม่แตก
+//
+// ใช้แทนย่อหน้าอธิบายที่อ่านยาก ไม่ใช่ใส่เพิ่มจากของเดิม
+// ทุกครั้งที่เพิ่มรูปตรงไหน ต้องลบข้อความที่รูปนั้นแทนออกด้วยเสมอ
+
+function svgWrap(viewBox, inner, cls) {
+  var d = el("div", "pic" + (cls ? " " + cls : ""));
+  d.innerHTML = '<svg viewBox="' + viewBox + '" xmlns="http://www.w3.org/2000/svg" ' +
+    'role="img" preserveAspectRatio="xMidYMid meet">' + inner + '</svg>';
+  return d;
+}
+
+// ── กระสอบปุ๋ยพร้อมคำอธิบายตัวเลขสามตัว ──
+//
+// แทนย่อหน้าที่เคยอธิบายว่าเลขบนกระสอบสามตัวคืออะไร
+// ชาวนาที่ยืนอยู่หน้าร้านปุ๋ยต้องดูรูปนี้แล้วหยิบกระสอบถูกใบได้ทันที
+function picFertBag(formula) {
+  var f = String(formula || "16-20-0").split("-");
+  var n = f[0] || "16", p = f[1] || "20", k = f[2] || "0";
+
+  var inner =
+    // ตัวกระสอบ
+    '<path d="M58 40 h84 a10 10 0 0 1 10 10 v112 a10 10 0 0 1 -10 10 h-84 a10 10 0 0 1 -10 -10 v-112 a10 10 0 0 1 10 -10 z" ' +
+      'fill="var(--canopy)" stroke="var(--blade)" stroke-width="2.5"/>' +
+    // ปากกระสอบเย็บ
+    '<path d="M58 40 q42 -14 84 0" fill="none" stroke="var(--blade)" stroke-width="2.5"/>' +
+    '<path d="M66 34 v10 M82 30 v11 M100 29 v12 M118 30 v11 M134 34 v10" stroke="var(--blade)" stroke-width="1.6" opacity=".55"/>' +
+    // ตัวเลขสูตรบนกระสอบ
+    '<text x="100" y="88"  text-anchor="middle" font-size="30" font-weight="700" fill="var(--blade)">' + n + '</text>' +
+    '<text x="100" y="122" text-anchor="middle" font-size="30" font-weight="700" fill="var(--grain)">' + p + '</text>' +
+    '<text x="100" y="156" text-anchor="middle" font-size="30" font-weight="700" fill="var(--water)">' + k + '</text>' +
+    // เส้นชี้ออกไปหาคำอธิบาย
+    '<path d="M152 80 h34"  stroke="var(--blade)" stroke-width="2"/>' +
+    '<path d="M152 114 h34" stroke="var(--grain)" stroke-width="2"/>' +
+    '<path d="M152 148 h34" stroke="var(--water)" stroke-width="2"/>' +
+    // ใบข้าว = ตัวเร่งใบเขียว
+    '<path d="M196 82 q14 -16 28 -4 q-14 14 -28 4 z" fill="var(--blade)"/>' +
+    '<text x="232" y="86"  font-size="15" fill="var(--ink)">ใบเขียว</text>' +
+    // ราก = ตัวเร่งราก
+    '<path d="M206 106 v10 M206 116 l-9 12 M206 116 l9 12 M206 116 l0 14" stroke="var(--grain)" stroke-width="2.4" fill="none" stroke-linecap="round"/>' +
+    '<text x="232" y="120" font-size="15" fill="var(--ink)">ราก</text>' +
+    // ลำต้น = ตัวทำให้ต้นแข็ง
+    '<path d="M206 138 v22" stroke="var(--water)" stroke-width="4.5" stroke-linecap="round"/>' +
+    '<text x="232" y="152" font-size="15" fill="var(--ink)">ต้นแข็ง</text>';
+
+  var box = svgWrap("0 0 330 190", inner, "pic-bag");
+  box.querySelector("svg").setAttribute("aria-label",
+    "กระสอบปุ๋ยสูตร " + formula + " เลขตัวแรกคือตัวเร่งใบเขียว ตัวกลางคือตัวเร่งราก ตัวท้ายคือตัวทำให้ต้นแข็ง");
+  return box;
+}
+
+// ── แถบวัดความเป็นกรดด่าง ──
+//
+// แทนคำอธิบายว่าเลขมากน้อยแปลว่าอะไร ตาเห็นตำแหน่งเข็มแล้วเข้าใจทันที
+// ไม่ต้องอ่านว่า "ต่ำกว่า 5.5 คือเปรี้ยว สูงกว่า 6.5 คือด่าง"
+function picPhScale(value) {
+  var lo = 3, hi = 10;
+  function x(v) { return 22 + ((Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo)) * 286; }
+
+  var inner =
+    '<defs><linearGradient id="phg" x1="0" x2="1">' +
+      '<stop offset="0"   stop-color="#C0492F"/>' +
+      '<stop offset=".33" stop-color="#D9A22B"/>' +
+      '<stop offset=".5"  stop-color="#2E8B57"/>' +
+      '<stop offset=".62" stop-color="#2E8B57"/>' +
+      '<stop offset=".8"  stop-color="#2E7D95"/>' +
+      '<stop offset="1"   stop-color="#3B4E9B"/>' +
+    '</linearGradient></defs>' +
+    '<rect x="22" y="34" width="286" height="20" rx="10" fill="url(#phg)"/>' +
+    // ช่วงที่ข้าวชอบ
+    '<rect x="' + x(5.5) + '" y="29" width="' + (x(6.5) - x(5.5)) + '" height="30" rx="6" ' +
+      'fill="none" stroke="var(--ink)" stroke-width="2.5"/>' +
+    '<text x="' + ((x(5.5) + x(6.5)) / 2) + '" y="22" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">ข้าวชอบ</text>' +
+    // ปลายสองข้าง
+    '<text x="22"  y="76" font-size="14" fill="var(--ink-faint)">เปรี้ยว 3</text>' +
+    '<text x="308" y="76" text-anchor="end" font-size="14" fill="var(--ink-faint)">10 ด่าง</text>';
+
+  if (typeof value === "number" && !isNaN(value)) {
+    var px = x(value);
+    inner +=
+      '<path d="M' + px + ' 62 l-8 12 h16 z" fill="var(--ink)"/>' +
+      '<text x="' + px + '" y="92" text-anchor="middle" font-size="16" font-weight="700" fill="var(--ink)">' +
+        value.toFixed(1) + '</text>';
+  }
+
+  var box = svgWrap("0 0 330 100", inner, "pic-ph");
+  box.querySelector("svg").setAttribute("aria-label",
+    "แถบค่ากรดด่างจาก 3 ถึง 10 ข้าวชอบช่วง 5.5 ถึง 6.5" +
+    (typeof value === "number" ? " ค่าของแปลงคุณคือ " + value.toFixed(1) : ""));
+  return box;
+}
+
+// ── ทดสอบชนิดดินด้วยมือ ──
+//
+// แทนสามบรรทัดที่อธิบายว่ากำแล้วเป็นยังไง
+// เรื่องสัมผัสอธิบายด้วยตัวหนังสือได้ยากมาก แต่วาดให้ดูแล้วเข้าใจทันที
+function picSoilHand(kind) {
+  var art, label;
+
+  if (kind === "sand") {
+    // กำแล้วไม่อยู่ — เม็ดดินร่วงกระจาย ไม่เกาะกันเป็นก้อนเลย
+    art =
+      '<circle cx="34" cy="52" r="4"   fill="var(--grain)"/>' +
+      '<circle cx="48" cy="46" r="3.4" fill="var(--grain)"/>' +
+      '<circle cx="60" cy="53" r="4.2" fill="var(--grain)"/>' +
+      '<circle cx="72" cy="45" r="3.2" fill="var(--grain)"/>' +
+      '<circle cx="41" cy="66" r="3.6" fill="var(--grain)" opacity=".8"/>' +
+      '<circle cx="55" cy="68" r="4"   fill="var(--grain)" opacity=".8"/>' +
+      '<circle cx="68" cy="65" r="3.2" fill="var(--grain)" opacity=".8"/>' +
+      '<circle cx="30" cy="76" r="2.8" fill="var(--grain)" opacity=".6"/>' +
+      '<circle cx="49" cy="80" r="3"   fill="var(--grain)" opacity=".6"/>' +
+      '<circle cx="72" cy="78" r="2.8" fill="var(--grain)" opacity=".6"/>';
+    label = "ร่วงกระจาย";
+
+  } else if (kind === "loam") {
+    // กำเป็นก้อนได้ แต่เขี่ยแล้วแยกเป็นสองซีก วาดเป็นก้อนที่ปริออกจากกัน
+    art =
+      '<path d="M46 34 a24 24 0 0 0 0 48 z" fill="var(--canopy)" stroke="var(--blade)" stroke-width="2.4"/>' +
+      '<path d="M56 34 a24 24 0 0 1 0 48 z" fill="var(--canopy)" stroke="var(--blade)" stroke-width="2.4"/>' +
+      '<path d="M51 26 l-6 8 l6 6 l-6 8" fill="none" stroke="var(--rust)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>';
+    label = "เป็นก้อน แล้วปริ";
+
+  } else {
+    // คลึงเป็นเส้นยาวได้ไม่ขาด วาดเป็นเส้นดินโค้งยาวเส้นเดียว
+    art =
+      '<path d="M20 74 q10 -34 30 -30 q20 4 12 -16 q-6 -14 20 -14" ' +
+        'fill="none" stroke="var(--blade)" stroke-width="11" stroke-linecap="round"/>' +
+      '<path d="M20 74 q10 -34 30 -30 q20 4 12 -16 q-6 -14 20 -14" ' +
+        'fill="none" stroke="var(--canopy)" stroke-width="4" stroke-linecap="round"/>';
+    label = "เป็นเส้นยาว";
+  }
+
+  var box = svgWrap("0 0 100 96", art, "pic-hand");
+  box.querySelector("svg").setAttribute("aria-label", label);
+  // ป้ายชื่อวางนอก SVG ไม่ใช่ text ในรูป เพราะข้อความในรูปยาวแล้วโดนตัดขอบ
+  // และใช้ฟอนต์เดียวกับทั้งเว็บด้วย ไม่ใช่ฟอนต์เริ่มต้นของเบราว์เซอร์
+  box.appendChild(el("div", "pic-cap", label));
+  return box;
+}
+
+// ── กองปุ๋ยหมัก 1 ตัน วาดเป็นชั้นๆ ──
+//
+// แทนรายการส่วนผสมที่เป็นตัวหนังสือล้วน ซึ่งไม่บอกว่า "ชั้น" หมายถึงอะไร
+// พอเห็นภาพตัดขวางแล้วรู้เลยว่าต้องสลับชั้นแบบไหนและหนาเท่าไหร่
+function picCompostPile() {
+  var inner = "";
+  // สี่ชั้น เศษพืชหนา มูลสัตว์บาง
+  var y = 132;
+  for (var i = 0; i < 4; i++) {
+    inner += '<rect x="40" y="' + y + '" width="200" height="18" rx="3" fill="var(--leaf-pale)" stroke="var(--blade)" stroke-width="1.4"/>';
+    inner += '<rect x="40" y="' + (y - 9) + '" width="200" height="9" rx="2" fill="var(--grain)" opacity=".55"/>';
+    y -= 28;
+  }
+  inner +=
+    // พื้น
+    '<path d="M28 152 h224" stroke="var(--rule)" stroke-width="3"/>' +
+    // ป้ายชั้น
+    '<path d="M244 122 h20" stroke="var(--blade)" stroke-width="1.8"/>' +
+    '<text x="270" y="127" font-size="14" fill="var(--ink)">เศษพืชแห้ง</text>' +
+    '<path d="M244 104 h20" stroke="var(--grain)" stroke-width="1.8"/>' +
+    '<text x="270" y="109" font-size="14" fill="var(--ink)">มูลสัตว์</text>' +
+    // บัวรดน้ำ
+    '<path d="M148 22 v18" stroke="var(--water)" stroke-width="2.4" stroke-linecap="round"/>' +
+    '<path d="M132 30 v12 M164 30 v12" stroke="var(--water)" stroke-width="2" stroke-linecap="round" opacity=".7"/>' +
+    '<text x="148" y="16" text-anchor="middle" font-size="13" fill="var(--water)">รดน้ำให้ชื้น</text>' +
+    '<text x="140" y="164" text-anchor="middle" font-size="13" fill="var(--ink-faint)">สลับชั้นแบบนี้จนครบ 4 ชั้น</text>';
+
+  var box = svgWrap("0 0 380 172", inner, "pic-pile");
+  box.querySelector("svg").setAttribute("aria-label",
+    "ภาพตัดขวางกองปุ๋ยหมัก สลับชั้นเศษพืชแห้งกับมูลสัตว์ 4 ชั้น รดน้ำให้ชื้น");
+  return box;
+}
+
+// ── ไอคอนวัตถุดิบ วางหน้าชื่อของแต่ละอย่าง ──
+// ตัวเล็กๆ ไม่กินที่ แต่ช่วยให้กวาดตาหาบรรทัดที่ต้องการเจอเร็วขึ้นมาก
+var MAT_ICON = {
+  leaf:   '<path d="M4 18 Q4 5 18 4 Q17 18 4 18 z" fill="var(--blade)"/><path d="M5 18 L15 8" stroke="var(--canopy)" stroke-width="1.3"/>',
+  manure: '<ellipse cx="11" cy="15" rx="8" ry="5" fill="var(--grain)" opacity=".8"/><ellipse cx="11" cy="10" rx="5.5" ry="3.6" fill="var(--grain)"/>',
+  bag:    '<path d="M5 7 h12 v11 a1.6 1.6 0 0 1 -1.6 1.6 h-8.8 A1.6 1.6 0 0 1 5 18 z" fill="var(--canopy)" stroke="var(--blade)" stroke-width="1.4"/><path d="M5 7 q6 -3 12 0" fill="none" stroke="var(--blade)" stroke-width="1.4"/>',
+  sachet: '<rect x="5" y="4" width="12" height="15" rx="1.6" fill="var(--water)" opacity=".22" stroke="var(--water)" stroke-width="1.4"/><path d="M5 8 h12" stroke="var(--water)" stroke-width="1.2" stroke-dasharray="2 2"/>'
+};
+function matIcon(kind) {
+  var d = el("span", "matico");
+  d.innerHTML = '<svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+    (MAT_ICON[kind] || MAT_ICON.bag) + '</svg>';
+  return d;
+}
+
+// เดาชนิดไอคอนจากชื่อวัตถุดิบ ไม่ต้องไปแก้ไฟล์ฐานความรู้
+function matIconFor(name) {
+  var t = String(name || "");
+  if (/ซอง|พด\.|สารเร่ง/.test(t)) return "sachet";
+  if (/มูล|ขี้/.test(t)) return "manure";
+  // เช็กปุ๋ยซื้อก่อนเสมอ ไม่งั้น "ปุ๋ยตัวเร่งใบเขียว" จะไปเข้ากฎใบไม้แล้วได้ไอคอนผิด
+  if (/ปุ๋ย|ยูเรีย|สูตร|\d-\d/.test(t)) return "bag";
+  if (/เศษพืช|ฟาง|ใบ|หญ้า|ซากพืช/.test(t)) return "leaf";
+  return "bag";
+}
+
+// ── ต้นข้าวตามระยะ ใช้บนแถบเลือกระยะ ──
+// แทนคำอธิบายว่าระยะนี้ต้นข้าวหน้าตาเป็นยังไง ซึ่งเป็นเรื่องที่ต้องเห็นถึงจะรู้
+var STAGE_ART = {
+  // ทุกเส้นใช้ currentColor ให้เปลี่ยนสีตามปุ่ม
+  // ปุ่มระยะที่เลือกอยู่พื้นเขียวเข้ม ถ้าฝังสีเขียวไว้ตายตัวรูปจะจมหายไปกับพื้น
+  //
+  // สี่รูปต้องแยกออกจากกันตั้งแต่เหลือบตาแรก จึงเน้นลักษณะเด่นของแต่ละระยะให้เกินจริง
+  //   กล้า    — ต้นเดียวเตี้ย
+  //   แตกกอ   — หลายต้นแผ่เป็นกอ
+  //   ตั้งท้อง — ปล้องป่องกลางต้น
+  //   เก็บเกี่ยว — รวงโน้มลงเพราะเมล็ดหนัก
+  seedling:
+    '<path d="M20 40 V24" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>' +
+    '<path d="M20 28 q-13 -11 -16 -2 q11 9 16 2 z" fill="currentColor" opacity=".8"/>' +
+    '<path d="M20 32 q13 -12 16 -3 q-11 10 -16 3 z" fill="currentColor" opacity=".8"/>',
+
+  tiller:
+    '<path d="M20 40 Q13 26 5 18 M20 40 Q17 24 13 12 M20 40 V9 M20 40 Q23 24 27 12 M20 40 Q27 26 35 18" ' +
+      'fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>' +
+    '<path d="M5 18 q-6 -7 -1 -9 q5 5 1 9 z" fill="currentColor" opacity=".75"/>' +
+    '<path d="M35 18 q6 -7 1 -9 q-5 5 -1 9 z" fill="currentColor" opacity=".75"/>',
+
+  booting:
+    '<path d="M12 40 Q11 26 10 16 M29 40 Q30 26 31 16" ' +
+      'fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>' +
+    '<path d="M20 40 V6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>' +
+    // ปล้องป่อง คือลักษณะเด่นของระยะนี้ ต้องใหญ่พอให้เห็นชัดที่ขนาดไอคอน
+    '<ellipse cx="20" cy="17" rx="7" ry="11" fill="currentColor" opacity=".85"/>' +
+    '<path d="M10 18 q-8 -7 -9 0 q6 5 9 0 z" fill="currentColor" opacity=".6"/>' +
+    '<path d="M31 18 q8 -7 9 0 q-6 5 -9 0 z" fill="currentColor" opacity=".6"/>',
+
+  harvest:
+    '<path d="M11 40 Q10 22 20 14 M20 40 Q20 18 32 10 M29 40 Q30 24 38 18" ' +
+      'fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>' +
+    // รวงโน้มลงชัดๆ พร้อมเมล็ด เป็นสัญญาณว่าถึงเวลาเกี่ยว
+    '<path d="M20 14 q10 -6 14 -1 q-8 7 -14 1 z" fill="currentColor" opacity=".9"/>' +
+    '<path d="M32 10 q9 -5 12 -1"  fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".9"/>' +
+    '<circle cx="24" cy="12" r="1.7" fill="currentColor"/>' +
+    '<circle cx="29" cy="13" r="1.7" fill="currentColor"/>'
+};
+function stageArt(key) {
+  var d = el("span", "stageico");
+  d.innerHTML = '<svg viewBox="-3 -1 46 43" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+    (STAGE_ART[key] || STAGE_ART.tiller) + '</svg>';
+  return d;
+}
+
+// ── ใบข้าว: โรค กับ แมลง ต่างกันยังไง ──
+//
+// แทนประโยคที่ว่า "โรคพืชไม่ทำให้เนื้อใบหายไป ทำได้แค่เปลี่ยนสี"
+// ซึ่งเป็นกฎที่ต้องใช้ก่อนทุกครั้ง แต่อ่านเป็นตัวหนังสือแล้วนึกภาพไม่ออก
+var LEAF_UID = 0;
+
+// ── ใบข้าวเดี่ยว วาดรอยแมลงกัดหรือแผลโรค ──
+//
+// รอยกัดใช้วิธีตัดวงกลมสีพื้นการ์ดเข้าไปในรูปใบโดย clip ให้อยู่ในขอบใบเท่านั้น
+// จึงได้รอยเว้าที่มีเส้นขอบตามจริง ไม่ใช่วงกลมลอยทับใบซึ่งดูเหมือนจุดไม่ใช่รอยแหว่ง
+function picLeaf(kind) {
+  var uid = "leafclip" + (++LEAF_UID);
+  var LEAF = "M30 6 Q-16 48 30 96 Q76 48 30 6 Z";
+
+  var inner =
+    '<defs><clipPath id="' + uid + '"><path d="' + LEAF + '"/></clipPath></defs>' +
+    '<path d="' + LEAF + '" fill="var(--canopy)" stroke="var(--blade)" stroke-width="2.2"/>' +
+    '<path d="M30 8 V94" stroke="var(--blade)" stroke-width="1.3" opacity=".55"/>';
+
+  if (kind === "pest") {
+    // เนื้อใบหายไปจริง รอยเว้าอยู่ที่ขอบใบ ไม่ใช่กลางใบ
+    inner +=
+      '<g clip-path="url(#' + uid + ')">' +
+        '<circle cx="53" cy="42" r="11" fill="var(--paper)" stroke="var(--blade)" stroke-width="2.2"/>' +
+        '<circle cx="7"  cy="64" r="9"  fill="var(--paper)" stroke="var(--blade)" stroke-width="2.2"/>' +
+        '<circle cx="47" cy="74" r="7"  fill="var(--paper)" stroke="var(--blade)" stroke-width="2.2"/>' +
+      '</g>';
+  } else {
+    // เนื้อใบครบทุกจุด เปลี่ยนแค่สี
+    inner +=
+      '<ellipse cx="40" cy="38" rx="5.5" ry="9" transform="rotate(-28 40 38)" fill="var(--rust)" opacity=".8"/>' +
+      '<ellipse cx="19" cy="60" rx="4.6" ry="7.5" transform="rotate(-28 19 60)" fill="var(--rust)" opacity=".8"/>' +
+      '<ellipse cx="38" cy="74" rx="3.6" ry="6" transform="rotate(-28 38 74)" fill="var(--rust)" opacity=".8"/>';
+  }
+
+  var box = svgWrap("0 0 60 102", inner, "pic-leaf");
+  box.querySelector("svg").setAttribute("aria-label",
+    kind === "pest" ? "ใบข้าวถูกแมลงกัดจนขอบใบแหว่ง เนื้อใบหายไป"
+                    : "ใบข้าวเป็นโรค มีแผลสีน้ำตาลแต่เนื้อใบยังครบ");
+  return box;
+}
+
+// ── เทียบใบสองแบบ แทนกฎที่ต้องท่องว่า "โรคไม่ทำให้เนื้อใบหายไป" ──
+function picLeafCompare() {
+  var row = el("div", "leafrow");
+  [["pest", "แมลง", "ใบแหว่ง เนื้อใบหาย"],
+   ["disease", "โรค", "ใบครบ มีแค่แผลสี"]].forEach(function (r) {
+    var col = el("div", "leafcol");
+    col.appendChild(picLeaf(r[0]));
+    col.appendChild(el("div", "leafcol-name", r[1]));
+    col.appendChild(el("div", "pic-cap", r[2]));
+    row.appendChild(col);
+  });
+  return row;
+}
+
 // ─── ฤดูนี้: พันธุ์ข้าว + วันหว่าน ───────────────
 //
 // เดิมอยู่ในหน้าที่นาซึ่งถูกตัดออกไปพร้อมแผนที่และช่องขนาดแปลง
@@ -4228,16 +4564,13 @@ views.soil = async function (root) {
 
   // วิธีดูชนิดดินด้วยมือ แสดงตรงนี้เลย ไม่ซ่อนไว้ในปุ่มกด
   // เพราะคนที่กำลังจะเลือกคือคนที่ยังไม่แน่ใจว่าแปลงตัวเองเป็นดินอะไร
-  var handTest = el("div", "hint-lines");
-  [
-    ["ดินทราย", "กำไม่เป็นก้อน สากมือ"],
-    ["ดินร่วน", "กำเป็นก้อน เขี่ยแล้วแตก"],
-    ["ดินเหนียว", "คลึงเป็นเส้นยาว ลื่นมือ"]
-  ].forEach(function (r) {
-    var line = el("div", "hint-line");
-    line.appendChild(el("b", "", r[0]));
-    line.appendChild(document.createTextNode(" " + r[1]));
-    handTest.appendChild(line);
+  // วิธีดูชนิดดินด้วยมือ วาดเป็นรูป ไม่ใช่บรรยายเป็นตัวหนังสือ
+  // เรื่องสัมผัสอย่าง "กำแล้วร่วน" กับ "กำแล้วเป็นก้อน" อธิบายด้วยคำได้ยากมาก
+  var handTest = el("div", "handrow");
+  // เรียงให้ตรงกับลำดับปุ่มเลือกชนิดดินด้านบนเป๊ะๆ
+  // ถ้าสลับลำดับ ผู้ใช้จะจับคู่รูปกับปุ่มผิดโดยไม่ทันสังเกต
+  Object.keys(G.soils).forEach(function (k) {
+    handTest.appendChild(picSoilHand(k));
   });
   soilBox.appendChild(handTest);
   form.appendChild(soilBox);
@@ -4253,8 +4586,11 @@ views.soil = async function (root) {
   var phHead = el("div");
   phHead.style.marginBottom = "6px";
   phHead.appendChild(el("div", "read-label", "ค่า pH"));
-  phHead.appendChild(el("div", "read-foot", "ข้าวชอบ 5.5–6.5"));
   form.appendChild(phHead);
+  // แถบสีบอกช่วงที่ข้าวชอบ แทนประโยคที่ต้องอ่านแล้วนึกภาพเอง
+  var phScaleHost = el("div");
+  phScaleHost.appendChild(picPhScale(null));
+  form.appendChild(phScaleHost);
 
   var phGrid = el("div", "phgrid");
   var gHead = el("div", "phgrid-head");
@@ -4380,7 +4716,12 @@ views.soil = async function (root) {
     var vals = phValues();
     phOut.innerHTML = "";
 
-    if (!vals.length) { paintResults(); return; }
+    if (!vals.length) {
+      phScaleHost.innerHTML = "";
+      phScaleHost.appendChild(picPhScale(null));
+      paintResults();
+      return;
+    }
 
     if (vals.filter(function (v) { return v < 3 || v > 10; }).length) {
       phOut.appendChild(el("div", "flash flash-warn", "ค่าควรอยู่ 3–10"));
@@ -4389,6 +4730,9 @@ views.soil = async function (root) {
     }
 
     var avg = phAverage(vals);
+    // เข็มบนแถบสีต้องขยับตามที่พิมพ์ทันที ไม่ต้องรอกดบันทึก
+    phScaleHost.innerHTML = "";
+    phScaleHost.appendChild(picPhScale(avg));
     phOut.appendChild(el("div", "phsum-label", "ค่าเฉลี่ยของทั้งแปลง"));
     phOut.appendChild(el("div", "phsum-val", avg.toFixed(2)));
     phOut.appendChild(el("div", "phsum-foot", "เฉลี่ยจาก " + vals.length + " จุดที่กรอกแล้ว"));
@@ -4814,6 +5158,8 @@ views.fert = async function (root) {
     "ไปร้านปุ๋ย ขอกระสอบที่เขียนว่า " + pickFormula,
     "ใช้ " + firstLo + "-" + firstHi + " กก. ต่อไร่ · กระสอบละ 50 กิโล",
     pickWhy + (pickAlt ? " · " + pickAlt : "")));
+  // รูปกระสอบบอกว่าเลขสามตัวคืออะไร แทนย่อหน้าอธิบายที่เคยอยู่ตรงนี้
+  steps.appendChild(picFertBag(pickFormula));
 
   // ดินเปรี้ยว + ดินทราย ต้องเสริมตัวทำให้ต้นแข็งแยก เพราะสูตรที่เลือกไม่มีตัวทำให้ต้นแข็ง
   // และดินทรายเก็บตัวทำให้ต้นแข็งไม่อยู่ ถ้าไม่เสริมข้าวจะล้มง่ายและเมล็ดลีบ
@@ -4861,8 +5207,7 @@ views.fert = async function (root) {
   meCard.appendChild(steps);
 
   meCard.appendChild(more("ยี่ห้อไหนก็ได้ไหม",
-    "ไม่ต้องสนใจยี่ห้อ ดูแค่ตัวเลขบนกระสอบให้ตรง เพราะสูตรเดียวกันคนละยี่ห้อให้อาหารของต้นข้าวเท่ากัน " +
-    "แต่ราคาต่างกันได้หลายร้อยบาท เทียบราคาได้ที่แท็บต้นทุน"));
+    "ยี่ห้อไหนก็ได้ ขอแค่ตัวเลขตรงกัน · ราคาต่างกันได้หลายร้อยบาท เทียบที่แท็บต้นทุน"));
 
   // เตือนเมื่อข้อมูลไม่ครบ เพราะคำแนะนำด้านบนจะคลาดเคลื่อน
   var missing = [];
@@ -4927,11 +5272,15 @@ views.fert = async function (root) {
       var rc = plot(null);
       rc.style.marginTop = "13px";
       rc.appendChild(el("div", "rx-sect", t.recipe.title));
-      var rul = el("ul");
-      rul.style.cssText = "margin:0;padding-left:19px;font-size:.92rem;font-weight:500";
+      // ภาพตัดขวางกองบอกว่า "ชั้น" หมายถึงอะไร ซึ่งรายการตัวหนังสือบอกไม่ได้
+      rc.appendChild(picCompostPile());
+      var rul = el("div");
+      rul.style.cssText = "font-size:.92rem;font-weight:500";
       t.recipe.items.forEach(function (x) {
-        var li = el("li", "", x);
-        li.style.marginBottom = "5px";
+        var li = el("div");
+        li.style.cssText = "display:flex;align-items:center;margin-bottom:6px";
+        li.appendChild(matIcon(matIconFor(x)));
+        li.appendChild(document.createTextNode(x));
         rul.appendChild(li);
       });
       rc.appendChild(rul);
@@ -5491,10 +5840,12 @@ views.fert = async function (root) {
               "padding:9px 0;border-bottom:1px solid var(--rule-soft);font-size:.88rem;flex-wrap:wrap";
 
             var left = el("div");
-            left.style.cssText = "flex:1;min-width:140px";
-            left.appendChild(el("div", "", x.name));
-            var qty = el("div", "read-foot", fmt(x.per * total) + " " + x.unit);
-            left.appendChild(qty);
+            left.style.cssText = "flex:1;min-width:140px;display:flex;align-items:center";
+            left.appendChild(matIcon(matIconFor(x.name)));
+            var txt = el("div");
+            txt.appendChild(el("div", "", x.name));
+            txt.appendChild(el("div", "read-foot", fmt(x.per * total) + " " + x.unit));
+            left.appendChild(txt);
             line.appendChild(left);
 
             var pIn = el("input");
@@ -6531,7 +6882,6 @@ views.weather = async function (root) {
   var saved = logs.filter(function (l) { return l.gps && l.gps.indexOf(",") !== -1; })[0];
 
   var coords = null;
-  var source = "";
 
   // ลำดับความสำคัญ: ที่นาที่ปักหมุดไว้ → พิกัดจากบันทึกเก่า → ตำแหน่งปัจจุบัน
   // ที่นาที่ปักหมุดมาก่อนเสมอ เพราะเป็นจุดที่ผู้ใช้ตั้งใจกำหนดเอง
@@ -6539,16 +6889,13 @@ views.weather = async function (root) {
   var fieldRec = readField();
   if (pinned) {
     coords = { lat: pinned.lat, lon: pinned.lon };
-    source = pinned.from;
   } else if (saved) {
     var parts = saved.gps.split(",").map(Number);
     coords = { lat: parts[0], lon: parts[1] };
-    source = "พิกัดที่บันทึกไว้ " + saved.date;
   } else {
     try {
       var pos = await getFix({ timeout: 12000 });
       coords = { lat: pos.lat, lon: pos.lon };
-      source = "ตำแหน่งตอนนี้ ±" + Math.round(pos.accuracy) + " ม.";
     } catch (err) {
       host.innerHTML = "";
       host.appendChild(stateBlock("!", "ยังดูสภาพอากาศไม่ได้",
@@ -6591,17 +6938,8 @@ views.weather = async function (root) {
     // จุดนั้นอาจห่างจากแปลงจริงหลายกิโลเมตร คำว่า "ใกล้แปลง" จึงกำกวมเกินไป
     // การบอกเป็นตัวเลขให้ผู้ใช้ตัดสินเองว่าจะเชื่อแค่ไหน ตรงไปตรงมากว่าการรับประกันแทนเขา
     if (st.lat != null) {
-      var gap = metersBetween(coords.lat, coords.lon, st.lat, st.lon);
-      var gapText = gap >= 1000
-        ? "ห่างจากแปลงประมาณ " + (gap / 1000).toFixed(1) + " กิโลเมตร"
-        : "ห่างจากแปลงประมาณ " + gap + " เมตร";
-      card.appendChild(el("div", "read-foot",
-        "อ่านจากจุดพยากรณ์ที่ " + st.lat.toFixed(3) + ", " + st.lon.toFixed(3) +
-        " " + gapText + " — เป็นค่าจากการคำนวณคาดการณ์ ไม่ใช่เครื่องวัดในแปลงจริง"));
-      if (gap > 15000) {
-        card.appendChild(el("div", "read-foot",
-          "ระยะนี้ไกลพอที่ฝนอาจตกคนละที่กับแปลงคุณ ให้ใช้เป็นแนวโน้มเท่านั้น"));
-      }
+      // ไม่โชว์พิกัดและระยะห่างแล้ว ผู้ใช้ไม่ได้ใช้ตัวเลขนี้ตัดสินใจอะไร
+      card.appendChild(el("div", "read-foot", "ค่าพยากรณ์ ไม่ใช่เครื่องวัดในแปลง"));
     }
 
     var grid = el("div", "fx-grid");
@@ -6712,10 +7050,7 @@ views.weather = async function (root) {
   });
   root.appendChild(stats);
 
-  var src = el("p", "",
-    source);
-  src.style.cssText = "font-size:.76rem;color:var(--ink-faint);margin:10px 0 0";
-  root.appendChild(src);
+
 
   // ความเสี่ยงรายโรค
   root.appendChild(bund("ความเสี่ยงโรค"));
@@ -6993,6 +7328,7 @@ views.consult = async function (root) {
         if (w && w.past) cls += " done";
         var b = el("button", cls);
 
+        b.appendChild(stageArt(st.key));
         var nameRow = el("span", "stage-name", st.thai);
         b.appendChild(nameRow);
 
