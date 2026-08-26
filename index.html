@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root {
     /* ══ จานสี "นาข้าวเช้าตรู่" — เขียว ขาว เขียวอ่อน ══
@@ -281,6 +280,8 @@
   .pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; align-items: start; }
   @media (max-width: 900px) { .pgrid { grid-template-columns: 1fr; } }
   .cellrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+  /* ตัวเลขกับหน่วยต้องอยู่บรรทัดเดียวกัน "4,650 บาท/" ขึ้นบรรทัดใหม่เป็น "ไร่" อ่านแล้วสะดุด */
+  .cellrow .read-value { font-size: 1.28rem; white-space: nowrap; }
   @media (max-width: 560px) {
     .hero-val { font-size: 2rem; }
     .be-val { font-size: 1.6rem; }
@@ -1176,7 +1177,6 @@
 <iframe id="riceFrame" src="rice-model/frame.html" style="display:none" title="ตัวตรวจว่าใช่ใบข้าวไหม" aria-hidden="true"></iframe>
 <iframe id="diseaseFrame" src="disease-model/frame.html" style="display:none" title="ตัวตรวจว่าเป็นโรคอะไร" aria-hidden="true"></iframe>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <!-- ตัวเลขต่อท้าย ?v= คือตัวบังคับให้เบราว์เซอร์โหลดไฟล์ใหม่
      ต้องบวกเลขนี้ขึ้น 1 ทุกครั้งที่แก้ไฟล์ความรู้ไฟล์ใดไฟล์หนึ่ง
@@ -1185,15 +1185,15 @@
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=16"></script>
-<script src="soil-guide.js?v=16"></script>
-<script src="fertilizer-guide.js?v=16"></script>
-<script src="cost-guide.js?v=16"></script>
-<script src="care-guide.js?v=16"></script>
-<script src="planting-guide.js?v=16"></script>
-<script src="pest-guide.js?v=16"></script>
-<script src="variety-guide.js?v=16"></script>
-  <script src="pest-page.js?v=18"></script>
+<script src="disease-guide.js?v=19"></script>
+<script src="soil-guide.js?v=19"></script>
+<script src="fertilizer-guide.js?v=19"></script>
+<script src="cost-guide.js?v=19"></script>
+<script src="care-guide.js?v=19"></script>
+<script src="planting-guide.js?v=19"></script>
+<script src="pest-guide.js?v=19"></script>
+<script src="variety-guide.js?v=19"></script>
+  <script src="pest-page.js?v=19"></script>
 <script>
 (function () {
 "use strict";
@@ -1273,8 +1273,8 @@ function th(l) {
 // เพราะเป็นงานตั้งค่าที่ทำครั้งเดียวจบ ไม่ควรกินที่ในเมนูหลักตลอดเวลา
 var PAGES = [
   { id: "field", label: "แปลงนา", kicker: "ก่อนปลูก",
-    parts: ["map", "soil", "fert"],
-    jump: ["ที่นา", "ดิน", "ปุ๋ย"],
+    parts: ["season", "soil", "fert"],
+    jump: ["ฤดูนี้", "ดิน", "ปุ๋ย"],
     icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
 
   { id: "check", label: "ตรวจแปลง", kicker: "ระหว่างปลูก",
@@ -2465,16 +2465,6 @@ function varietyContext() {
 function fieldSetupContext() {
   var out = [];
 
-  var f = readField();
-  var measured = null;
-  if (f) {
-    if (f.mode === "poly" && f.points && f.points.length >= 3) {
-      measured = polygonArea(f.points) / 1600;
-    } else if (f.lat != null && f.radius) {
-      measured = (Math.PI * f.radius * f.radius) / 1600;
-    }
-  }
-  if (measured && measured > 0) out.push("ขนาดที่วัดจากแผนที่: " + measured.toFixed(2) + " ไร่");
   out.push("[เว็บนี้คิดทุกอย่างเป็นอัตราต่อ 1 ไร่ ให้ตอบเป็นต่อไร่เสมอ " +
            "ห้ามถามขนาดแปลงเพื่อคิดยอดรวมให้ ถ้าผู้ใช้อยากได้ยอดรวมค่อยบอกให้เขาคูณจำนวนไร่เอง]");
 
@@ -3177,7 +3167,7 @@ function stateBlock(mark, lead, note) {
 // บอกแค่ว่าตัวเลขในหน้านี้อ้างจากที่ไหน บรรทัดเดียว ไม่มีคำอธิบายวิธีใช้
 var PAGE_CITE = {
   overview: ["บันทึกของคุณเอง", "Open-Meteo"],
-  map:      ["OpenStreetMap", "กรมการข้าว"],
+  season:   ["กรมการข้าว"],
   soil:     ["กรมพัฒนาที่ดิน", "กรมการข้าว"],
   fert:     ["กรมการข้าว", "กรมพัฒนาที่ดิน", "สำนักงานเศรษฐกิจการเกษตร"],
   diagnose: ["กรมการข้าว"],
@@ -3420,8 +3410,8 @@ function makeIntake(opts) {
   var zone = el("div", "intake");
   zone.tabIndex = 0;
   zone.setAttribute("role", "button");
-  zone.appendChild(el("div", "intake-lead", opts.lead || "เลือกภาพใบข้าว หรือลากมาวางตรงนี้"));
-  zone.appendChild(el("div", "intake-hint", opts.hint || "ถ่ายใกล้ให้เห็นแผลบนใบชัดเจน จะได้ผลแม่นที่สุด"));
+  zone.appendChild(el("div", "intake-lead", opts.lead || "เลือกรูป หรือลากมาวาง"));
+  if (opts.hint !== null) zone.appendChild(el("div", "intake-hint", opts.hint || "ถ่ายใกล้ให้เห็นแผลชัด"));
 
   var file = el("input", "hidden-file");
   file.type = "file";
@@ -3732,13 +3722,13 @@ views.overview = async function (root) {
   var phValues = logs.map(function (l) { return l.ph; }).filter(function (v) { return typeof v === "number"; });
   var avgPh = phValues.length ? (phValues.reduce(function (a,b) { return a+b; },0) / phValues.length).toFixed(2) : null;
 
-  root.appendChild(bund("ตอนนี้เป็นยังไงบ้าง"));
+  root.appendChild(bund("สรุปแปลง"));
 
   var top = el("div", "row-2");
   var gaugeCard = plot();
   gaugeCard.appendChild(buildGauge(
     newest ? newest.score : null,
-    newest ? "บันทึกเมื่อ " + newest.date + " · " + newest.disease : "ยังไม่มีการบันทึก เริ่มที่แท็บตรวจแปลง"
+    newest ? "บันทึกเมื่อ " + newest.date + " · " + newest.disease : "ยังไม่มีบันทึก"
   ));
   top.appendChild(gaugeCard);
 
@@ -3746,7 +3736,7 @@ views.overview = async function (root) {
   var mrow = el("div");
   mrow.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:16px";
   mrow.appendChild(readOut("โรคที่พบล่าสุด", newest ? newest.disease : "—", null, true));
-  mrow.appendChild(readOut("ความเปรี้ยวของดินเฉลี่ย", avgPh || "—", avgPh ? "จาก " + phValues.length + " ครั้ง" : "ยังไม่มีค่า"));
+  mrow.appendChild(readOut("pH เฉลี่ย", avgPh || "—", avgPh ? "จาก " + phValues.length + " ครั้ง" : null));
   mrow.appendChild(readOut("บันทึกทั้งหมด", String(logs.length), "รายการ"));
   var wx = readOut("อุณหภูมิ", "—", "กำลังอ่านค่า");
   wx.querySelector(".read-value").id = "wxRead";
@@ -3756,13 +3746,12 @@ views.overview = async function (root) {
   top.appendChild(meters);
   root.appendChild(top);
 
-  root.appendChild(bund("แนวโน้มความเปรี้ยว-ด่างของดิน"));
+  root.appendChild(bund("แนวโน้ม pH"));
   var phCard = plot(null);
   var cv = el("canvas");
   cv.height = 210;
   if (phValues.length < 2) {
-    phCard.appendChild(stateBlock("〜", "ยังวาดกราฟไม่ได้",
-      "ต้องวัดความเปรี้ยวของดินอย่างน้อย 2 ครั้ง ถึงจะเห็นว่าดินดีขึ้นหรือแย่ลง"));
+    phCard.appendChild(stateBlock("〜", "ต้องวัด pH อย่างน้อย 2 ครั้ง", null));
   } else {
     phCard.appendChild(cv);
   }
@@ -3859,11 +3848,11 @@ views.diagnose = function (root) {
   //
   // ตอนนี้เอาสิ่งที่คนตั้งใจมาทำขึ้นก่อน แล้วให้ตัวตรวจโรคเป็นตัวชี้ไปหาแมลงเอง
   // เมื่อผลตรวจไม่ชัดหรือไม่ใช่ใบข้าว ซึ่งตรงกับลำดับการตัดสินใจจริงมากกว่า
-  root.appendChild(bund("ถ่ายรูปใบข้าวมาตรวจโรค"));
+  root.appendChild(bund("ตรวจโรคจากรูป"));
 
   var wrap = el("div", "row-2");
 
-  var left = plot("รูปใบข้าว", "ดูให้ 2 ขั้น — ใช่ใบข้าวไหม แล้วค่อยดูว่าเป็นอะไร");
+  var left = plot("รูปใบข้าว");
   var intake = makeIntake({
     onReady: function () { runBtn.dataset.armed = "1"; markBrain(); },
     onFail: function (m) { showFlash(m, "bad"); }
@@ -3883,7 +3872,7 @@ views.diagnose = function (root) {
 
   var right = plot("ผลตรวจ");
   var resultHost = el("div");
-  resultHost.appendChild(stateBlock("◇", "ยังไม่มีผล", "เลือกภาพแล้วกดตรวจ ผลจะแสดงที่นี่"));
+  resultHost.appendChild(stateBlock("◇", "ยังไม่มีผล", null));
   right.appendChild(resultHost);
   wrap.appendChild(right);
 
@@ -3900,7 +3889,7 @@ views.diagnose = function (root) {
     runBtn.textContent = "กำลังตรวจ";
     intake.sweeping(true);
     resultHost.innerHTML = "";
-    resultHost.appendChild(stateBlock("◌", "กำลังตรวจภาพ", "กำลังตรวจอยู่ในเครื่องของคุณเอง ยังไม่ได้ส่งรูปออกไปไหน"));
+    resultHost.appendChild(stateBlock("◌", "กำลังตรวจภาพ", "ตรวจในเครื่องคุณเอง"));
     await new Promise(function (r) { setTimeout(r, 60); });
 
     try {
@@ -4058,6 +4047,124 @@ function renderPestSection(root, part) {
 // สิ่งที่ระบบทำได้จริงคือ "ปรับคู่มือให้ตรงกับบริบทของแปลงนี้"
 // เพราะขั้นตอนของนาหว่านน้ำตมกับนาหว่านข้าวแห้งต่างกันคนละทิศ
 // การให้อ่านคู่มือกลางที่รวมทุกแบบไว้ด้วยกันจะทำให้ทำผิดขั้นตอนได้ง่ายกว่า
+// ─── ฤดูนี้: พันธุ์ข้าว + วันหว่าน ───────────────
+//
+// เดิมอยู่ในหน้าที่นาซึ่งถูกตัดออกไปพร้อมแผนที่และช่องขนาดแปลง
+// แต่สองค่านี้ตัดทิ้งไม่ได้ เพราะปฏิทินปุ๋ย ระยะข้าว และวันเก็บเกี่ยวทั้งเว็บคำนวณจากมัน
+//
+// เหลือแค่สองช่องกับปุ่มเดียว ไม่มีคำอธิบาย เป็นแบบฟอร์มที่ทุกคนเคยเห็นมาก่อน
+views.season = function (root) {
+  if (!window.VARIETY_GUIDE) return;
+
+  root.appendChild(bund("ฤดูนี้"));
+  var card = plot(null);
+
+  var row = el("div");
+  row.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap";
+
+  // ── พันธุ์ข้าว ──
+  var kBox = el("div");
+  kBox.appendChild(el("div", "read-foot", "พันธุ์ข้าว"));
+  var kSel = el("select");
+  kSel.style.cssText = "padding:9px 12px;border:1px solid var(--rule);border-radius:var(--r-sm);min-width:210px";
+
+  // ขึ้นพันธุ์ที่ปลูกกันมากก่อน ที่เหลือกดดูได้ ไม่ต้องเลื่อนผ่าน 8 ตัวเลือกทุกครั้ง
+  var showAll = false;
+  function fillMenu() {
+    kSel.innerHTML = "";
+    var oNone = el("option", null, "ยังไม่ระบุพันธุ์");
+    oNone.value = "";
+    kSel.appendChild(oNone);
+    [["photo", "ข้าวนาปี"], ["nonphoto", "ข้าวนาปรัง"]].forEach(function (g) {
+      var grp = document.createElement("optgroup");
+      grp.label = g[1];
+      window.VARIETY_GUIDE.varieties
+        .filter(function (v) { return (g[0] === "photo") === !!v.photo; })
+        .filter(function (v) { return showAll || v.common; })
+        .forEach(function (v) {
+          var o = el("option", null, farmerName(v));
+          o.value = v.key;
+          grp.appendChild(o);
+        });
+      if (grp.children.length) kSel.appendChild(grp);
+    });
+    kSel.value = fieldVarietyKey() || "";
+  }
+  fillMenu();
+  // พันธุ์ที่บันทึกไว้อาจไม่อยู่ในกลุ่มที่ปลูกกันมาก ต้องกางรายการเต็มให้เอง
+  // ไม่งั้นเมนูจะเด้งกลับเป็น "ยังไม่ระบุพันธุ์" ทั้งที่ผู้ใช้เคยเลือกไว้แล้ว
+  if (fieldVarietyKey() && kSel.value !== fieldVarietyKey()) { showAll = true; fillMenu(); }
+  kBox.appendChild(kSel);
+  row.appendChild(kBox);
+
+  // ── วันหว่าน ──
+  var dBox = el("div");
+  dBox.appendChild(el("div", "read-foot", "วันหว่าน"));
+  var dIn = el("input");
+  dIn.type = "date";
+  dIn.style.cssText = "padding:9px 12px;border:1px solid var(--rule);border-radius:var(--r-sm)";
+  var sd = fieldSowDate();
+  if (sd) dIn.value = sd.toISOString().slice(0, 10);
+  dBox.appendChild(dIn);
+  row.appendChild(dBox);
+
+  var save = el("button", "act act-go act-sm", "บันทึก");
+  row.appendChild(save);
+  card.appendChild(row);
+
+  var moreVar = el("button", "act act-line act-sm", "ไม่เจอพันธุ์ที่ปลูก");
+  moreVar.style.marginTop = "9px";
+  moreVar.onclick = function () {
+    showAll = !showAll;
+    fillMenu();
+    moreVar.textContent = showAll ? "ย่อรายการ" : "ไม่เจอพันธุ์ที่ปลูก";
+  };
+  card.appendChild(moreVar);
+
+  var out = el("div");
+  out.style.marginTop = "14px";
+  card.appendChild(out);
+
+  function paintCal() {
+    out.innerHTML = "";
+    var k = kSel.value;
+    if (!k || !dIn.value) return;
+    var v = window.findVariety(k);
+    var cal = window.varietyCalendar(k, new Date(dIn.value));
+    if (!cal) return;
+
+    var g = el("div", "row-3");
+    [["ใส่ปุ๋ยครั้งที่ 2", cal.text.fert2],
+     ["ข้าวออกดอก",      cal.text.bloom],
+     ["เก็บเกี่ยว",       cal.text.harvest]
+    ].forEach(function (c) {
+      var b = el("div");
+      b.appendChild(readOut(c[0], c[1], null));
+      g.appendChild(b);
+    });
+    out.appendChild(g);
+
+    // จุดอ่อนของพันธุ์มีผลกับการเชื่อผลตรวจโรค จึงต้องเห็น ไม่ใช่ซ่อน
+    if (v && v.weakDisease && v.weakDisease.length) {
+      out.appendChild(el("div", "flash flash-warn", "พันธุ์นี้ไม่ทนโรค: " + v.weakDisease.join(", ")));
+    }
+  }
+
+  save.onclick = function () {
+    setFieldVarietyKey(kSel.value || null);
+    setFieldSowDate(dIn.value || null);
+    paintCal();
+    save.textContent = "บันทึกแล้ว";
+    setTimeout(function () { save.textContent = "บันทึก"; }, 1500);
+  };
+  kSel.onchange = paintCal;
+  dIn.onchange = paintCal;
+  paintCal();
+
+  root.appendChild(card);
+};
+
+
 views.soil = async function (root) {
   root.appendChild(pageHead("soil"));
   var G = window.SOIL_GUIDE;
@@ -4089,7 +4196,7 @@ views.soil = async function (root) {
   // วิธีทำนา ชนิดดิน และค่า pH คือสามอย่างที่ผู้ใช้ต้อง "ป้อนเข้าไป"
   // เดิมกระจายอยู่คนละที่ ต้องเลื่อนขึ้นลงสลับกับผลลัพธ์
   // ตอนนี้อยู่ด้วยกันหมด ส่วนที่เหลือของหน้าเป็นผลลัพธ์ล้วน ไม่มีอะไรให้กดอีก
-  root.appendChild(bund("กรอกข้อมูลแปลง"));
+  root.appendChild(bund("ข้อมูลแปลง"));
   var form = plot(null);
 
   function pickerBox(label, dict, getKey, onPick) {
@@ -4123,9 +4230,9 @@ views.soil = async function (root) {
   // เพราะคนที่กำลังจะเลือกคือคนที่ยังไม่แน่ใจว่าแปลงตัวเองเป็นดินอะไร
   var handTest = el("div", "hint-lines");
   [
-    ["ดินทราย", "กำไม่เป็นก้อน แบมือแล้วร่วนแตกทันที สากปลายนิ้ว"],
-    ["ดินร่วน", "กำเป็นก้อนได้ แต่เขี่ยเบาๆ ก็แตก คลึงเป็นเส้นสั้นแล้วขาด"],
-    ["ดินเหนียว", "กำแน่น คลึงเป็นเส้นยาวได้ไม่ขาด จับแล้วลื่นติดมือ"]
+    ["ดินทราย", "กำไม่เป็นก้อน สากมือ"],
+    ["ดินร่วน", "กำเป็นก้อน เขี่ยแล้วแตก"],
+    ["ดินเหนียว", "คลึงเป็นเส้นยาว ลื่นมือ"]
   ].forEach(function (r) {
     var line = el("div", "hint-line");
     line.appendChild(el("b", "", r[0]));
@@ -4145,8 +4252,8 @@ views.soil = async function (root) {
 
   var phHead = el("div");
   phHead.style.marginBottom = "6px";
-  phHead.appendChild(el("div", "read-label", "ค่าความเป็นกรดด่างของดิน (pH)"));
-  phHead.appendChild(el("div", "read-foot", "5 จุดทั่วแปลง จุดละ 3 ครั้ง · ข้าวชอบช่วง 5.5 ถึง 6.5 ยิ่งเลขน้อยยิ่งเปรี้ยว"));
+  phHead.appendChild(el("div", "read-label", "ค่า pH"));
+  phHead.appendChild(el("div", "read-foot", "ข้าวชอบ 5.5–6.5"));
   form.appendChild(phHead);
 
   var phGrid = el("div", "phgrid");
@@ -4276,7 +4383,7 @@ views.soil = async function (root) {
     if (!vals.length) { paintResults(); return; }
 
     if (vals.filter(function (v) { return v < 3 || v > 10; }).length) {
-      phOut.appendChild(el("div", "flash flash-warn", "เลขบนเครื่องวัดควรอยู่ระหว่าง 3 ถึง 10 ลองเช็กเครื่องวัดอีกที"));
+      phOut.appendChild(el("div", "flash flash-warn", "ค่าควรอยู่ 3–10"));
       paintResults();
       return;
     }
@@ -4290,7 +4397,7 @@ views.soil = async function (root) {
     var spread = Math.max.apply(null, vals) - Math.min.apply(null, vals);
     if (vals.length >= 2 && spread >= 1.0) {
       phOut.appendChild(el("div", "phsum-foot",
-        "จุดต่ำสุดกับสูงสุดต่างกัน " + spread.toFixed(1) + " หน่วย ดินในแปลงไม่เหมือนกันทุกจุด ควรแยกดูแลเป็นโซน"));
+        "ต่างกัน " + spread.toFixed(1) + " หน่วย · ควรแยกดูแลเป็นโซน"));
     }
 
     paintResults();
@@ -4368,11 +4475,10 @@ views.soil = async function (root) {
     var m = G.methods[pick.method], sl = G.soils[pick.soil];
 
     // ── สภาพดินจากค่า pH ──
-    resultHost.appendChild(bund("สภาพดินของแปลงคุณ"));
+    resultHost.appendChild(bund("ผลตรวจดิน"));
     var phCard = plot(null);
     if (!cur) {
-      phCard.appendChild(stateBlock("◇", "ยังไม่มีค่า pH",
-        "กรอกค่าที่วัดได้ในช่องด้านบน ผลจะขึ้นตรงนี้ทันทีโดยไม่ต้องกดบันทึกก่อน"));
+      phCard.appendChild(stateBlock("◇", "ยังไม่มีค่า pH", "กรอก pH ด้านบน"));
     } else {
       var band = window.readSoilPh(cur.ph);
       var color = band.key === "bad" ? "var(--rust)" : band.key === "warn" ? "var(--grain)" : "var(--blade)";
@@ -4418,7 +4524,7 @@ views.soil = async function (root) {
         var age = (Date.now() - new Date(cur.created_at || Date.now()).getTime()) / 86400000;
         if (age > 120) {
           phCard.appendChild(el("div", "flash flash-warn",
-            "ค่านี้วัดไว้นานกว่า 4 เดือนแล้ว ควรวัดใหม่ก่อนเตรียมดินรอบนี้"));
+            "ค่าเกิน 4 เดือน ควรวัดใหม่"));
         }
       }
     }
@@ -4436,21 +4542,14 @@ views.soil = async function (root) {
       var matched = cur ? (window.readSoilPh(cur.ph) || {}).problem : null;
 
       if (!cur) {
-        // ยังไม่ได้วัด pH — แสดงทั้งสองอันเป็นข้อมูลอ่านล่วงหน้า
-        var phKeys = ["acid", "alkaline"].filter(function (k) { return G.problems[k]; });
-        resultHost.appendChild(bund("ดินเปรี้ยวและดินด่าง แก้ยังไง"));
-        resultHost.appendChild(el("div", "flash flash-warn",
-          "ยังไม่ได้วัด pH · วัดแล้วจะเหลือเฉพาะแบบที่ตรงกับดินคุณ"));
-        renderPhProblems(phKeys, null);
+        // ยังไม่ได้วัด pH ไม่ต้องแสดงวิธีแก้ปัญหาที่ยังไม่รู้ว่ามีไหม
       } else if (matched && G.problems[matched]) {
         resultHost.appendChild(bund(G.problems[matched].thai + " แก้ยังไง"));
         renderPhProblems([matched], matched);
       } else {
         // pH อยู่ในช่วงที่ดี ไม่ต้องแสดงวิธีแก้ปัญหาที่ยังไม่มี
-        resultHost.appendChild(bund("ความเปรี้ยวของดิน"));
         resultHost.appendChild(el("div", "flash flash-ok",
-          "ค่าที่วัดได้ " + cur.ph.toFixed(1) + " ยังไม่เข้าข่ายดินเปรี้ยวหรือดินด่าง " +
-          "ไม่ต้องแก้อะไร วัดซ้ำทุกฤดูเพื่อดูแนวโน้ม"));
+          "pH " + cur.ph.toFixed(1) + " ปกติ ไม่ต้องแก้"));
       }
     }
 
@@ -4470,8 +4569,7 @@ views.soil = async function (root) {
         if (isMine) ttl.appendChild(el("span", "tag-yes", "ตรงกับค่าที่วัดได้"));
         card.appendChild(ttl);
 
-        card.appendChild(el("p", "", pr.sign));
-        card.appendChild(more("ทำไมกระทบผลผลิต", pr.why));
+        card.appendChild(more("อาการที่เห็น", pr.sign + "\n\n" + pr.why));
 
         // ── แยกความรุนแรง ไม่เหมารวมว่ากรดคือกรดจัด ──
         // วิธีหว่านปูน 1-4 ตันต่อไร่ เป็นของดินเปรี้ยวจัดที่ pH ต่ำกว่า 4.5
@@ -4480,7 +4578,7 @@ views.soil = async function (root) {
         var isSevereAcid = (k === "acid" && latestPh !== null && latestPh < 4.5);
         if (k === "acid" && latestPh !== null && !isSevereAcid) {
           card.appendChild(el("div", "flash flash-warn",
-            "ค่าที่วัดได้ " + latestPh.toFixed(1) + " ยังไม่ถึงขั้นต้องใส่ปูนปริมาณมาก เริ่มจากวิธีที่ไม่ใช้ปูนก่อน"));
+            "pH " + latestPh.toFixed(1) + " ยังไม่ต้องใส่ปูนมาก เริ่มจากวิธีที่ไม่ใช้ปูน"));
         }
 
         card.appendChild(el("div", "rx-sect", "วิธีแก้ เรียงจากต้นทุนต่ำไปสูง"));
@@ -4488,16 +4586,19 @@ views.soil = async function (root) {
           var usesLime = /ปูน/.test(fx.title + " " + fx.detail) &&
                          /ตันต่อไร่|กิโลกรัมต่อไร่/.test(fx.detail);
           var costLabel = fx.cost;
+          var costNote = null;
+          if (costLabel && costLabel.length > 40) { costNote = costLabel; costLabel = null; }
           if (k === "acid" && usesLime && !isSevereAcid) {
-            costLabel = "สำหรับดินที่วัดได้ต่ำกว่า 4.5 · " + fx.cost;
+            costLabel = "เฉพาะ pH ต่ำกว่า 4.5";
           }
           // เปิดเฉพาะข้อแรก ที่เหลือย่อไว้
           // เดิมกางหมดทุกข้อ ทำให้หน้าเดียวยาวเป็นสิบจอจนหาสิ่งที่ต้องทำไม่เจอ
           card.appendChild(fold(i + 1, fx.title, costLabel, function (body) {
             body.appendChild(el("p", "", fx.detail));
+            if (costNote) body.appendChild(el("div", "fold-note", costNote));
           }, false));
         });
-        if (pr.warn) card.appendChild(el("div", "flash flash-bad", "ข้อควรระวัง: " + pr.warn));
+        if (pr.warn) card.appendChild(more("ข้อควรระวัง", pr.warn));
 
         resultHost.appendChild(card);
       });
@@ -4532,17 +4633,18 @@ views.soil = async function (root) {
     }
 
     // ── ข้อควรระวังตามชนิดดิน ──
-    resultHost.appendChild(bund("ข้อควรระวังสำหรับ" + sl.thai));
     var sc = plot(null);
-    var ul = el("ul");
-    ul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
-    sl.tips.forEach(function (x) {
-      var li = el("li", "", x);
-      li.style.marginBottom = "7px";
-      ul.appendChild(li);
-    });
-    sc.appendChild(ul);
-    sc.appendChild(more("ดินแบบนี้เป็นยังไง", sl.trait));
+    sc.appendChild(fold(null, "ข้อควรระวังสำหรับ" + sl.thai, null, function (body) {
+      var ul = el("ul");
+      ul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
+      sl.tips.forEach(function (x) {
+        var li = el("li", "", x);
+        li.style.marginBottom = "7px";
+        ul.appendChild(li);
+      });
+      body.appendChild(ul);
+      body.appendChild(el("p", "", sl.trait));
+    }, false));
     resultHost.appendChild(sc);
 
   }
@@ -4600,7 +4702,7 @@ views.fert = async function (root) {
 
   var SOIL_WORD = { clay: "ดินเหนียว", loam: "ดินร่วน", sand: "ดินทราย" };
 
-  root.appendChild(bund("สรุปสำหรับแปลงของคุณ"));
+  root.appendChild(bund("ปุ๋ยที่ต้องใช้"));
   var meCard = plot(null, "อ่านจากข้อมูลที่คุณบันทึกไว้ในระบบ");
 
   // บรรทัดแรก: บอกว่าระบบรู้อะไรบ้าง เพื่อให้ผู้ใช้ตรวจได้ว่าตรงกับแปลงจริงไหม
@@ -4718,39 +4820,39 @@ views.fert = async function (root) {
   if (isAcidSoil && mySoil === "sand") {
     steps.appendChild(plainStep("1ก",
       "ซื้อ 0-0-60 เพิ่มอีกนิดหน่อย",
-      "ใช้ 10 กก. ต่อไร่ ใส่พร้อมกับปุ๋ยครั้งแรก",
+      "10 กก./ไร่ ใส่พร้อมครั้งแรก",
       "ต้องเสริมเพราะสูตรที่เลือกไม่มีตัวทำให้ต้นแข็ง และดินทรายเก็บตัวทำให้ต้นแข็งไม่อยู่ " +
       "ถ้าขาด ข้าวจะล้มง่ายและเมล็ดลีบ"));
   }
 
   steps.appendChild(plainStep(2,
     "ใส่ครั้งแรก ตอนข้าวอายุ 20-30 วัน",
-    "ช่วงที่ข้าวเริ่มแตกกอ ใส่ให้ทั่วแปลง ให้มีน้ำในนาตื้นๆ ประมาณข้อนิ้ว",
+    "น้ำในนาตื้นๆ ประมาณข้อนิ้ว",
     "ห้ามระบายน้ำออกภายใน 7 วันหลังใส่ ไม่งั้นปุ๋ยไหลไปกับน้ำหมด"));
 
   steps.appendChild(plainStep(3,
     "ครั้งที่สอง ใช้ยูเรีย 46-0-0 อัตรา " + ureaRate + " กก. ต่อไร่",
     myPhoto
-      ? "ใส่ประมาณปลายเดือนกันยายน ก่อนข้าวออกดอกราวหนึ่งเดือน"
-      : "ใส่ตอนข้าวอายุ 45-50 วันหลังหว่าน หรือนับจากใส่ครั้งแรกไปอีก 30 วัน",
+      ? "ปลายกันยายน · ก่อนออกดอก 1 เดือน"
+      : "อายุ 45-50 วัน",
     "วิธีเช็กที่แม่นที่สุดคือผ่าลำต้นดู ถ้าเห็นช่อดอกอ่อนสีขาวเล็กๆ ในกาบใบ แปลว่าถึงเวลาแล้ว"));
 
   // ถ้าดินเปรี้ยว ต้องเตือนเรื่องปุ๋ยถูกตรึง ไม่งั้นใส่ปุ๋ยเท่าไหร่ก็ได้ผลน้อย
   // ใช้ isAcidSoil ตัวเดียวกับตอนเลือกสูตร ห้ามเทียบตัวเลขซ้ำที่นี่
   if (isAcidSoil) {
-    steps.appendChild(el("div", "flash flash-warn",
+    steps.appendChild(more("ดินเปรี้ยว · อ่านก่อนใส่ปุ๋ย",
       "ระบบเลือกสูตรที่ตัวเร่งรากสูงให้แล้ว แต่นั่นเป็นแค่การเผื่อ ไม่ได้แก้ที่ต้นเหตุ " +
       "ตราบใดที่ดินยังเป็นกรด ปุ๋ยที่ใส่จะถูกตรึงไปส่วนหนึ่งทุกครั้ง " +
-      "ควรแก้ความเปรี้ยวควบคู่ไปด้วย ดูวิธีที่แท็บแปลงนา ส่วนดิน"));
+      "ควรแก้ความเปรี้ยวควบคู่ไปด้วย ดูวิธีที่ส่วนดินด้านบน"));
   }
 
   // ดินด่างอันตรายกว่าตรงที่คนมักแก้ผิดทาง เห็นข้าวไม่งามแล้วไปใส่ปูนเพิ่ม
   // ซึ่งดันค่าขึ้นไปอีกจนแก้ยากกว่าเดิมมาก ต้องเตือนตรงนี้ให้ชัด
   if (isAlkaliSoil) {
-    steps.appendChild(el("div", "flash flash-warn",
+    steps.appendChild(more("ดินด่าง · อ่านก่อนใส่ปุ๋ย",
       "ดินของคุณค่อนไปทางด่าง ตัวเร่งรากที่ใส่ลงไปจะถูกจับกับปูนในดินจนข้าวใช้ได้น้อย " +
       "ห้ามใส่ปูนขาว ปูนมาร์ล หรือวัสดุปูนทุกชนิดเพิ่มเด็ดขาด เพราะจะยิ่งดันค่าขึ้นไปอีก " +
-      "ให้เพิ่มซากพืชผุแทน และดูวิธีแก้ที่แท็บแปลงนา ส่วนดิน"));
+      "ให้เพิ่มซากพืชผุแทน และดูวิธีแก้ที่ส่วนดินด้านบน"));
   }
   }
 
@@ -4768,13 +4870,13 @@ views.fert = async function (root) {
   if (!fertPh) missing.push("ค่า pH");
   if (missing.length) {
     meCard.appendChild(el("div", "flash flash-warn",
-      "ยังไม่ได้กรอก " + missing.join(" · ") + " — เลื่อนขึ้นไปกรอกด้านบน จะแม่นกว่านี้"));
+      "กรอก " + missing.join(" · ") + " ด้านบน จะแม่นกว่านี้"));
   }
 
   root.appendChild(meCard);
 
   // ══ เลือกชนิดปุ๋ย ══
-  root.appendChild(bund("เลือกชนิดปุ๋ยที่ต้องการทำ"));
+  root.appendChild(bund("เลือกชนิดปุ๋ย"));
   var pickCard = plot(null);
   var body = el("div");
 
@@ -4966,19 +5068,19 @@ views.fert = async function (root) {
             bd.appendChild(f2);
           } else {
             bd.appendChild(el("div", "read-foot",
-              "กรอกวันหว่านที่แท็บแปลงนา แล้วระบบจะบอกวันที่ต้องใส่จริงของแปลงคุณให้เลย"));
+              "กรอกวันหว่านที่ ฤดูนี้ ด้านบน"));
           }
         }
       }, false));
     });
     body.appendChild(fBox);
 
-    if (t.warn) body.appendChild(el("div", "flash flash-bad", "ข้อควรระวัง: " + t.warn));
+    if (t.warn) body.appendChild(more("ข้อควรระวัง", t.warn));
 
     // ── ตัวคำนวณปริมาณ ──
     // คำนวณจากอัตราทางการเท่านั้น ไม่มีการประมาณค่าใดๆ เพิ่มเอง
     // ชนิดที่ไม่มีอัตราอ้างอิงจะไม่แสดงช่องคำนวณ แต่บอกเหตุผลว่าทำไมไม่มี
-    body.appendChild(bund("คำนวณปริมาณที่ต้องเตรียม"));
+    body.appendChild(bund("คำนวณปริมาณ"));
     var calcCard = plot(null);
     if (!t.calc) {
       // ── ปุ๋ยที่ไม่มีอัตราอ้างอิง ──
@@ -5369,7 +5471,7 @@ views.fert = async function (root) {
 
           var mat = el("div");
           mat.style.marginTop = "16px";
-          mat.appendChild(el("div", "rx-sect", "วัตถุดิบรวมทั้งหมดที่ต้องเตรียม"));
+          mat.appendChild(el("div", "rx-sect", "วัตถุดิบที่ต้องเตรียม"));
           // ── วัตถุดิบพร้อมช่องกรอกราคา ──
           //
           // ไม่ใส่ราคาตั้งต้นให้ เพราะวัตถุดิบปุ๋ยหมักส่วนใหญ่เป็นของที่มีอยู่แล้วในแปลง
@@ -5415,7 +5517,7 @@ views.fert = async function (root) {
           mat.appendChild(sumRow);
 
           var sumFoot = el("div", "read-foot",
-            "ของที่ได้ฟรีเว้นว่างไว้ · สารเร่ง พด.1 ขอฟรีได้ที่สถานีพัฒนาที่ดิน");
+            "พด.1 ขอฟรีที่สถานีพัฒนาที่ดิน");
           mat.appendChild(sumFoot);
 
           function sumMaterials() {
@@ -5576,17 +5678,18 @@ views.fert = async function (root) {
     }
     body.appendChild(calcCard);
 
-    // ── วิธีนำไปใช้ ──
-    body.appendChild(bund("วิธีนำไปใช้ในนาข้าว"));
+    // ── วิธีนำไปใช้ ── ยุบไว้ ใครอยากอ่านค่อยกด
     var uc = plot(null);
-    var uul = el("ul");
-    uul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
-    t.use.forEach(function (x) {
-      var li = el("li", "", x);
-      li.style.marginBottom = "6px";
-      uul.appendChild(li);
-    });
-    uc.appendChild(uul);
+    uc.appendChild(fold(null, "วิธีนำไปใช้ในนาข้าว", null, function (ubody) {
+      var uul = el("ul");
+      uul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
+      t.use.forEach(function (x) {
+        var li = el("li", "", x);
+        li.style.marginBottom = "6px";
+        uul.appendChild(li);
+      });
+      ubody.appendChild(uul);
+    }, false));
     body.appendChild(uc);
   }
 
@@ -5734,7 +5837,7 @@ async function renderReferencePrices(root) {
   var pgrid = el("div", "pgrid");
 
   // ══ ราคาข้าวเปลือกสำรวจจริง ══
-  var liveCard = plot("ราคารับซื้อข้าวเปลือก", "สำรวจจริงโดยกรมการค้าภายใน กระทรวงพาณิชย์");
+  var liveCard = plot("ราคารับซื้อข้าวเปลือก");
   var liveOut = el("div");
   liveOut.appendChild(el("div", "read-foot", "กำลังดึงราคาล่าสุด"));
   liveCard.appendChild(liveOut);
@@ -5784,7 +5887,7 @@ async function renderReferencePrices(root) {
     } else {
       // บอกสาเหตุที่เป็นไปได้และทางออก ไม่ใช่แค่ "เกิดข้อผิดพลาด" ซึ่งผู้ใช้ทำอะไรต่อไม่ได้
       liveOut.appendChild(el("div", "flash flash-warn",
-        "ดึงราคาไม่ได้ อาจเป็นเพราะเน็ตไม่ถึง กดดึงราคาใหม่อีกครั้ง หรือเปิดดูเองที่เว็บกรมการค้าภายใน"));
+        "ดึงราคาไม่ได้"));
       var lnk = el("a", "", "เปิดเว็บกรมการค้าภายใน");
       lnk.href = "https://data.moc.go.th/OpenData/GISProductPrice";
       lnk.target = "_blank";
@@ -5801,7 +5904,7 @@ async function renderReferencePrices(root) {
 
   // ══ ค่าตั้งต้นที่ระบบใช้คำนวณ ══
   if (C.varieties && C.varieties.length) {
-    var vCard = plot("ค่าตั้งต้นที่ระบบใช้คำนวณ", "ข้อมูล " + C.asOfShort + " · แก้ได้ในช่องกรอกด้านล่าง");
+    var vCard = plot("ค่าตั้งต้น " + C.asOfShort);
       C.varieties.forEach(function (v) {
       vCard.appendChild(PriceUI.row("grain", v.thai,
         "ผลผลิตเฉลี่ย " + v.yieldPerRai + " กก./ไร่",
@@ -5815,7 +5918,7 @@ async function renderReferencePrices(root) {
   // ไม่เติมตัวเลขลงช่องให้อัตโนมัติโดยตั้งใจ
   // ถ้า AI อ่านผิดแล้วระบบเติมลงช่องเลย ผู้ใช้จะไม่มีทางรู้ว่าผิด
   // แสดงพร้อมแหล่งอ้างอิงให้อ่านเองแล้วกรอกเอง ปลอดภัยกว่า
-  var askCard = plot("ค้นราคาจากเว็บด้วย AI", "แสดงพร้อมแหล่งที่มา ให้อ่านแล้วกรอกเอง");
+  var askCard = plot("ค้นราคาจากเว็บด้วย AI");
   var askBtn = el("button", "act act-line act-sm", "ค้นราคาข้าวและปุ๋ยล่าสุด");
   var askOut = el("div");
   askCard.appendChild(askBtn);
@@ -5870,7 +5973,7 @@ async function renderReferencePrices(root) {
 // ของหลายอย่างที่ต้องซื้อจริง เช่นเมล็ดพันธุ์ ปูน ยา ไม่มีแหล่งราคากลางที่อัปเดตทัน
 // แทนที่จะเดาให้ เปิดช่องให้จดเองแล้วเก็บไว้เทียบครั้งหน้าและเทียบระหว่างร้าน
 function renderMyPrices(root) {
-  root.appendChild(bund("ราคาที่คุณจดไว้เอง"));
+  root.appendChild(bund("ราคาที่จดเอง"));
 
   var myKey = "smartrice-shop:" + (Session.user ? Session.user.username : "guest");
   var myList = [];
@@ -5888,7 +5991,7 @@ function renderMyPrices(root) {
     myHost.innerHTML = "";
     if (!myList.length) {
       myHost.appendChild(el("div", "read-foot",
-        "ยังไม่มีรายการ เพิ่มของที่ซื้อบ่อย เช่นเมล็ดพันธุ์ ปูนโดโลไมท์ หรือค่าจ้างรถไถ"));
+        "ยังไม่มีรายการ"));
       return;
     }
     myList.forEach(function (item, i) {
@@ -6017,8 +6120,8 @@ views.cost = async function (root) {
   }
   function money(n) { return Math.round(n).toLocaleString("th-TH"); }
 
-  root.appendChild(bund("กรอกข้อมูลแปลงของคุณ"));
-  var inCard = plot(null, "แก้ให้ตรงกับที่จ่ายจริงได้ทุกช่อง ระบบจำไว้ให้");
+  root.appendChild(bund("ข้อมูลแปลง"));
+  var inCard = plot(null);
   var outHost = el("div");
 
   var grid = el("div", "inputs");
@@ -6070,8 +6173,8 @@ views.cost = async function (root) {
   root.appendChild(inCard);
 
   // ── รายการต้นทุนต่อไร่ ──
-  root.appendChild(bund("รายการต้นทุนต่อไร่"));
-  var costCard = plot(null, "รายการไหนไม่มีให้ใส่ 0");
+  root.appendChild(bund("ต้นทุนต่อไร่"));
+  var costCard = plot(null, "ไม่มีให้ใส่ 0");
   var totalTag = el("div", "costsum");
   C.costItems.forEach(function (it) {
     var row = el("div", "citem");
@@ -6082,8 +6185,8 @@ views.cost = async function (root) {
     // แยกให้ชัดว่าตัวไหนมีแหล่งอ้างอิงตรง ตัวไหนเป็นค่าประมาณ
     // ถ้าแสดงเหมือนกันหมด ผู้ใช้จะเข้าใจว่าทุกตัวเลขแม่นเท่ากัน
     nm.appendChild(el("span", it.cited ? "tag-yes" : "tag-wait", it.cited ? "มีอ้างอิง" : "ค่าประมาณ"));
+    if (it.note) nm.title = it.note;
     left.appendChild(nm);
-    left.appendChild(el("div", "read-foot", it.note));
     row.appendChild(left);
 
     var inp = el("input");
@@ -6107,7 +6210,7 @@ views.cost = async function (root) {
   // ══════════════════════════════════════════════
   // ส่วนที่ 3 · สรุป
   // ══════════════════════════════════════════════
-  root.appendChild(bund("สรุปกำไรขาดทุน"));
+  root.appendChild(bund("สรุป"));
   root.appendChild(outHost);
 
   function syncDefaults() {
@@ -6126,8 +6229,7 @@ views.cost = async function (root) {
     totalTag.textContent = "รวมต้นทุน " + money(perRai) + " บาทต่อไร่";
 
     if (!yPer || yPer <= 0 || !price || price <= 0) {
-      outHost.appendChild(stateBlock("◇", "ยังคำนวณไม่ได้",
-        "ผลผลิตต่อไร่ และราคาขาย ต้องมากกว่า 0"));
+      outHost.appendChild(stateBlock("◇", "กรอกผลผลิตและราคาก่อน", null));
       return;
     }
 
@@ -6165,24 +6267,21 @@ views.cost = async function (root) {
     be.appendChild(beBig);
 
     var diff = price - breakEven;
-    var bp = el("p", "", price >= breakEven
-      ? "ราคาที่กรอกไว้สูงกว่าจุดคุ้มทุน " + diff.toFixed(2) + " บาทต่อกิโลกรัม ทุกกิโลที่ขายเกินจากนี้คือกำไร"
-      : "ราคาที่กรอกไว้ต่ำกว่าจุดคุ้มทุน " + Math.abs(diff).toFixed(2) + " บาทต่อกิโลกรัม ยิ่งขายยิ่งขาดทุน");
-    bp.style.cssText = "margin:6px 0 0;font-size:.87rem";
-    be.appendChild(bp);
-    be.appendChild(el("div", "read-foot", "เอาตัวเลขนี้ไปเทียบกับราคาที่โรงสีเสนอได้ทันที"));
+    be.appendChild(el("div", "read-foot", price >= breakEven
+      ? "สูงกว่าจุดคุ้มทุน " + diff.toFixed(2) + " บาท/กก."
+      : "ต่ำกว่าจุดคุ้มทุน " + Math.abs(diff).toFixed(2) + " บาท/กก."));
     outHost.appendChild(be);
 
     // ── ทางออกเมื่อขาดทุน เรียงตามที่ทำได้จริงเร็วที่สุดก่อน ──
     if (!good) {
       var fix = el("div", "flash flash-bad");
-      fix.appendChild(el("div", "verify-ask", "ตัวเลขนี้ขาดทุน ลองพิจารณา 3 ทาง"));
+      fix.appendChild(el("div", "verify-ask", "ขาดทุน · 3 ทางออก"));
       var ul = el("ul");
       ul.style.cssText = "margin:8px 0 0;padding-left:19px;font-size:.86rem";
       [
-        "ลดค่าปุ๋ยด้วยปุ๋ยอินทรีย์และการใส่ตามผลตรวจดิน เป็นรายการที่ลดได้มากที่สุดโดยไม่กระทบผลผลิต",
-        "เพิ่มผลผลิตต่อไร่ด้วยการเตรียมดินให้ดีขึ้นและตรวจพบโรคเร็ว ต้นทุนเท่าเดิมแต่ได้ข้าวมากขึ้น",
-        "ชะลอการขายถ้าเก็บได้ มีโครงการสินเชื่อชะลอการขายของ ธ.ก.ส. ให้ค่าฝากเก็บ"
+        "ลดค่าปุ๋ย ใช้ปุ๋ยอินทรีย์และใส่ตามผลตรวจดิน",
+        "เพิ่มผลผลิต เตรียมดินให้ดีขึ้นและตรวจโรคเร็ว",
+        "ชะลอการขาย · สินเชื่อชะลอการขาย ธ.ก.ส."
       ].forEach(function (x) {
         var li = el("li", "", x);
         li.style.marginBottom = "5px";
@@ -6241,7 +6340,7 @@ views.ledger = async function (root) {
   root.appendChild(pageHead("ledger"));
   var logs = await Store.list();
 
-  root.appendChild(bund("ทุกอย่างที่บันทึกไว้"));
+  root.appendChild(bund("ประวัติ"));
   var card = plot(null);
 
   var tools = el("div");
@@ -6271,7 +6370,7 @@ views.ledger = async function (root) {
   function draw(filter) {
     body.innerHTML = "";
     if (!logs.length) {
-      body.appendChild(stateBlock("◇", "ยังไม่มีประวัติ", "ถ่ายรูปใบข้าวมาตรวจสักครั้ง แล้วประวัติจะเริ่มเก็บให้เอง"));
+      body.appendChild(stateBlock("◇", "ยังไม่มีประวัติ", null));
       return;
     }
     var rows = logs.filter(function (l) {
@@ -6359,7 +6458,7 @@ views.ledger = async function (root) {
   // ทำไมต้องมี: ระบบเอาบันทึกทั้งหมดมาคำนวณรวมกันโดยไม่แยกฤดู
   // ทั้งค่าดินเฉลี่ย คะแนนสุขภาพ และข้อมูลที่ส่งให้ AI
   // ฤดูก่อนเจอโรคไหม้หนัก ฤดูใหม่ยังไม่ทันหว่านเลย หน้าแรกก็ยังขึ้นว่าต้องรีบจัดการ
-  var wipe = plot("ขึ้นฤดูใหม่", "ล้างข้อมูลของฤดูที่แล้วออกก่อนเริ่มรอบใหม่");
+  var wipe = plot("ขึ้นฤดูใหม่");
   wipe.appendChild(more("ทำไมต้องล้าง",
     "เว็บนี้เอาบันทึกทั้งหมดมารวมกันคิดค่าเฉลี่ย ทั้งค่าดิน คะแนนสุขภาพข้าว และคำแนะนำ " +
     "ถ้าไม่ล้างของฤดูเก่าออก ตัวเลขของฤดูใหม่จะเพี้ยนโดยที่คุณไม่รู้ตัว"));
@@ -6387,7 +6486,7 @@ views.ledger = async function (root) {
     };
     wipe.appendChild(clearAll);
   } else {
-    wipe.appendChild(el("div", "read-foot", "ยังมีบันทึกไม่ถึง 2 รายการ ยังไม่ต้องล้าง"));
+    
   }
   root.appendChild(wipe);
 
@@ -6420,10 +6519,10 @@ function openLens(src, log) {
 
 views.weather = async function (root) {
   root.appendChild(pageHead("weather"));
-  root.appendChild(bund("สภาพอากาศแปลงนา"));
+  root.appendChild(bund("สภาพอากาศ"));
 
   var host = el("div");
-  host.appendChild(stateBlock("◌", "กำลังหาตำแหน่งแปลง", "กรุณาอนุญาตให้เว็บเข้าถึงตำแหน่ง"));
+  host.appendChild(stateBlock("◌", "กำลังหาตำแหน่ง", null));
   root.appendChild(host);
 
   // ใช้พิกัดที่เคยบันทึกไว้ก่อน ถ้าไม่มีค่อยขอตำแหน่งปัจจุบัน
@@ -6440,26 +6539,20 @@ views.weather = async function (root) {
   var fieldRec = readField();
   if (pinned) {
     coords = { lat: pinned.lat, lon: pinned.lon };
-    source = "อ้างอิง" + pinned.from;
-    // บอกอายุของพิกัดที่ใช้ ผู้ใช้ต้องรู้ว่ากำลังดูค่าที่ปักไว้เมื่อไหร่
-    // เพราะคนที่ทำหลายแปลงอาจลืมไปแล้วว่าหมุดปักอยู่ที่แปลงไหน
-    if (fieldRec && fieldRec.fixedAt) {
-      source += " ซึ่งปักหมุดไว้" + ageWords(fieldRec.fixedAt);
-      if (fieldRec.accuracy != null) source += " คลาดเคลื่อนได้ ±" + fieldRec.accuracy + " เมตร";
-    }
+    source = pinned.from;
   } else if (saved) {
     var parts = saved.gps.split(",").map(Number);
     coords = { lat: parts[0], lon: parts[1] };
-    source = "อ้างอิงพิกัดแปลงที่บันทึกไว้เมื่อ " + saved.date + " ไม่ใช่ตำแหน่งปัจจุบัน";
+    source = "พิกัดที่บันทึกไว้ " + saved.date;
   } else {
     try {
       var pos = await getFix({ timeout: 12000 });
       coords = { lat: pos.lat, lon: pos.lon };
-      source = "ใช้ตำแหน่งที่เครื่องจับได้ตอนนี้ คลาดเคลื่อนได้ ±" + Math.round(pos.accuracy) + " เมตร";
+      source = "ตำแหน่งตอนนี้ ±" + Math.round(pos.accuracy) + " ม.";
     } catch (err) {
       host.innerHTML = "";
       host.appendChild(stateBlock("!", "ยังดูสภาพอากาศไม่ได้",
-        err.message + " — วิธีแก้คือไปที่หน้า \"ข้อมูลแปลงนา\" ปักหมุดที่นาไว้สักครั้ง แล้วเว็บจะจำที่นาคุณไว้ตลอด"));
+        "เปิดสิทธิ์ตำแหน่งให้เบราว์เซอร์แล้วรีเฟรช"));
       return;
     }
   }
@@ -6472,7 +6565,7 @@ views.weather = async function (root) {
     w = await fetchWeather(coords.lat.toFixed(4), coords.lon.toFixed(4));
   } catch (err) {
     host.innerHTML = "";
-    host.appendChild(stateBlock("!", "ดึงข้อมูลอากาศไม่สำเร็จ", err.message + " — ลองรีเฟรชหน้าอีกครั้ง"));
+    host.appendChild(stateBlock("!", "ดึงข้อมูลอากาศไม่สำเร็จ", "ลองรีเฟรชอีกครั้ง"));
     return;
   }
 
@@ -6595,8 +6688,7 @@ views.weather = async function (root) {
       liveBody.appendChild(cite);
     } catch (err) {
       liveBody.innerHTML = "";
-      liveBody.appendChild(stateBlock("!", "อ่านค่าปัจจุบันไม่ได้",
-        err.message + " — ข้อมูลย้อนหลังและความเสี่ยงด้านล่างยังใช้งานได้ตามปกติ"));
+      liveBody.appendChild(stateBlock("!", "อ่านค่าปัจจุบันไม่ได้", null));
     }
   }
   paintLive();
@@ -6604,7 +6696,7 @@ views.weather = async function (root) {
   onPageTimer(paintLive, 60 * 60 * 1000);
 
   // ── สรุปย้อนหลังจาก Open-Meteo ──
-  root.appendChild(bund("สรุปย้อนหลัง 7 วัน"));
+  root.appendChild(bund("ย้อนหลัง 7 วัน"));
   var s = w.summary;
   var stats = el("div", "row-3");
   var cards = [
@@ -6621,13 +6713,12 @@ views.weather = async function (root) {
   root.appendChild(stats);
 
   var src = el("p", "",
-    source + " · แหล่งข้อมูลย้อนหลังและชั่วโมงแสงแดด: Open-Meteo (ค่าเฉลี่ย 3 วันล่าสุด) " +
-    "ใช้คนละแหล่งกับค่าปัจจุบันด้านบน เพื่อให้ตรวจสอบไขว้กันได้");
+    source);
   src.style.cssText = "font-size:.76rem;color:var(--ink-faint);margin:10px 0 0";
   root.appendChild(src);
 
   // ความเสี่ยงรายโรค
-  root.appendChild(bund("ความเสี่ยงโรคจากสภาพอากาศ"));
+  root.appendChild(bund("ความเสี่ยงโรค"));
   var riskCard = plot(null);
 
   var ranked = RISK_RULES.map(function (r) {
@@ -6658,8 +6749,8 @@ views.weather = async function (root) {
     track.appendChild(fill);
     row.appendChild(track);
 
-    var why = el("div", "read-foot", r.rule.why);
-    row.appendChild(why);
+    // เหตุผลว่าทำไมเสี่ยง ไม่ใช่สิ่งที่ต้องลงมือทำ เก็บไว้ใน title พอ
+    row.title = r.rule.why;
 
     // ถ้าเสี่ยงสูงและมีแนวทางในฐานความรู้ ให้ลิงก์ความรู้มาแสดงเลย
     if (r.band.key !== "ok") {
@@ -6681,7 +6772,7 @@ views.weather = async function (root) {
   root.appendChild(riskCard);
 
   // กราฟย้อนหลังและพยากรณ์
-  root.appendChild(bund("ฝนและแสงแดด ย้อนหลัง 7 วัน และล่วงหน้า 7 วัน"));
+  root.appendChild(bund("กราฟฝนและแดด 14 วัน"));
   var chartCard = plot(null);
   var cv = el("canvas");
   cv.height = 230;
@@ -6730,7 +6821,7 @@ views.weather = async function (root) {
     }
   });
 
-  var legend = el("p", "", "แท่งสีเข้มคือข้อมูลที่ผ่านมาแล้ว แท่งสีอ่อนคือค่าพยากรณ์ล่วงหน้า");
+  var legend = el("p", "", "สีเข้ม = ผ่านมาแล้ว · สีอ่อน = พยากรณ์");
   legend.style.cssText = "font-size:.76rem;color:var(--ink-faint);margin:10px 0 0";
   chartCard.appendChild(legend);
 
@@ -6787,7 +6878,7 @@ views.consult = async function (root) {
 
   // ══ การ์ดคำแนะนำแยกตามระยะ ══
   if (C) {
-    root.appendChild(bund("คำแนะนำการดูแลแปลงนา"));
+    root.appendChild(bund("ระยะข้าว"));
 
     // จำระยะที่ดูล่าสุด เพราะข้าวอยู่ระยะเดิมนานหลายสัปดาห์
     var SKEY = "smartrice-stage:" + (Session.user ? Session.user.username : "guest");
@@ -6852,25 +6943,22 @@ views.consult = async function (root) {
         vBar.appendChild(el("div", "nowsub", "จะหว่านวันที่ " + thaiDateOf(cal.sow)));
       } else if (stageInfo && stageInfo.afterHarvest) {
         vBar.appendChild(el("div", "nowline", "เลยวันเก็บเกี่ยวของฤดูนี้มาแล้ว"));
-        vBar.appendChild(el("div", "nowsub",
-          "ถ้าจะเริ่มฤดูใหม่ ให้ไปแก้วันหว่านที่แท็บแปลงนา แล้วล้างบันทึกเก่าที่หน้าประวัติ"));
+        vBar.appendChild(el("div", "nowsub", "เริ่มฤดูใหม่ · แก้วันหว่านที่ แปลงนา"));
       } else {
         // ไม่มีวันหว่าน = คำนวณอะไรให้ไม่ได้เลย ต้องบอกให้ชัดว่าขาดอะไรและไปกรอกที่ไหน
         // ไม่ใช่แสดงช่วงอายุกลางๆ แล้วปล่อยให้เข้าใจผิดว่าตรงกับแปลงตัวเอง
         vBar.appendChild(el("div", "nowline", "ยังบอกไม่ได้ว่าตอนนี้ข้าวอยู่ระยะไหน"));
-        vBar.appendChild(el("div", "nowsub",
-          "เพราะยังไม่ได้กรอกวันหว่าน · ไปกรอกที่หน้า \"ข้อมูลแปลงนา\" แล้วกลับมา " +
-          "ระบบจะคำนวณวันใส่ปุ๋ย วันออกดอก และวันเก็บเกี่ยวของแปลงคุณให้เอง"));
+        vBar.appendChild(el("div", "nowsub", "กรอกวันหว่านที่ แปลงนา → ฤดูนี้"));
       }
 
       // คำอธิบายพันธุ์ยุบไว้ ไม่ใช่เรื่องที่ต้องอ่านทุกครั้งที่เปิดหน้า
       vBar.appendChild(more("ปฏิทินนี้คิดจากอะไร",
         "คิดจากพันธุ์ " + v.thai + " (" + v.short + ") เช่น " + v.examples + "\n\n" + v.note +
         (fieldVarietyChosen() ? "" : "\n\nคุณยังไม่ได้เลือกพันธุ์ ระบบใช้กลุ่มนี้ไปก่อน ถ้าปลูกอีกกลุ่มให้กดเปลี่ยนด้านล่าง") +
-        "\n\nแก้พันธุ์และวันหว่านได้ที่แท็บแปลงนา"));
+        "\n\nแก้พันธุ์และวันหว่านได้ที่แท็บแปลงนา ส่วนฤดูนี้"));
 
-      var sw = el("button", "act act-line act-sm", "ปลูกอีกกลุ่ม เปลี่ยนเป็น" +
-        window.careVariety(vKey === "photo" ? "nonphoto" : "photo").thai);
+      var sw = el("button", "act act-line act-sm",
+        "เปลี่ยนเป็น" + window.careVariety(vKey === "photo" ? "nonphoto" : "photo").thai);
       sw.style.marginTop = "10px";
       sw.onclick = function () {
         vKey = (vKey === "photo") ? "nonphoto" : "photo";
@@ -6910,8 +6998,7 @@ views.consult = async function (root) {
 
         if (w) {
           b.appendChild(el("span", "stage-when", w.text));
-          b.appendChild(el("span", "stage-age",
-            "ข้าวอายุ " + w.ageFrom + "–" + w.ageTo + " วัน · รวม " + w.days + " วัน"));
+          b.appendChild(el("span", "stage-age", w.ageFrom + "–" + w.ageTo + " วัน"));
           if (w.now)  b.appendChild(el("span", "stage-flag now", "ตอนนี้อยู่ระยะนี้"));
           if (w.past) b.appendChild(el("span", "stage-flag past", "ผ่านไปแล้ว"));
         } else {
@@ -6932,14 +7019,12 @@ views.consult = async function (root) {
       var wSel = win[pick];
       if (wSel) {
         tabCard.appendChild(el("div", "read-foot",
-          "ระยะนี้ของแปลงคุณคือ " + wSel.text +
-          (wSel.now ? " · ข้าวอยู่ระยะนี้อยู่ตอนนี้"
-                    : wSel.past ? " · ผ่านไปแล้ว"
-                                : " · ยังไม่ถึง อีก " + Math.round((wSel.from - stageInfo.today) / 86400000) + " วัน")));
-      } else {
-        tabCard.appendChild(el("div", "read-foot", "ช่วงเวลาโดยประมาณ: " + window.careText(st.age, vKey)));
+          wSel.text +
+          (wSel.now ? " · ตอนนี้"
+                    : wSel.past ? " · ผ่านแล้ว"
+                                : " · อีก " + Math.round((wSel.from - stageInfo.today) / 86400000) + " วัน")));
       }
-      tabCard.appendChild(el("div", "read-foot", st.note));
+      if (st.note) tabCard.appendChild(more("ระยะนี้สำคัญยังไง", st.note));
 
       cardHost.innerHTML = "";
       st.cards.forEach(function (c) {
@@ -7350,666 +7435,6 @@ views.ask = async function (root) {
 //
 // พิกัดที่ล็อกไว้ถูกใช้เป็นตำแหน่งหลักของทั้งระบบ แท็บตรวจแปลงจะดึงไปใช้ด้วย
 // เพื่อให้ทุกหน้าอ้างอิงจุดเดียวกัน ไม่ใช่ต่างคนต่างใช้พิกัดคนละที่
-views.map = async function (root) {
-  root.appendChild(pageHead("map"));
-  var logs = await Store.list();
-  var pins = logs.filter(function (l) { return l.gps && l.gps.indexOf(",") !== -1; });
-
-  var field = readField();
-  function save() { writeField(field); }
-
-  root.appendChild(bund("แปลงนา"));
-
-  // ══ แผงควบคุม ══
-  var ctl = plot(null);
-  var head = el("div");
-  head.style.cssText = "display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:14px";
-  var info = el("div");
-  info.appendChild(el("div", "plot-title", "ตำแหน่งและขนาดที่นา"));
-  var infoNote = el("div", "plot-note", "");
-  info.appendChild(infoNote);
-  head.appendChild(info);
-  var lockBtn = el("button", "act act-go act-sm", "ล็อกไว้");
-  head.appendChild(lockBtn);
-  ctl.appendChild(head);
-
-  // ── เลือกวิธีวัด ──
-  var modeRow = el("div");
-  modeRow.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px";
-  var toolRow = el("div");
-  toolRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap";
-  ctl.appendChild(modeRow);
-  ctl.appendChild(toolRow);
-
-  var areaBox = el("div");
-  areaBox.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-top:16px;padding-top:15px;border-top:1px solid var(--rule-soft)";
-  ctl.appendChild(areaBox);
-  // กล่องแสดงผลการตรวจสอบ แยกจาก areaBox เพราะ areaBox เป็นกริดตัวเลข
-  // ส่วนนี้เป็นข้อความเตือนที่ต้องกินความกว้างเต็มแถว
-  var verifyBox = el("div");
-  verifyBox.style.marginTop = "14px";
-  ctl.appendChild(verifyBox);
-  var msg = el("div");
-  ctl.appendChild(msg);
-  root.appendChild(ctl);
-
-  // ══ พันธุ์ข้าวที่ปลูกในฤดูนี้ ══
-  //
-  // วางไว้หน้าเดียวกับขนาดแปลง เพราะเป็นข้อมูลประจำแปลงเหมือนกัน
-  // และเป็นหน้าที่ผู้ใช้เปิดก่อนปลูกอยู่แล้วตามลำดับเมนู
-  //
-  // ค่านี้ไปเปลี่ยนปฏิทินในแท็บตรวจแปลงและบริบทที่ส่งให้ AI โดยตรง
-  // ไม่ใช่แค่ป้ายกำกับ จึงต้องอธิบายผลของการเลือกให้ชัดตรงนี้
-  if (window.CARE_GUIDE && window.CARE_GUIDE.varieties) {
-    var vCard = plot("พันธุ์ข้าวที่ปลูกฤดูนี้",
-      "ระบบใช้ค่านี้กำหนดปฏิทินการใส่ปุ๋ย เลือกผิดจะได้จังหวะปุ๋ยครั้งที่ 2 ผิดไปเป็นเดือน");
-
-    // อธิบายความต่างด้วยสิ่งที่ชาวนาสังเกตได้เอง คือฤดูปลูกกับแหล่งน้ำ
-    // แทนการใช้คำว่าไวหรือออกรวงตามอายุ ซึ่งถูกต้องทางวิชาการแต่คนส่วนใหญ่ไม่คุ้น
-    // ศัพท์วิชาการยังอยู่ในคำอธิบายรายพันธุ์ด้านล่างสำหรับคนที่อยากรู้ลึก
-    vCard.appendChild(el("div", "read-foot",
-      "นาปี คือปลูกตามฤดูฝน เก็บเกี่ยวปลายปีพร้อมกันทั้งอำเภอ ไม่ว่าจะหว่านเร็วหรือช้า " +
-      "เช่น ข้าวหอมมะลิ ข้าวเหนียว · " +
-      "นาปรัง คือปลูกนอกฤดูโดยใช้น้ำจากคลองชลประทาน เก็บเกี่ยวนับตามอายุข้าวจากวันหว่าน"));
-
-    var vRow = el("div");
-    vRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap";
-    var vLab = el("div");
-    vLab.appendChild(el("div", "read-foot", "ปลูกแบบไหน"));
-    var vSelect = el("select");
-    vSelect.style.cssText = "padding:9px 12px;border:1px solid var(--rule);border-radius:var(--r-sm);background:#FFFFFF;min-width:230px";
-    // แสดงเป็นคำที่ชาวนาใช้จริง ไม่ใช้คำว่าไวหรือออกรวงตามอายุ
-    // ซึ่งถูกต้องทางวิชาการแต่คนส่วนใหญ่ไม่คุ้น
-    // ค่า key ที่เก็บยังเป็น photo/nonphoto เหมือนเดิม ตรรกะปฏิทินจึงไม่กระทบ
-    var VARIETY_LABEL = { photo: "ข้าวนาปี", nonphoto: "ข้าวนาปรัง" };
-    window.CARE_GUIDE.varieties.forEach(function (v) {
-      var o = el("option", null, VARIETY_LABEL[v.key] || v.thai);
-      o.value = v.key;
-      vSelect.appendChild(o);
-    });
-    vSelect.value = fieldVariety();
-    vLab.appendChild(vSelect);
-    vRow.appendChild(vLab);
-    vCard.appendChild(vRow);
-
-    var vNote = el("div", "read-foot", "");
-    vNote.style.marginTop = "12px";
-    vCard.appendChild(vNote);
-
-    var vWarn = el("div", "read-foot", "");
-    vWarn.style.marginTop = "8px";
-    vCard.appendChild(vWarn);
-
-    function paintVariety() {
-      var v = window.careVariety(vSelect.value);
-      // ตัวอย่างพันธุ์แปลงเป็นชื่อที่ชาวนาเรียก ไม่ใช่รหัสทางการ
-      var exText = String(v.examples || "")
-        .replace(/ขาวดอกมะลิ\s*105/g, "ข้าวหอมมะลิ")
-        .replace(/กข\s*6\b/g, "ข้าวเหนียว")
-        .replace(/กข\s*15\b/g, "ข้าวหอมมะลิพันธุ์เบา")
-        .replace(/กข\s*41\b/g, "ข้าวเจ้าพันธุ์เบา")
-        .replace(/ปทุมธานี\s*1\b/g, "ข้าวหอมปทุม")
-        .replace(/เหลืองประทิว\s*123/g, "ข้าวเหลืองประทิว");
-      vNote.textContent = "เช่น " + exText;
-      vWarn.textContent = fieldVarietyChosen()
-        ? ""
-        : "ยังไม่ได้ยืนยันพันธุ์ ระบบใช้ค่าเริ่มต้นเป็นข้าวออกรวงตามฤดูไปก่อน ถ้าปลูกนาปรังให้เปลี่ยนแล้วกดบันทึก";
-    }
-
-    var vSave = el("button", "act act-go act-sm", "บันทึกพันธุ์");
-    vSave.onclick = function () {
-      setFieldVariety(vSelect.value);
-      field = readField();
-      paintVariety();
-      vSave.textContent = "บันทึกแล้ว";
-      setTimeout(function () { vSave.textContent = "บันทึกพันธุ์"; }, 1600);
-    };
-    vRow.appendChild(vSave);
-
-    vSelect.onchange = paintVariety;
-    paintVariety();
-    root.appendChild(vCard);
-
-    // ══ ชื่อพันธุ์และวันหว่าน — ปฏิทินที่คำนวณวันจริงให้ ══
-    //
-    // แยกเป็นการ์ดต่างหากจากการเลือกกลุ่ม เพราะเป็นข้อมูลเสริมที่ไม่บังคับ
-    // ผู้ใช้ที่ไม่รู้ชื่อพันธุ์ต้องยังใช้ระบบได้ด้วยการเลือกแค่กลุ่มด้านบน
-    if (window.VARIETY_GUIDE) {
-      var cCard = plot("ปฏิทินแปลงนา",
-        "เลือกชื่อพันธุ์และกรอกวันหว่าน ระบบจะคำนวณวันใส่ปุ๋ยครั้งที่ 2 วันออกดอก และวันเก็บเกี่ยวให้");
-
-      var cRow = el("div");
-      cRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap";
-
-      var kBox = el("div");
-      kBox.appendChild(el("div", "read-foot", "ชื่อพันธุ์"));
-      var kSel = el("select");
-      kSel.style.cssText = "padding:9px 12px;border:1px solid var(--rule);border-radius:var(--r-sm);background:#FFFFFF;min-width:230px";
-      // ── เมนูพันธุ์ข้าว: ขึ้นเฉพาะพันธุ์ที่ปลูกกันมากก่อน ──
-      //
-      // ของเดิมขึ้นมาทีเดียว 8 พันธุ์ ซึ่งเยอะเกินสำหรับเมนูที่ต้องเลือกครั้งเดียวจบ
-      // คนที่ไม่รู้ว่าตัวเองปลูกพันธุ์ไหนแน่ๆ จะยิ่งลังเลเมื่อเห็นตัวเลือกเยอะ
-      // ตอนนี้ขึ้น 5 พันธุ์ที่ปลูกกันมากที่สุดก่อน ที่เหลือกดเปิดดูได้
-      //
-      // ไม่ได้ลบข้อมูลพันธุ์อื่นทิ้ง เพราะยังใช้ตอบคำถามผ่าน AI และยังมีคนปลูกจริง
-      var showAllVars = false;
-      function fillVarietyMenu() {
-        kSel.innerHTML = "";
-        var oNone = el("option", null, "ยังไม่ระบุพันธุ์");
-        oNone.value = "";
-        kSel.appendChild(oNone);
-
-        // จัดกลุ่มในเมนูให้เห็นชัดว่าพันธุ์ไหนอยู่กลุ่มไหน
-        // เพราะผู้ใช้จำนวนมากไม่รู้ว่าพันธุ์ที่ตัวเองปลูกออกรวงตามฤดูหรือไม่
-        [["photo", "ข้าวนาปี"], ["nonphoto", "ข้าวนาปรัง"]].forEach(function (g) {
-          var grp = document.createElement("optgroup");
-          grp.label = g[1];
-          window.VARIETY_GUIDE.varieties
-            .filter(function (v) { return (g[0] === "photo") === !!v.photo; })
-            .filter(function (v) { return showAllVars || v.common; })
-            .forEach(function (v) {
-              // ชื่อที่ชาวนาเรียกกันจริง ไม่ใช่ชื่อทางการที่มีรหัสตัวเลข
-              //
-              // ในนา ไม่มีใครพูดว่า "ขาวดอกมะลิ 105" กัน เขาพูดว่า "หอมมะลิ"
-              // ชื่อทางการมีไว้ในเอกสารราชการ ไม่ใช่ในบทสนทนาที่ร้านขายข้าวเปลือก
-              var o = el("option", null, farmerName(v));
-              o.value = v.key;
-              grp.appendChild(o);
-            });
-          if (grp.children.length) kSel.appendChild(grp);
-        });
-        kSel.value = fieldVarietyKey() || "";
-      }
-      fillVarietyMenu();
-      kBox.appendChild(kSel);
-
-      // ถ้าพันธุ์ที่บันทึกไว้ไม่ได้อยู่ในกลุ่มที่ปลูกกันมาก ต้องเปิดรายการเต็มให้เอง
-      // ไม่งั้นผู้ใช้จะเห็นเมนูเด้งกลับไปเป็น "ยังไม่ระบุพันธุ์" ทั้งที่เคยเลือกไว้แล้ว
-      if (fieldVarietyKey() && kSel.value !== fieldVarietyKey()) {
-        showAllVars = true;
-        fillVarietyMenu();
-      }
-
-      var moreVar = el("button", "act act-line act-sm", "ไม่เจอพันธุ์ที่ปลูก");
-      moreVar.style.marginTop = "7px";
-      moreVar.onclick = function () {
-        showAllVars = !showAllVars;
-        fillVarietyMenu();
-        moreVar.textContent = showAllVars ? "ย่อเหลือพันธุ์ที่ปลูกกันมาก" : "ไม่เจอพันธุ์ที่ปลูก";
-      };
-      kBox.appendChild(el("div")).appendChild(moreVar);
-      cRow.appendChild(kBox);
-
-      var dBox = el("div");
-      dBox.appendChild(el("div", "read-foot", "วันหว่าน หรือวันปักดำ"));
-      var dIn = el("input");
-      dIn.type = "date";
-      dIn.style.cssText = "padding:9px 12px;border:1px solid var(--rule);border-radius:var(--r-sm);background:#FFFFFF";
-      var sd = fieldSowDate();
-      if (sd) dIn.value = sd.toISOString().slice(0, 10);
-      dBox.appendChild(dIn);
-      cRow.appendChild(dBox);
-
-      var cSave = el("button", "act act-go act-sm", "คำนวณปฏิทิน");
-      cRow.appendChild(cSave);
-      cCard.appendChild(cRow);
-
-      var cOut = el("div");
-      cOut.style.marginTop = "14px";
-      cCard.appendChild(cOut);
-
-      function paintCal() {
-        cOut.innerHTML = "";
-        var k = kSel.value;
-        if (!k) {
-          cOut.appendChild(el("div", "read-foot",
-            "ยังไม่ได้เลือกพันธุ์ ระบบจะใช้คำแนะนำระดับกลุ่มแทน ซึ่งบอกหลักการได้แต่บอกวันที่ไม่ได้"));
-          return;
-        }
-        var v = window.findVariety(k);
-        if (!dIn.value) {
-          cOut.appendChild(el("div", "flash flash-warn",
-            v.photo
-              ? "กรอกวันหว่านเพื่อให้ระบบเลือกฤดูให้ถูกและเตือนได้ถ้าหว่านช้าเกินไป"
-              : "พันธุ์นี้ออกดอกตามอายุ ต้องกรอกวันหว่านก่อนจึงจะคำนวณวันที่ได้"));
-        } else {
-          var cal = window.varietyCalendar(k, new Date(dIn.value));
-          if (cal) {
-            var g = el("div", "row-3");
-            [["ใส่ปุ๋ยครั้งที่ 2", cal.text.fert2, "ตอนข้าวเริ่มสร้างรวงในลำต้น"],
-             ["ข้าวออกดอก", cal.text.bloom, "ห้ามให้ขาดน้ำช่วงนี้"],
-             ["เก็บเกี่ยว", cal.text.harvest, "ระบายน้ำก่อน 7-10 วัน"]
-            ].forEach(function (c) {
-              var b = el("div");
-              b.appendChild(readOut(c[0], c[1], c[2]));
-              g.appendChild(b);
-            });
-            cOut.appendChild(g);
-
-            // อายุข้าว ณ วันใส่ปุ๋ย เป็นตัวเลขที่พิสูจน์ว่าทำไมสูตร "45-50 วัน" ใช้ไม่ได้ทุกพันธุ์
-            // แสดงให้เห็นชัดๆ ดีกว่าอธิบายเป็นข้อความยาว
-            cOut.appendChild(el("div", "read-foot",
-              "ณ วันใส่ปุ๋ยครั้งที่ 2 ข้าวจะมีอายุประมาณ " + cal.ageAtFert2 + " วัน" +
-              (v.photo && cal.ageAtFert2 > 60
-                ? " — สังเกตว่ามากกว่าสูตร 45-50 วันที่ใช้กับนาปรังอยู่มาก ถ้าใส่ตามสูตรนั้นจะเร็วเกินไปเกือบ " +
-                  (cal.ageAtFert2 - 47) + " วัน"
-                : "")));
-            cOut.appendChild(el("div", "read-foot",
-              "รวมอายุตั้งแต่หว่านถึงเก็บเกี่ยวประมาณ " + cal.totalDays + " วัน"));
-          }
-        }
-
-        // ข้อมูลพันธุ์ที่มีผลกับการตัดสินใจจริง วางไว้ใต้ปฏิทิน
-        cOut.appendChild(el("div", "read-foot",
-          "ผลผลิตอ้างอิง " + v["yield"] + " กก./ไร่ · สูงประมาณ " + v.height + " ซม. · แนะนำปลูกใน" + v.region));
-        if (v.weakDisease && v.weakDisease.length) {
-          cOut.appendChild(el("div", "flash flash-warn",
-            "พันธุ์นี้ไม่ทนทานโรค: " + v.weakDisease.join(", ") +
-            (v.weakPest && v.weakPest.length ? " และไม่ทนทาน: " + v.weakPest.join(", ") : "") +
-            " — ถ้าระบบตรวจพบโรคเหล่านี้จากภาพ ให้เชื่อผลมากขึ้นและรีบจัดการ"));
-        }
-        if (v.note) cOut.appendChild(el("div", "read-foot", v.note));
-        cOut.appendChild(el("div", "read-foot",
-          "วันที่ทั้งหมดเป็นค่าประมาณ เลื่อนได้หลายวันตามอากาศและพื้นที่ " +
-          "วิธียืนยันที่แม่นที่สุดคือผ่าลำต้นดู ถ้าเห็นช่อดอกอ่อนสีขาว 1-2 มิลลิเมตรในกาบใบ นั่นคือจังหวะใส่ปุ๋ยจริง"));
-      }
-
-      cSave.onclick = function () {
-        setFieldVarietyKey(kSel.value || null);
-        setFieldSowDate(dIn.value || null);
-        field = readField();
-        paintCal();
-        paintVariety();
-        vSelect.value = fieldVariety();
-        cSave.textContent = "บันทึกแล้ว";
-        setTimeout(function () { cSave.textContent = "คำนวณปฏิทิน"; }, 1600);
-      };
-      kSel.onchange = paintCal;
-      dIn.onchange = paintCal;
-      paintCal();
-      root.appendChild(cCard);
-    }
-  }
-
-  // ══ พื้นที่ตามเอกสารสิทธิ์ ══
-  //
-  // วางไว้ก่อนแผนที่โดยตั้งใจ เพราะอยากให้ผู้ใช้กรอกก่อนไปวาดขอบเขต
-  // ถ้ากรอกทีหลังจะกลายเป็นการ "ปรับตัวเลขให้ตรงกับที่วาดไปแล้ว" ซึ่งเสียจุดประสงค์
-  // การตรวจสอบที่มีค่าคือการที่สองค่ามาจากคนละแหล่งโดยไม่รู้กันมาก่อน
-  // ══ แผนที่ ══
-  //
-  // ซ่อนไว้ก่อน ไม่ได้ลบทิ้ง
-  //
-  // เหตุผล: ผู้ใช้ส่วนใหญ่กรอกขนาดจากโฉนดก็พอแล้ว แผนที่มีไว้สำหรับคนที่
-  // อยากเดินวัดขอบแปลงจริง ซึ่งเป็นส่วนน้อย การเปิดค้างไว้ทำให้หน้ารกโดยไม่จำเป็น
-  // และภาพดาวเทียมโหลดช้าในพื้นที่สัญญาณอ่อน ซึ่งเป็นที่ที่แปลงนาอยู่พอดี
-  //
-  // ต้องสร้าง element ไว้ตั้งแต่แรกเพราะ Leaflet ต้องการ container ที่มีอยู่จริง
-  // แต่ตั้ง display:none ไว้ แล้วเรียก invalidateSize() ตอนเปิด
-  // ไม่งั้นแผนที่จะวาดผิดขนาดเพราะตอนสร้างมันวัดความกว้างได้ศูนย์
-  var mapCard = plot(null);
-  var mapToggle = el("button", "act act-line act-wide", "เปิดแผนที่เพื่อปักหมุดหรือเดินวัดขอบแปลง");
-  mapCard.appendChild(mapToggle);
-  mapCard.appendChild(el("div", "read-foot",
-    "ถ้ากรอกขนาดจากโฉนดไว้แล้ว ไม่จำเป็นต้องเปิดแผนที่"));
-
-  var canvasHost = el("div");
-  canvasHost.id = "map";
-  canvasHost.style.display = "none";
-  canvasHost.style.marginTop = "13px";
-  mapCard.appendChild(canvasHost);
-  root.appendChild(mapCard);
-
-  var mapShown = false;
-  mapToggle.onclick = function () {
-    mapShown = !mapShown;
-    canvasHost.style.display = mapShown ? "" : "none";
-    mapToggle.textContent = mapShown ? "ซ่อนแผนที่" : "เปิดแผนที่เพื่อปักหมุดหรือเดินวัดขอบแปลง";
-    if (mapShown) {
-      // ต้องรอให้เบราว์เซอร์วาดกล่องเสร็จก่อน ไม่งั้นวัดขนาดได้ศูนย์
-      setTimeout(function () { map.invalidateSize(); }, 60);
-    }
-  };
-
-  // ══ แผนที่ ══
-  var center = field ? [field.lat, field.lon]
-             : pins.length ? pins[0].gps.split(",").map(Number)
-             : [15.87, 100.99];
-  var map = L.map("map").setView(center, field ? 16 : pins.length ? 12 : 6);
-
-  // ภาพถ่ายดาวเทียมช่วยให้เห็นขอบแปลงจริง วาดขอบเขตได้แม่นกว่าแผนที่เส้น
-  var streets = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap", maxZoom: 19
-  });
-  var sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-    attribution: "Esri World Imagery", maxZoom: 19
-  });
-  sat.addTo(map);
-  L.control.layers({ "ภาพถ่ายดาวเทียม": sat, "แผนที่เส้น": streets }, null, { position: "topright" }).addTo(map);
-
-  pins.forEach(function (p) {
-    var c = p.gps.split(",").map(Number);
-    L.circleMarker(c, { radius: 5, color: "#7C9385", fillColor: "#C8E6C9", fillOpacity: .8, weight: 1.5 })
-      .addTo(map).bindPopup(p.date + "<br>" + p.disease);
-  });
-
-  var layers = [];
-  function clearLayers() {
-    layers.forEach(function (l) { map.removeLayer(l); });
-    layers = [];
-  }
-
-  function showArea(sqm, extra) {
-    var a = raiFromSqm(sqm);
-    areaBox.innerHTML = "";
-    areaBox.appendChild(readOut("พื้นที่", a.rai.toFixed(2) + " ไร่", a.text));
-    areaBox.appendChild(readOut("ตารางเมตร", Math.round(sqm).toLocaleString("th-TH"), extra || ""));
-    if (field && field.lat != null) {
-      areaBox.appendChild(readOut("พิกัดกลางแปลง", field.lat.toFixed(5), field.lon.toFixed(5)));
-    }
-
-    verifyBox.innerHTML = "";
-
-    // ระดับความน่าเชื่อถือของพิกัด
-    var fm = field && field.fixMethod && FIX_METHODS[field.fixMethod];
-    if (fm) {
-      var line = el("div", "read-foot",
-        "พิกัดนี้ได้มาจาก: " + fm.thai + " — " + fm.note +
-        (field.accuracy != null ? " · ตอนบันทึกคลาดเคลื่อนได้ ±" + field.accuracy + " เมตร" : "") +
-        (field.fixedAt ? " · บันทึกเมื่อ " + ageWords(field.fixedAt) : ""));
-      line.style.marginTop = "8px";
-      verifyBox.appendChild(line);
-    }
-  }
-
-  function draw() {
-    clearLayers();
-    var locked = field && field.locked;
-
-    if (!field || (field.mode === "poly" && (!field.points || field.points.length < 3) && field.lat == null)) {
-      areaBox.innerHTML = "";
-      areaBox.appendChild(readOut("พื้นที่", "—", "ยังไม่ได้กำหนดแปลง"));
-    }
-
-    if (field && field.mode === "poly") {
-      var pts = field.points || [];
-      pts.forEach(function (pt, i) {
-        var mk = L.circleMarker(pt, {
-          radius: 7, color: "#FFFFFF", weight: 2,
-          fillColor: locked ? "#1B5E3A" : "#2E8B57", fillOpacity: 1
-        }).addTo(map).bindTooltip("มุมที่ " + (i + 1));
-        layers.push(mk);
-      });
-      if (pts.length >= 3) {
-        var poly = L.polygon(pts, {
-          color: locked ? "#1B5E3A" : "#2E8B57",
-          fillColor: "#6FBF73", fillOpacity: .28, weight: 2,
-          dashArray: locked ? null : "6 5"
-        }).addTo(map);
-        layers.push(poly);
-        var sqm = polygonArea(pts);
-        var c = centroid(pts);
-        field.lat = c[0]; field.lon = c[1];
-        showArea(sqm, "จาก " + pts.length + " มุมที่ปักไว้");
-      } else if (pts.length) {
-        areaBox.innerHTML = "";
-        areaBox.appendChild(readOut("พื้นที่", "—", "ปักครบ 3 มุมขึ้นไปจึงจะคำนวณได้ ตอนนี้มี " + pts.length));
-      }
-      infoNote.textContent = locked
-        ? "ล็อกไว้แล้ว เปิดจากที่ไหนก็เห็นแปลงเดิม"
-        : "กดบนแผนที่ตามมุมแปลงทีละจุด อย่างน้อย 3 มุม แล้วกดล็อกไว้";
-
-    } else if (field && field.lat != null) {
-      var r = clampRadius(field.radius);
-      field.radius = r;
-      var mk2 = L.marker([field.lat, field.lon], { draggable: !locked }).addTo(map);
-      var ci = L.circle([field.lat, field.lon], {
-        radius: r, color: locked ? "#1B5E3A" : "#2E8B57",
-        fillColor: "#6FBF73", fillOpacity: .2, weight: 2,
-        dashArray: locked ? null : "6 5"
-      }).addTo(map);
-      layers.push(mk2); layers.push(ci);
-      mk2.on("dragend", function (e) {
-        var ll = e.target.getLatLng();
-        field.lat = ll.lat; field.lon = ll.lng;
-        save(); draw();
-      });
-      showArea(Math.PI * r * r, "รัศมี " + r + " เมตร");
-      infoNote.textContent = locked
-        ? "ล็อกไว้แล้ว เปิดจากที่ไหนก็เห็นแปลงเดิม"
-        : "ลากหมุดปรับตำแหน่งได้ หรือกดบนแผนที่เพื่อย้าย";
-    } else {
-      infoNote.textContent = "เลือกวิธีวัดด้านล่าง แล้วกดบนแผนที่ตรงที่นาของคุณ";
-    }
-
-    lockBtn.disabled = !field || (field.mode === "poly" ? (field.points || []).length < 3 : field.lat == null);
-    lockBtn.textContent = locked ? "ปลดล็อกเพื่อแก้ไข" : "ล็อกไว้";
-    lockBtn.className = "act act-sm " + (locked ? "act-line" : "act-go");
-    save();
-  }
-
-  function paintTools() {
-    modeRow.innerHTML = "";
-    [["circle", "วงกลม", "ปักจุดกลาง ใส่รัศมี"],
-     ["poly", "วาดขอบเขตแปลง", "กดตามมุมแปลง ได้พื้นที่จริง"]].forEach(function (m) {
-      var on = field && field.mode === m[0];
-      var b = el("button", "act act-sm " + (on ? "act-go" : "act-line"));
-      b.appendChild(document.createTextNode(m[1]));
-      var sub = el("span", "", " · " + m[2]);
-      sub.style.opacity = ".72";
-      b.appendChild(sub);
-      b.onclick = function () {
-        if (field && field.locked) { warnLocked(); return; }
-        field = field || { mode: m[0], radius: 100, points: [] };
-        field.mode = m[0];
-        if (m[0] === "poly" && !field.points) field.points = [];
-        save(); paintTools(); draw();
-      };
-      modeRow.appendChild(b);
-    });
-
-    toolRow.innerHTML = "";
-    if (field && field.mode === "poly") {
-      var undo = el("button", "act act-line act-sm", "ลบมุมล่าสุด");
-      undo.onclick = function () {
-        if (field.locked) { warnLocked(); return; }
-        (field.points || []).pop();
-        save(); draw();
-      };
-      var clr = el("button", "act act-line act-sm", "ล้างทั้งหมด");
-      clr.onclick = function () {
-        if (field.locked) { warnLocked(); return; }
-        field.points = [];
-        save(); draw();
-      };
-      toolRow.appendChild(undo);
-      toolRow.appendChild(clr);
-    } else {
-      var fR = el("div", "inp");
-      fR.style.cssText = "flex:1;min-width:150px";
-      fR.appendChild(el("label", "", "รัศมี (เมตร)"));
-      var rIn = el("input");
-      rIn.className = "num-in";
-      rIn.inputMode = "numeric";
-      rIn.value = String(field && field.radius ? field.radius : 100);
-      rIn.oninput = function () {
-        if (!field || field.locked) return;
-        field.radius = clampRadius(parseInt(rIn.value, 10));
-        save(); draw();
-      };
-      fR.appendChild(rIn);
-      toolRow.appendChild(fR);
-    }
-
-    var hereBtn = el("button", "act act-line act-sm", "ใช้ตำแหน่งปัจจุบัน");
-    hereBtn.onclick = async function () {
-      if (field && field.locked) { warnLocked(); return; }
-      hereBtn.textContent = "กำลังหาตำแหน่ง";
-      hereBtn.disabled = true;
-      msg.innerHTML = "";
-      try {
-        var fix = await getFix();
-        field = field || { mode: "circle", radius: 100, points: [] };
-        if (field.mode === "poly") {
-          field.points = (field.points || []).concat([[fix.lat, fix.lon]]);
-        } else {
-          field.lat = fix.lat; field.lon = fix.lon;
-        }
-        // จำไว้ว่าพิกัดชุดนี้วัดเมื่อไหร่และแม่นแค่ไหน
-        // ทุกหน้าที่ใช้พิกัดแปลงจะได้บอกผู้ใช้ได้ว่ากำลังอ้างอิงข้อมูลเก่าแค่ไหน
-        field.fixedAt = fix.at;
-        field.accuracy = Math.round(fix.accuracy);
-        field.fixMethod = "single";
-        save();
-        map.setView([fix.lat, fix.lon], 17);
-        draw();
-        var n = accuracyNote(fix.accuracy);
-        msg.appendChild(el("div", n.ok ? "flash flash-ok" : "flash flash-warn", n.text));
-      } catch (err) {
-        msg.appendChild(el("div", "flash flash-bad", err.message));
-      }
-      hereBtn.textContent = "ใช้ตำแหน่งปัจจุบัน";
-      hereBtn.disabled = false;
-    };
-    toolRow.appendChild(hereBtn);
-
-    // ══ ปุ่มเดินรอบแปลง ══
-    //
-    // แม่นที่สุดในบรรดาวิธีที่มี และมีคุณสมบัติที่วิธีอื่นไม่มีเลย
-    // คือทำได้เฉพาะคนที่เดินอยู่ในแปลงจริงเท่านั้น นั่งที่บ้านทำไม่ได้
-    // จึงเป็นทั้งเครื่องมือวัดและหลักฐานยืนยันว่าเคยไปที่แปลงจริงในตัวเดียวกัน
-    var walkBtn = el("button", "act act-line act-sm", "เดินรอบแปลง");
-    var walking = false, walkId = null, walkPts = [], walkLine = null, walkStat = null;
-
-    function stopWalk(save_) {
-      if (walkId != null) navigator.geolocation.clearWatch(walkId);
-      walkId = null; walking = false;
-      walkBtn.textContent = "เดินรอบแปลง";
-      walkBtn.className = "act act-line act-sm";
-      if (walkLine) { map.removeLayer(walkLine); walkLine = null; }
-
-      if (save_ && walkPts.length >= 3) {
-        field = field || { radius: 100 };
-        field.mode = "poly";
-        field.points = walkPts.slice();
-        setFixMethod("walk");
-        field = readField();
-        save();
-        paintTools();
-        draw();
-        msg.innerHTML = "";
-        msg.appendChild(el("div", "flash flash-ok",
-          "บันทึกขอบเขตจากการเดินรอบแปลงแล้ว ได้ " + walkPts.length + " จุด"));
-      } else if (save_) {
-        msg.innerHTML = "";
-        msg.appendChild(el("div", "flash flash-warn",
-          "เก็บจุดได้เพียง " + walkPts.length + " จุด ซึ่งไม่พอสร้างรูปแปลง ต้องได้อย่างน้อย 3 จุด"));
-      }
-      walkPts = [];
-      if (walkStat) { walkStat.remove(); walkStat = null; }
-    }
-
-    walkBtn.onclick = function () {
-      if (field && field.locked) { warnLocked(); return; }
-      if (walking) { stopWalk(true); return; }
-      if (!navigator.geolocation) {
-        msg.innerHTML = "";
-        msg.appendChild(el("div", "flash flash-bad", "อุปกรณ์นี้ไม่รองรับการหาตำแหน่ง"));
-        return;
-      }
-
-      walking = true;
-      walkPts = [];
-      walkBtn.textContent = "หยุดและบันทึก";
-      walkBtn.className = "act act-go act-sm";
-      msg.innerHTML = "";
-      walkStat = el("div", "flash flash-warn",
-        "กำลังเก็บเส้นทาง เดินตามคันนารอบแปลงให้ครบรอบ แล้วกดหยุดและบันทึก");
-      msg.appendChild(walkStat);
-
-      walkId = navigator.geolocation.watchPosition(function (pos) {
-        var lat = pos.coords.latitude, lon = pos.coords.longitude, acc = pos.coords.accuracy;
-
-        // ── ตัวกรอง 2 ชั้น สำคัญมาก ไม่งั้นได้ขยะ ──
-        //
-        // ชั้นแรก ทิ้งจุดที่ความแม่นยำแย่กว่า 20 เมตร เพราะจุดพวกนั้นมาจาก
-        // เสาสัญญาณไม่ใช่ดาวเทียม เอามาวาดขอบแปลงจะเพี้ยนไปเป็นสิบเมตร
-        //
-        // ชั้นที่สอง ทิ้งจุดที่ห่างจากจุดก่อนหน้าน้อยกว่า 3 เมตร เพราะคนเดิน
-        // มักหยุดยืนคุยหรือดูของกลางทาง ถ้าไม่กรองจะได้จุดกระจุกเป็นก้อนใหญ่
-        // ทำให้รูปแปลงบิดเบี้ยวตรงจุดที่หยุด และไฟล์บวมโดยไม่ได้ข้อมูลเพิ่ม
-        if (acc > 20) {
-          walkStat.textContent = "สัญญาณยังหยาบ (±" + Math.round(acc) +
-            " เมตร) กำลังรอให้จับดาวเทียมได้ดีขึ้น · เก็บได้ " + walkPts.length + " จุด";
-          return;
-        }
-        if (walkPts.length) {
-          var last = walkPts[walkPts.length - 1];
-          if (metersBetween(last[0], last[1], lat, lon) < 3) return;
-        }
-
-        walkPts.push([lat, lon]);
-        if (walkLine) map.removeLayer(walkLine);
-        walkLine = L.polyline(walkPts, { color: "#B8860B", weight: 3, dashArray: "5 4" }).addTo(map);
-        map.setView([lat, lon]);
-
-        var live = walkPts.length >= 3 ? raiFromSqm(polygonArea(walkPts)) : null;
-        walkStat.textContent = "เก็บได้ " + walkPts.length + " จุด · คลาดเคลื่อนได้ ±" +
-          Math.round(acc) + " เมตร" +
-          (live ? " · พื้นที่ตอนนี้ประมาณ " + live.rai.toFixed(2) + " ไร่" : " · เดินต่อจนครบ 3 จุดขึ้นไป");
-      }, function (e) {
-        walkStat.className = "flash flash-bad";
-        walkStat.textContent = e && e.code === 1
-          ? "ยังไม่ได้อนุญาตให้เข้าถึงตำแหน่ง"
-          : "หาสัญญาณไม่ได้ ลองออกไปที่โล่ง";
-      }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
-    };
-    toolRow.appendChild(walkBtn);
-  }
-
-  function warnLocked() {
-    msg.innerHTML = "";
-    msg.appendChild(el("div", "flash flash-warn", "ต้องปลดล็อกก่อนจึงจะแก้ไขได้"));
-  }
-
-  map.on("click", function (e) {
-    if (!field) field = { mode: "circle", radius: 100, points: [] };
-    if (field.locked) return;
-    if (field.mode === "poly") {
-      field.points = (field.points || []).concat([[e.latlng.lat, e.latlng.lng]]);
-    } else {
-      field.lat = e.latlng.lat; field.lon = e.latlng.lng;
-    }
-
-    // แตะบนแผนที่ทำได้จากที่ไหนก็ได้ จึงเป็นระดับความน่าเชื่อถือต่ำสุด
-    // ต้องบันทึกตามจริง ไม่ใช่ปล่อยให้ดูเหมือนกับพิกัดที่ได้จากการยืนในแปลง
-    //
-    // ตั้งค่าบน field โดยตรง ไม่ใช่เขียนลง storage แยก
-    // เพราะ save() ด้านล่างเขียน field ทับทั้งก้อน ถ้าเขียนแยกจะถูกลบทันที
-    field.fixMethod = "tap";
-    field.fixedAt = Date.now();
-    delete field.accuracy;
-
-    save(); draw();
-  });
-
-  lockBtn.onclick = function () {
-    if (!field) return;
-    field.locked = !field.locked;
-    save(); paintTools(); draw();
-    msg.innerHTML = "";
-    msg.appendChild(el("div", "flash " + (field.locked ? "flash-ok" : "flash-warn"),
-      field.locked
-        ? "ล็อกแล้ว แท็บตรวจแปลงและหน้าอื่นจะใช้พิกัดนี้เป็นตำแหน่งแปลงของคุณ"
-        : "ปลดล็อกแล้ว แก้ไขตำแหน่งและขอบเขตได้"));
-  };
-
-  paintTools();
-  draw();
-
-};
-
-
 views.profile = function (root) {
   root.appendChild(pageHead("profile"));
   var p = Store.profile();

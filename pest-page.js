@@ -290,8 +290,8 @@ window.buildPestPage = function (root, ui) {
   // ข้อมูลเขียนในรูป "อาการ = ตัวการ" อยู่แล้ว จึงแสดงเป็นสองคอลัมน์
   // อาการที่เห็นอยู่ซ้าย ตัวการอยู่ขวา กวาดตาหาแถวที่ตรงกับที่เจอได้เร็วกว่ารายการหัวข้อย่อยยาวๆ
   if (wantTriage && P.triage && P.triage.length) {
-    root.appendChild(bund("เห็นอาการแบบนี้ แมลงหรือโรค"));
-    const tri = plot(null, "โรคพืชไม่ทำให้เนื้อใบหายไป ถ้าเห็นรอยกัดหรือใบแหว่ง แปลว่าเป็นแมลงแน่นอน");
+    root.appendChild(bund("อาการนี้คืออะไร"));
+    const tri = plot(null);
 
     const table = el("div", "tri");
     const th = el("div", "tri-head");
@@ -317,23 +317,24 @@ window.buildPestPage = function (root, ui) {
       row.appendChild(signCell);
 
       if (cause) {
+        // ตัดคำอธิบายประกอบออกจากตาราง เหลือแค่ อาการ → ตัวการ ให้กวาดตาอ่านได้เร็ว
+        // รายละเอียดแยกแมลงกับโรคอยู่ในการ์ดแมลงแต่ละตัวด้านล่างอยู่แล้ว
         const causeCell = el("div", "tri-cause", cause);
-        if (note) causeCell.appendChild(el("i", "", note));
+        if (note) causeCell.title = note;
         row.appendChild(causeCell);
       }
       table.appendChild(row);
     });
     tri.appendChild(table);
 
-    tri.appendChild(el("div", "flash flash-bad",
-      "ตัวตรวจรูปดูออกแค่โรค 6 ชนิด ไม่รู้จักแมลง ถ้าอาการเกิดจากแมลง ห้ามเชื่อผลตรวจจากภาพ"));
+    tri.appendChild(el("div", "flash flash-bad", "AI ดูออกแค่โรค ไม่รู้จักแมลง"));
     root.appendChild(tri);
   }
 
   if (!wantList) return;
 
   // ══ รายชื่อแมลง ══
-  root.appendChild(bund("แมลงและสัตว์ที่กินข้าว"));
+  root.appendChild(bund("แมลงศัตรูข้าว"));
 
   // ── ยุบไว้ก่อน กดค่อยกาง (แก้ 2026-08) ──
   //
