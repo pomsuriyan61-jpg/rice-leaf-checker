@@ -279,6 +279,48 @@
   .be-val { font-size: 1.9rem; font-weight: 500; line-height: 1.2; letter-spacing: -.02em; }
   .pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; align-items: start; }
   @media (max-width: 900px) { .pgrid { grid-template-columns: 1fr; } }
+  /* ── แถบสลับแปลงนา ──────────────────────────
+     ต้องอยู่บนสุดและติดหนึบเวลาเลื่อน เพราะทุกตัวเลขที่อยู่ใต้มันเป็นของแปลงที่เลือกอยู่
+     ถ้าเลื่อนจนแถบหายไป ผู้ใช้จะลืมว่ากำลังดูแปลงไหนแล้วอ่านตัวเลขผิดแปลง */
+  .plotbar { position: sticky; top: 0; z-index: 6; background: var(--mist);
+             padding: 9px 0 8px; margin-bottom: 4px; }
+  .plotbar-row { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px;
+                 scrollbar-width: none; }
+  .plotbar-row::-webkit-scrollbar { display: none; }
+  .plotchip { flex: 0 0 auto; padding: 7px 15px; border-radius: 999px; font-size: .88rem;
+              border: 1px solid var(--rule); background: var(--paper); color: var(--ink-soft);
+              cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .plotchip.on { background: var(--deep); border-color: var(--deep); color: #FFFFFF; font-weight: 600; }
+  .plotchip-add { border-style: dashed; color: var(--ink-faint); }
+
+  /* แผงเล็กกลางจอ ใช้ตอนแก้ชื่อหรือลบแปลง */
+  .sheet-back { position: fixed; inset: 0; background: rgba(23,48,31,.34); z-index: 60;
+                display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .sheet { background: var(--paper); border-radius: var(--r); padding: 20px;
+           width: 100%; max-width: 340px; box-shadow: var(--lift); }
+  .sheet-title { font-weight: 600; margin-bottom: 11px; }
+  .sheet-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  /* ── ตารางสองช่อง ใช้ทั้งส่วนผสมปุ๋ยและปลายทางของเหลือ ──
+     บนจอแคบยุบเป็นบรรทัดซ้อนกัน ไม่ใช่ให้เลื่อนแนวนอน
+     เพราะตารางที่ต้องเลื่อนซ้ายขวาบนมือถือคือตารางที่ไม่มีใครอ่านจนจบ */
+  .mtab { border-top: 1px solid var(--rule-soft); }
+  .mtab-head { display: grid; grid-template-columns: 1fr 1.35fr; gap: 12px;
+               padding: 8px 0; font-size: .78rem; color: var(--ink-faint);
+               border-bottom: 1px solid var(--rule); }
+  .mtab-row { display: grid; grid-template-columns: 1fr 1.35fr; gap: 12px;
+              padding: 10px 0; border-bottom: 1px solid var(--rule-soft); align-items: start; }
+  .mtab-row:last-child { border-bottom: 0; }
+  .mtab-k { font-weight: 500; font-size: .9rem; display: flex; align-items: center; }
+  .mtab-v { font-size: .86rem; color: var(--ink-soft); }
+  .mtab-v.num { font-family: var(--f-data); color: var(--ink); }
+  @media (max-width: 430px) {
+    .mtab-head { display: none; }
+    .mtab-row { grid-template-columns: 1fr; gap: 2px; }
+  }
+
+  .pic-cycle { max-width: 300px; margin: 4px auto 6px; }
+  /* ข้อความในรูปต้องใช้ฟอนต์เดียวกับทั้งเว็บ ไม่ใช่ฟอนต์เริ่มต้นของเบราว์เซอร์ */
+  .pic svg text { font-family: var(--f-body); }
   /* ── รูปอธิบาย ─────────────────────────────
      รูปทำหน้าที่แทนย่อหน้า จึงต้องได้พื้นที่เท่าย่อหน้า ไม่ใช่ไอคอนจิ๋วข้างข้อความ
      กำหนด max-width ไว้เพราะบนจอกว้าง รูปที่ยืดเต็มความกว้างการ์ดจะใหญ่จนดูเล่อล่า */
@@ -1212,15 +1254,15 @@
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=20"></script>
-<script src="soil-guide.js?v=20"></script>
-<script src="fertilizer-guide.js?v=20"></script>
-<script src="cost-guide.js?v=20"></script>
-<script src="care-guide.js?v=20"></script>
-<script src="planting-guide.js?v=20"></script>
-<script src="pest-guide.js?v=20"></script>
-<script src="variety-guide.js?v=20"></script>
-  <script src="pest-page.js?v=20"></script>
+<script src="disease-guide.js?v=21"></script>
+<script src="soil-guide.js?v=21"></script>
+<script src="fertilizer-guide.js?v=21"></script>
+<script src="cost-guide.js?v=21"></script>
+<script src="care-guide.js?v=21"></script>
+<script src="planting-guide.js?v=21"></script>
+<script src="pest-guide.js?v=21"></script>
+<script src="variety-guide.js?v=21"></script>
+  <script src="pest-page.js?v=21"></script>
 <script>
 (function () {
 "use strict";
@@ -1300,8 +1342,8 @@ function th(l) {
 // เพราะเป็นงานตั้งค่าที่ทำครั้งเดียวจบ ไม่ควรกินที่ในเมนูหลักตลอดเวลา
 var PAGES = [
   { id: "field", label: "แปลงนา", kicker: "ก่อนปลูก",
-    parts: ["season", "soil", "fert"],
-    jump: ["ฤดูนี้", "ดิน", "ปุ๋ย"],
+    parts: ["season", "soil", "fert", "cycle"],
+    jump: ["ฤดูนี้", "ดิน", "ปุ๋ย", "หมุนเวียน"],
     icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
 
   { id: "check", label: "ตรวจแปลง", kicker: "ระหว่างปลูก",
@@ -1324,6 +1366,9 @@ var PAGES = [
 ];
 
 // หน้าเดิมอยู่ในแท็บไหน ใช้ตอนที่โค้ดเก่าสั่ง open("soil") ซึ่งตอนนี้ไม่ใช่แท็บแล้ว
+// แท็บที่เนื้อหาผูกกับแปลงใดแปลงหนึ่ง ต้องขึ้นแถบสลับแปลง
+var PLOT_PAGES = ["field", "check", "money"];
+
 function tabOf(viewId) {
   var hit = PAGES.filter(function (p) {
     return (p.parts || []).indexOf(viewId) !== -1;
@@ -1478,6 +1523,9 @@ var Store = {
   },
 
   async add(entry) {
+    // ติดรหัสแปลงที่นี่ที่เดียว ทุกหน้าที่บันทึกจึงไม่ต้องจำใส่เอง
+    // ถ้าปล่อยให้แต่ละหน้าใส่เอง วันหนึ่งจะมีหน้าที่ลืม แล้วบันทึกนั้นจะไปโผล่ผิดแปลง
+    if (entry && !entry.plot) entry.plot = Plots.activeId();
     try {
       var saved = await api("/field-logs", { method: "POST", body: entry });
       this._cache = this._cache ? [saved].concat(this._cache) : [saved];
@@ -2496,7 +2544,7 @@ function fieldSetupContext() {
            "ห้ามถามขนาดแปลงเพื่อคิดยอดรวมให้ ถ้าผู้ใช้อยากได้ยอดรวมค่อยบอกให้เขาคูณจำนวนไร่เอง]");
 
   try {
-    var sKey = "smartrice-soil:" + (Session.user ? Session.user.username : "guest");
+    var sKey = plotKey("soil");
     var sv = JSON.parse(localStorage.getItem(sKey) || "{}");
     var SW = { clay: "ดินเหนียว", loam: "ดินร่วน", sand: "ดินทราย" };
     var MW = { wet: "นาดำ (ปักดำ)", dry: "นาหว่านแห้ง", broadcast: "นาหว่านน้ำตม" };
@@ -2874,14 +2922,192 @@ function ageWords(ms) {
   return Math.floor(d / 365) + " ปีก่อน";
 }
 
+// ═══ แปลงนาหลายแปลง ═══════════════════════════
+//
+// ชาวนาคนหนึ่งมักมีที่นามากกว่าหนึ่งผืน และแต่ละผืนไม่เหมือนกันเลย
+// ดินคนละชนิด ค่า pH คนละค่า หว่านคนละวัน ต้นทุนคนละก้อน
+// เดิมเว็บเก็บทุกอย่างเป็นชุดเดียว คนที่มีสองแปลงจึงต้องเลือกว่าจะกรอกของแปลงไหน
+// แล้วอีกแปลงก็ไม่มีข้อมูลเลย หรือแย่กว่านั้นคือเอาค่าของอีกแปลงไปคิดปุ๋ยผิดแปลง
+//
+// วิธีแก้: ทุกคีย์ที่เป็น "ข้อมูลของแปลง" ต้องมีรหัสแปลงต่อท้าย
+// ส่วนคีย์ที่เป็น "ความชอบของผู้ใช้" เช่นราคาวัสดุที่จดไว้ ยังใช้ร่วมกันทุกแปลง
+// เพราะราคาปูนที่ร้านเดียวกันไม่ได้เปลี่ยนตามว่ากำลังดูแปลงไหนอยู่
+var Plots = {
+  _uid: function () { return Session.user ? Session.user.username : "guest"; },
+  _listKey: function () { return "smartrice-plots:" + this._uid(); },
+  _activeKey: function () { return "smartrice-plot:" + this._uid(); },
+
+  // อย่างน้อยต้องมีหนึ่งแปลงเสมอ ไม่มีสถานะ "ไม่มีแปลงเลย"
+  // ไม่งั้นทุกหน้าต้องเขียนกรณีพิเศษว่าจะแสดงอะไรตอนยังไม่มีแปลง
+  list: function () {
+    var arr = null;
+    try { arr = JSON.parse(localStorage.getItem(this._listKey()) || "null"); } catch (e) { arr = null; }
+    if (!Array.isArray(arr) || !arr.length) arr = [{ id: "p1", name: "ไร่ที่ 1" }];
+    return arr;
+  },
+
+  _save: function (arr) {
+    try { localStorage.setItem(this._listKey(), JSON.stringify(arr)); } catch (e) { /* พื้นที่เต็ม */ }
+  },
+
+  activeId: function () {
+    var arr = this.list();
+    var id = null;
+    try { id = localStorage.getItem(this._activeKey()); } catch (e) { id = null; }
+    // แปลงที่เคยเลือกไว้อาจถูกลบไปแล้ว ต้องเด้งกลับแปลงแรกเสมอ
+    // ไม่งั้นทุกหน้าจะอ่านคีย์ของแปลงที่ไม่มีอยู่แล้วขึ้นหน้าว่างโดยไม่บอกสาเหตุ
+    if (!arr.some(function (p) { return p.id === id; })) id = arr[0].id;
+    return id;
+  },
+
+  active: function () {
+    var id = this.activeId();
+    return this.list().filter(function (p) { return p.id === id; })[0];
+  },
+
+  setActive: function (id) {
+    try { localStorage.setItem(this._activeKey(), id); } catch (e) { /* พื้นที่เต็ม */ }
+  },
+
+  add: function (name) {
+    var arr = this.list();
+    // รหัสต้องไม่ซ้ำกับที่เคยใช้ ถึงจะลบแปลงกลางไปแล้วก็ตาม
+    // ถ้าใช้ความยาวรายการมานับ รหัสจะชนกันแล้วแปลงใหม่จะเห็นข้อมูลของแปลงที่ลบไป
+    var n = 1;
+    while (arr.some(function (p) { return p.id === "p" + n; })) n++;
+    var p = { id: "p" + n, name: name || ("ไร่ที่ " + (arr.length + 1)) };
+    arr.push(p);
+    this._save(arr);
+    return p;
+  },
+
+  rename: function (id, name) {
+    var arr = this.list();
+    arr.forEach(function (p) { if (p.id === id) p.name = name; });
+    this._save(arr);
+  },
+
+  // ลบแปลงพร้อมข้อมูลของแปลงนั้นในเครื่อง
+  // บันทึกที่อยู่บนเซิร์ฟเวอร์ไม่ลบ เพราะเป็นประวัติที่ผู้ใช้อาจอยากดูย้อนหลัง
+  remove: function (id) {
+    var arr = this.list().filter(function (p) { return p.id !== id; });
+    if (!arr.length) return false;
+    this._save(arr);
+    var tail = ":" + this._uid() + ":" + id;
+    var drop = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf("smartrice-") === 0 && k.slice(-tail.length) === tail) drop.push(k);
+    }
+    drop.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
+    if (this.activeId() === id) this.setActive(arr[0].id);
+    return true;
+  }
+};
+
+// คีย์ของข้อมูลที่ "เป็นของแปลง" ต้องผ่านฟังก์ชันนี้ที่เดียว
+// ห้ามประกอบสตริงคีย์เองในแต่ละหน้า ไม่งั้นวันหนึ่งจะมีหน้าที่ลืมใส่รหัสแปลง
+// แล้วข้อมูลของสองแปลงจะทับกันโดยไม่มีอะไรเตือน
+function plotKey(base) {
+  return "smartrice-" + base + ":" + Plots._uid() + ":" + Plots.activeId();
+}
+
+// กรองบันทึกให้เหลือเฉพาะของแปลงที่กำลังดูอยู่
+// บันทึกเก่าที่ทำไว้ก่อนมีระบบหลายแปลงจะไม่มีฟิลด์ plot ให้ถือว่าเป็นของแปลงแรก
+// ไม่ใช่ทิ้งไป เพราะเป็นข้อมูลจริงที่ผู้ใช้อุตส่าห์บันทึกไว้
+function plotLogs(logs) {
+  var id = Plots.activeId();
+  var first = Plots.list()[0].id;
+  return (logs || []).filter(function (l) {
+    return l.plot ? l.plot === id : (id === first);
+  });
+}
+
+// แถบสลับแปลง วางบนสุดของแท็บที่แสดงข้อมูลรายแปลง
+// เป็นแถวปุ่มแบบเดียวกับที่ใช้เลือกชนิดดิน คนที่เคยใช้เว็บอะไรก็ตามกดเป็นทันที
+function plotBar() {
+  var box = el("div", "plotbar");
+  var row = el("div", "plotbar-row");
+
+  Plots.list().forEach(function (p) {
+    var on = (p.id === Plots.activeId());
+    var b = el("button", "plotchip" + (on ? " on" : ""), p.name);
+    b.onclick = function () {
+      if (on) { plotEdit(p); return; }   // กดแปลงที่เปิดอยู่ซ้ำ = แก้ชื่อหรือลบ
+      Plots.setActive(p.id);
+      open(here);
+    };
+    row.appendChild(b);
+  });
+
+  var add = el("button", "plotchip plotchip-add", "+ เพิ่มแปลง");
+  add.onclick = function () {
+    var p = Plots.add();
+    Plots.setActive(p.id);
+    open(here);
+  };
+  row.appendChild(add);
+
+  box.appendChild(row);
+  return box;
+}
+
+// แก้ชื่อหรือลบแปลง เปิดจากการกดชิปของแปลงที่เปิดอยู่
+function plotEdit(p) {
+  var back = el("div", "sheet-back");
+  var card = el("div", "sheet");
+  card.appendChild(el("div", "sheet-title", "แปลงนี้"));
+
+  var inp = el("input");
+  inp.value = p.name;
+  inp.setAttribute("aria-label", "ชื่อแปลง");
+  inp.style.cssText = "width:100%;padding:11px 13px;border:1px solid var(--rule);border-radius:var(--r-sm);font-size:1rem";
+  card.appendChild(inp);
+
+  var row = el("div", "sheet-row");
+  var save = el("button", "act act-go act-sm", "บันทึกชื่อ");
+  save.onclick = function () {
+    var v = inp.value.trim();
+    if (v) Plots.rename(p.id, v);
+    back.remove();
+    open(here);
+  };
+  row.appendChild(save);
+
+  // ลบได้เฉพาะตอนมีมากกว่าหนึ่งแปลง เพราะระบบต้องมีอย่างน้อยหนึ่งแปลงเสมอ
+  if (Plots.list().length > 1) {
+    var del = el("button", "act act-line act-sm", "ลบแปลงนี้");
+    del.style.color = "var(--rust)";
+    del.onclick = function () {
+      del.textContent = "กดอีกครั้งเพื่อลบ";
+      del.onclick = function () {
+        Plots.remove(p.id);
+        back.remove();
+        open(here);
+      };
+    };
+    row.appendChild(del);
+  }
+
+  var cancel = el("button", "act act-line act-sm", "ปิด");
+  cancel.onclick = function () { back.remove(); };
+  row.appendChild(cancel);
+
+  card.appendChild(row);
+  back.appendChild(card);
+  back.onclick = function (e) { if (e.target === back) back.remove(); };
+  document.body.appendChild(back);
+  inp.focus();
+}
+
+
 // ═══ ข้อมูลแปลงนาที่ใช้ร่วมกันทุกหน้า ═══
 //
 // เดิมแต่ละหน้าหาพิกัดเอง แท็บตรวจแปลงใช้พิกัดจากบันทึกเก่า หน้าแผนที่ใช้อีกจุด
 // ผลคือดูอากาศของที่หนึ่งแต่แผนที่ชี้อีกที่ โดยผู้ใช้ไม่รู้ตัว
 // ตอนนี้ทุกหน้าดึงจากที่เดียวกันผ่าน fieldCoords()
-var FIELD_KEY_BASE = "smartrice-field:";
 function fieldKey() {
-  return FIELD_KEY_BASE + (Session.user ? Session.user.username : "guest");
+  return plotKey("field");
 }
 function readField() {
   try { return JSON.parse(localStorage.getItem(fieldKey()) || "null"); }
@@ -2972,7 +3198,7 @@ function setFieldSowDate(iso) {
 // หน้าอื่นที่ต้องรู้จังหวะข้าว ต้องอ่านค่านี้ ไม่ใช่เดาว่าเป็นนาหว่านเสมอ
 function fieldMethod() {
   try {
-    var k = "smartrice-soil:" + (Session.user ? Session.user.username : "guest");
+    var k = plotKey("soil");
     return (JSON.parse(localStorage.getItem(k) || "{}")).method || null;
   } catch (e) { return null; }
 }
@@ -3195,6 +3421,7 @@ var PAGE_CITE = {
   overview: ["บันทึกของคุณเอง", "Open-Meteo"],
   season:   ["กรมการข้าว"],
   soil:     ["กรมพัฒนาที่ดิน", "กรมการข้าว"],
+  cycle:    ["กรมการข้าว", "กรมพัฒนาที่ดิน"],
   fert:     ["กรมการข้าว", "กรมพัฒนาที่ดิน", "สำนักงานเศรษฐกิจการเกษตร"],
   diagnose: ["กรมการข้าว"],
   consult:  ["กรมการข้าว"],
@@ -3743,7 +3970,7 @@ var views = {};
 
 views.overview = async function (root) {
   root.appendChild(pageHead("overview"));
-  var logs = await Store.list();
+  var logs = plotLogs(await Store.list());
   var newest = logs[0];
   var phValues = logs.map(function (l) { return l.ph; }).filter(function (v) { return typeof v === "number"; });
   var avgPh = phValues.length ? (phValues.reduce(function (a,b) { return a+b; },0) / phValues.length).toFixed(2) : null;
@@ -4383,6 +4610,157 @@ function picLeafCompare() {
   return row;
 }
 
+// ── วงจรหมุนเวียนทรัพยากรในนาข้าว ──
+//
+// ของที่ชาวนาเคยเผาทิ้งหรือขายถูกๆ กลับมาเป็นต้นทุนที่ประหยัดได้ในรอบถัดไป
+// เรื่องนี้อธิบายเป็นย่อหน้าแล้วไม่มีใครอ่าน แต่พอวาดเป็นวงกลมที่มีลูกศรวนกลับ
+// คนดูออกทันทีว่าปลายทางของทุกอย่างคือกลับลงดินแปลงเดิม
+var CYCLE_UID = 0;
+function picCycle() {
+  var uid = "cyc" + (++CYCLE_UID);
+  var C = 150, R = 95;
+  function pt(deg) {
+    var a = deg * Math.PI / 180;
+    return [(C + R * Math.cos(a)).toFixed(1), (C + R * Math.sin(a)).toFixed(1)];
+  }
+  function arc(d1, d2) {
+    var a = pt(d1), b = pt(d2);
+    return '<path d="M' + a[0] + ' ' + a[1] + ' A' + R + ' ' + R + ' 0 0 1 ' + b[0] + ' ' + b[1] + '" ' +
+           'fill="none" stroke="var(--blade)" stroke-width="2.6" marker-end="url(#' + uid + ')"/>';
+  }
+  function node(cx, cy, text, tone) {
+    var w = 88, h = 34;
+    return '<rect x="' + (cx - w / 2) + '" y="' + (cy - h / 2) + '" width="' + w + '" height="' + h + '" rx="9" ' +
+             'fill="' + (tone || "var(--canopy)") + '" stroke="var(--blade)" stroke-width="2"/>' +
+           '<text x="' + cx + '" y="' + (cy + 5) + '" text-anchor="middle" font-size="14" ' +
+             'font-weight="600" fill="var(--deep)">' + text + '</text>';
+  }
+
+  var inner =
+    '<defs><marker id="' + uid + '" viewBox="0 0 10 10" refX="8" refY="5" ' +
+      'markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">' +
+      '<path d="M0 0 L10 5 L0 10 z" fill="var(--blade)"/></marker></defs>' +
+    '<circle cx="' + C + '" cy="' + C + '" r="' + R + '" fill="none" ' +
+      'stroke="var(--rule)" stroke-width="1.6" stroke-dasharray="5 6"/>' +
+    arc(294, 336) + arc(24, 66) + arc(114, 156) + arc(204, 246) +
+    node(C, 23, "ปลูกข้าว") +
+    node(248, C, "เก็บเกี่ยว") +
+    node(C, 277, "ของเหลือ", "var(--tint-warn)") +
+    node(52, C, "บำรุงดิน") +
+    '<text x="' + C + '" y="' + (C - 4) + '" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">ไม่มีอะไร</text>' +
+    '<text x="' + C + '" y="' + (C + 16) + '" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">ต้องเผาทิ้ง</text>';
+
+  var box = svgWrap("0 0 300 300", inner, "pic-cycle");
+  box.querySelector("svg").setAttribute("aria-label",
+    "วงจรหมุนเวียน ปลูกข้าว เก็บเกี่ยว ของเหลือ บำรุงดิน แล้ววนกลับไปปลูกข้าวรอบใหม่");
+  return box;
+}
+
+// ปลายทางของของเหลือแต่ละอย่าง
+// ตัวเลขและวิธีที่ใส่ไว้ต้องเป็นของที่ทำได้จริงด้วยของที่มีในแปลง ไม่ใช่แนวคิดลอยๆ
+var CYCLE_USES = [
+  {
+    from: "ฟางข้าว", icon: "leaf",
+    to: [
+      { what: "ไถกลบคืนดิน", how: "ไถกลบทันทีหลังเกี่ยว แล้วปล่อยน้ำแช่ 2-4 สัปดาห์ให้เปื่อยก่อนทำเทือก" },
+      { what: "ทำปุ๋ยหมัก",  how: "ใช้เป็นเศษพืชแห้งในสูตรกอง 1 ตัน ดูวิธีทำที่ส่วนปุ๋ยด้านบน" },
+      { what: "คลุมแปลง",    how: "คลุมหน้าดินกันหญ้าและกันดินแห้ง ใช้ได้ทั้งแปลงผักหลังนา" }
+    ],
+    warn: "การเผาฟางทำให้ตัวเร่งใบเขียวและซากพืชผุในฟางหายไปกับควันเกือบทั้งหมด เหลือกลับลงดินแค่ส่วนน้อย"
+  },
+  {
+    from: "แกลบ", icon: "bag",
+    to: [
+      { what: "ผสมดินให้ร่วน", how: "แกลบดิบผสมดินเหนียวช่วยให้ระบายน้ำและไถง่ายขึ้นในปีถัดไป" },
+      { what: "ถ่านชีวภาพ",    how: "เผาแบบอับอากาศได้ถ่านแกลบ ใส่ดินแล้วอยู่ได้นานหลายปี ช่วยอุ้มน้ำและอาหาร" },
+      { what: "รองพื้นคอกสัตว์", how: "รองคอกแล้วเก็บเป็นมูลสัตว์ผสมแกลบ ใช้เป็นวัตถุดิบปุ๋ยหมักได้เลย" }
+    ],
+    warn: "ถ่านชีวภาพต้องเผาแบบควบคุมอากาศ ไม่ใช่กองเผากลางแจ้ง ซึ่งได้แค่ขี้เถ้าและควัน"
+  },
+  {
+    from: "รำข้าว", icon: "manure",
+    to: [
+      { what: "อาหารสัตว์",   how: "ใช้เลี้ยงหมู ไก่ เป็ด ปลา แล้วได้มูลสัตว์กลับมาเป็นวัตถุดิบปุ๋ยหมัก" },
+      { what: "แปรรูปขาย",    how: "น้ำมันรำข้าวและรำสกัดขายได้ราคาสูงกว่าขายรำดิบมาก" },
+      { what: "หัวเชื้อจุลินทรีย์", how: "ใช้เป็นอาหารเลี้ยงจุลินทรีย์ในน้ำหมักชีวภาพ" }
+    ]
+  }
+];
+
+// ── ส่วนวงจรหมุนเวียน วางท้ายแท็บแปลงนา ──
+//
+// วางไว้ท้ายสุดโดยตั้งใจ เพราะเป็นเรื่องของ "รอบหน้า" ไม่ใช่สิ่งที่ต้องทำวันนี้
+// คนที่เปิดแท็บนี้มาหาว่าต้องใส่ปุ๋ยอะไรจะได้คำตอบไปแล้วตั้งแต่ด้านบน
+// ตารางส่วนผสมปุ๋ย ใช้ตัวเลขจาก calc.inputs ก่อนเสมอเพราะเป็นข้อมูลที่แยกช่องไว้แล้ว
+// ถ้าชนิดปุ๋ยนั้นไม่มี calc ค่อยถอยไปแยกตัวเลขจากข้อความในรายการส่วนผสม
+function recipeTable(t) {
+  var tab = el("div", "mtab");
+  var head = el("div", "mtab-head");
+  head.appendChild(el("div", "", "วัตถุดิบ"));
+  head.appendChild(el("div", "", "ปริมาณ"));
+  tab.appendChild(head);
+
+  function row(name, amount) {
+    var r = el("div", "mtab-row");
+    var k = el("div", "mtab-k");
+    k.appendChild(matIcon(matIconFor(name)));
+    k.appendChild(document.createTextNode(name));
+    r.appendChild(k);
+    r.appendChild(el("div", "mtab-v num", amount));
+    tab.appendChild(r);
+  }
+
+  if (t.calc && t.calc.inputs && t.calc.inputs.length) {
+    t.calc.inputs.forEach(function (x) {
+      row(x.name, x.per.toLocaleString("th-TH") + " " + x.unit);
+    });
+  } else {
+    (t.recipe.items || []).forEach(function (line) {
+      // แยกตัวเลขกับหน่วยออกจากท้ายข้อความ เช่น "มูลสัตว์ 200 กิโลกรัม"
+      var m = /^(.*?)\s*(?:จำนวน\s*)?([\d,]+)\s*(\S+)\s*$/.exec(line);
+      if (m) row(m[1].trim(), m[2] + " " + m[3]);
+      else row(line, "");
+    });
+  }
+  return tab;
+}
+
+views.cycle = function (root) {
+  root.appendChild(bund("ของเหลือจากนา ใช้ต่อได้"));
+
+  var card = plot(null);
+  card.appendChild(picCycle());
+  root.appendChild(card);
+
+  CYCLE_USES.forEach(function (c) {
+    var box = plot(null);
+    box.style.marginTop = "13px";
+
+    var head = el("div");
+    head.style.cssText = "display:flex;align-items:center;margin-bottom:9px";
+    head.appendChild(matIcon(c.icon));
+    var nm = el("div", "", c.from);
+    nm.style.cssText = "font-weight:600;font-size:1.02rem";
+    head.appendChild(nm);
+    box.appendChild(head);
+
+    // ตารางสองช่อง ทำอะไรได้ กับ ทำยังไง
+    // เป็นรูปแบบเดียวกับตารางแยกโรคกับแมลง ผู้ใช้กวาดตาหาแถวที่สนใจได้เร็ว
+    var tab = el("div", "mtab");
+    c.to.forEach(function (u) {
+      var r = el("div", "mtab-row");
+      r.appendChild(el("div", "mtab-k", u.what));
+      r.appendChild(el("div", "mtab-v", u.how));
+      tab.appendChild(r);
+    });
+    box.appendChild(tab);
+
+    if (c.warn) box.appendChild(more("ข้อควรระวัง", c.warn));
+    root.appendChild(box);
+  });
+};
+
+
 // ─── ฤดูนี้: พันธุ์ข้าว + วันหว่าน ───────────────
 //
 // เดิมอยู่ในหน้าที่นาซึ่งถูกตัดออกไปพร้อมแผนที่และช่องขนาดแปลง
@@ -4510,11 +4888,11 @@ views.soil = async function (root) {
     return;
   }
 
-  var logs = await Store.list();
+  var logs = plotLogs(await Store.list());
   var phs = logs.filter(function (l) { return typeof l.ph === "number"; });
 
   // วิธีทำนากับชนิดดินของแปลงหนึ่งไม่เปลี่ยนบ่อย จำไว้ในเครื่องจะได้ไม่ต้องเลือกใหม่ทุกครั้ง
-  var KEY = "smartrice-soil:" + (Session.user ? Session.user.username : "guest");
+  var KEY = plotKey("soil");
   var saved = {};
   try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { saved = {}; }
   var pick = {
@@ -5034,13 +5412,13 @@ views.fert = async function (root) {
   // การบอกยี่ห้อจึงเป็นการเชียร์ร้านโดยไม่มีข้อมูลรองรับ และทำให้ชาวนาจ่ายแพงกว่าที่ควร
   // สิ่งที่ต้องดูคือตัวเลขบนกระสอบ ซึ่งเป็นสิ่งเดียวที่บอกว่าได้อาหารของต้นข้าวเท่าไหร่จริง
   var fertLogs = [];
-  try { fertLogs = await Store.list(); } catch (e) { fertLogs = []; }
+  try { fertLogs = plotLogs(await Store.list()); } catch (e) { fertLogs = []; }
   var fertPh = fertLogs.filter(function (l) { return typeof l.ph === "number" && l.ph > 0; })[0];
 
   var myPhoto = fieldVariety() !== "nonphoto";
   var mySoil = null;
   try {
-    var sKey = "smartrice-soil:" + (Session.user ? Session.user.username : "guest");
+    var sKey = plotKey("soil");
     mySoil = (JSON.parse(localStorage.getItem(sKey) || "{}")).soil || null;
   } catch (e) { mySoil = null; }
 
@@ -5274,16 +5652,12 @@ views.fert = async function (root) {
       rc.appendChild(el("div", "rx-sect", t.recipe.title));
       // ภาพตัดขวางกองบอกว่า "ชั้น" หมายถึงอะไร ซึ่งรายการตัวหนังสือบอกไม่ได้
       rc.appendChild(picCompostPile());
-      var rul = el("div");
-      rul.style.cssText = "font-size:.92rem;font-weight:500";
-      t.recipe.items.forEach(function (x) {
-        var li = el("div");
-        li.style.cssText = "display:flex;align-items:center;margin-bottom:6px";
-        li.appendChild(matIcon(matIconFor(x)));
-        li.appendChild(document.createTextNode(x));
-        rul.appendChild(li);
-      });
-      rc.appendChild(rul);
+      // ── ส่วนผสมเป็นตาราง ของ กับ ปริมาณ แยกคนละช่อง ──
+      //
+      // เดิมเป็นบรรทัดเดียวรวมกันอย่าง "เศษพืชแห้ง 1,000 กิโลกรัม"
+      // ซึ่งอ่านทีละบรรทัดได้ แต่กวาดตาเทียบปริมาณระหว่างวัตถุดิบไม่ได้เลย
+      // ตัวเลขที่อยู่คนละตำแหน่งในแต่ละบรรทัดทำให้ต้องอ่านทุกคำถึงจะรู้ว่าอันไหนมากกว่า
+      rc.appendChild(recipeTable(t));
       rc.appendChild(more("รายละเอียดกอง", t.recipe.note));
       body.appendChild(rc);
     }
@@ -5626,7 +6000,7 @@ views.fert = async function (root) {
         // ดึงชนิดดินที่ผู้ใช้เลือกไว้ในแท็บแปลงนา ส่วนดิน จะได้ไม่ต้องตอบซ้ำ
         var soilPicked = null;
         try {
-          var soilKey = "smartrice-soil:" + (Session.user ? Session.user.username : "guest");
+          var soilKey = plotKey("soil");
           var soilSaved = JSON.parse(localStorage.getItem(soilKey) || "{}");
           if (soilSaved.soil) { soilIn.value = soilSaved.soil; soilPicked = soilSaved.soil; }
         } catch (e) { /* ไม่มีค่าเดิมก็ใช้ค่าตั้งต้น */ }
@@ -6452,7 +6826,7 @@ views.cost = async function (root) {
   // ══════════════════════════════════════════════
   // ส่วนที่ 2 · ช่องกรอก
   // ══════════════════════════════════════════════
-  var KEY = "smartrice-cost:" + (Session.user ? Session.user.username : "guest");
+  var KEY = plotKey("cost");
   var st = { rai: 10, soil: "clay", variety: "avg", items: {}, yieldPerRai: null, price: null };
   try {
     var old = JSON.parse(localStorage.getItem(KEY) || "{}");
@@ -6689,7 +7063,7 @@ views.cost = async function (root) {
 
 views.ledger = async function (root) {
   root.appendChild(pageHead("ledger"));
-  var logs = await Store.list();
+  var logs = plotLogs(await Store.list());
 
   root.appendChild(bund("ประวัติ"));
   var card = plot(null);
@@ -7216,7 +7590,7 @@ views.consult = async function (root) {
     root.appendChild(bund("ระยะข้าว"));
 
     // จำระยะที่ดูล่าสุด เพราะข้าวอยู่ระยะเดิมนานหลายสัปดาห์
-    var SKEY = "smartrice-stage:" + (Session.user ? Session.user.username : "guest");
+    var SKEY = plotKey("stage");
     var pick = "tiller";
     try {
       var sv = localStorage.getItem(SKEY);
@@ -7583,7 +7957,7 @@ views.ask = async function (root) {
   };
   clipDrop.onclick = function () { pinned = null; fileIn.value = ""; clip.hidden = true; };
 
-  var logs = await Store.list();
+  var logs = plotLogs(await Store.list());
   var farmContext = buildFarmContext(logs);
 
   async function ask() {
@@ -8217,6 +8591,10 @@ async function open(id) {
     // เดิมทั้งหน้าเป็นหน้าเดียว พังที่ไหนก็ดับทั้งหน้า พอยุบ 3 หน้ามารวมกัน
     // ความเสี่ยงนั้นคูณสามทันที จึงต้องกันไว้ทีละส่วน
     var parts = page.parts || [id];
+
+    // แท็บที่แสดงตัวเลขของแปลงต้องมีแถบสลับแปลงเสมอ
+    // แท็บถาม AI ไม่ต้อง เพราะเป็นช่องคุยไม่ใช่ข้อมูลของแปลง
+    if (PLOT_PAGES.indexOf(page.id) !== -1) root.appendChild(plotBar());
 
     var cite = tabCite(page);
     if (cite) root.appendChild(cite);
