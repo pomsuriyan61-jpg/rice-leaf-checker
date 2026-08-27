@@ -1254,15 +1254,15 @@
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=21"></script>
-<script src="soil-guide.js?v=21"></script>
-<script src="fertilizer-guide.js?v=21"></script>
-<script src="cost-guide.js?v=21"></script>
-<script src="care-guide.js?v=21"></script>
-<script src="planting-guide.js?v=21"></script>
-<script src="pest-guide.js?v=21"></script>
-<script src="variety-guide.js?v=21"></script>
-  <script src="pest-page.js?v=21"></script>
+<script src="disease-guide.js?v=22"></script>
+<script src="soil-guide.js?v=22"></script>
+<script src="fertilizer-guide.js?v=22"></script>
+<script src="cost-guide.js?v=22"></script>
+<script src="care-guide.js?v=22"></script>
+<script src="planting-guide.js?v=22"></script>
+<script src="pest-guide.js?v=22"></script>
+<script src="variety-guide.js?v=22"></script>
+  <script src="pest-page.js?v=22"></script>
 <script>
 (function () {
 "use strict";
@@ -7480,59 +7480,12 @@ views.weather = async function (root) {
     "ปริมาณปุ๋ยตัวเร่งใบเขียว และประวัติการระบาดในพื้นที่ ควรใช้ประกอบการสำรวจแปลงด้วยตาเสมอ"));
   root.appendChild(riskCard);
 
-  // กราฟย้อนหลังและพยากรณ์
-  root.appendChild(bund("กราฟฝนและแดด 14 วัน"));
-  var chartCard = plot(null);
-  var cv = el("canvas");
-  cv.height = 230;
-  chartCard.appendChild(cv);
-  root.appendChild(chartCard);
-
-  var labels = w.days.map(function (d) { return d.date.slice(5).replace("-", "/"); });
-  new Chart(cv, {
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          type: "bar", label: "ฝน (มม.)",
-          data: w.days.map(function (d) { return d.rain; }),
-          backgroundColor: w.days.map(function (d, i) {
-            return i <= w.todayIndex ? "#1B5E3A" : "#6FBF73";
-          }),
-          borderRadius: 2, yAxisID: "y"
-        },
-        {
-          type: "line", label: "แสงแดด (ชม.)",
-          data: w.days.map(function (d) { return d.sunHours; }),
-          borderColor: "#B8860B", backgroundColor: "rgba(184,134,11,.10)",
-          tension: .3, pointRadius: 3, borderWidth: 2, yAxisID: "y1"
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: "top", align: "start" },
-        tooltip: { callbacks: {
-          title: function (items) {
-            var i = items[0].dataIndex;
-            return labels[i] + (i > w.todayIndex ? " (พยากรณ์)" : " (ผ่านมาแล้ว)");
-          }
-        }}
-      },
-      scales: {
-        y:  { position: "left", beginAtZero: true, title: { display: true, text: "ฝน (มม.)" },
-              grid: { color: "#E6F1E7" }, ticks: { font: { family: "IBM Plex Mono" } } },
-        y1: { position: "right", beginAtZero: true, max: 14, title: { display: true, text: "แดด (ชม.)" },
-              grid: { display: false }, ticks: { font: { family: "IBM Plex Mono" } } },
-        x:  { grid: { display: false }, ticks: { font: { family: "IBM Plex Mono", size: 10 } } }
-      }
-    }
-  });
-
-  var legend = el("p", "", "สีเข้ม = ผ่านมาแล้ว · สีอ่อน = พยากรณ์");
-  legend.style.cssText = "font-size:.76rem;color:var(--ink-faint);margin:10px 0 0";
-  chartCard.appendChild(legend);
+  // ── ตัดกราฟฝน/แดด 14 วันออก (แก้ 2026-08) ──
+  //
+  // กราฟสองแกนกินพื้นที่เต็มจอบนคอมและยาวเกินหนึ่งจอบนมือถือ
+  // แต่ตัวเลขที่ใช้ตัดสินใจจริงอยู่ครบแล้วในการ์ดด้านบน
+  // ฝนวันนี้/พรุ่งนี้ · ฝนสะสม 7 วัน · แดดเฉลี่ย · ความชื้น · ความเสี่ยงโรค
+  // กราฟจึงเป็นการแสดงข้อมูลชุดเดิมซ้ำอีกรอบด้วยพื้นที่ที่แพงที่สุดของหน้า
 
   // ให้ AI อ่านสภาพอากาศพร้อมบันทึกแปลง แล้วแนะนำสิ่งที่ควรทำสัปดาห์นี้
   root.appendChild(bund("คำแนะนำจาก AI"));
