@@ -300,6 +300,33 @@
            width: 100%; max-width: 340px; box-shadow: var(--lift); }
   .sheet-title { font-weight: 600; margin-bottom: 11px; }
   .sheet-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  /* ── วิธีเก็บเกี่ยว: เลือกได้ทีละทาง กางรายละเอียดเฉพาะทางที่เลือก ──
+     ทั้งสองทางต้องเห็นราคาพร้อมกันตั้งแต่แรก เพราะราคาคือสิ่งที่ใช้ตัดสินใจ
+     แต่ข้อดีข้อเสียกางเฉพาะอันที่เลือก ไม่งั้นต้องอ่านสี่ย่อหน้าก่อนจะกดอะไรได้ */
+  .hway { border: 1px solid var(--rule); border-radius: var(--r-sm); margin-bottom: 9px;
+          overflow: hidden; transition: border-color .15s ease; }
+  .hway.on { border-color: var(--blade); border-width: 2px; }
+  .hway-head { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+               width: 100%; padding: 13px 15px; background: none; border: 0; cursor: pointer;
+               font-family: inherit; text-align: left; }
+  .hway.on .hway-head { background: var(--tint-ok); }
+  .hway-name { font-weight: 600; font-size: .98rem; color: var(--ink); }
+  .hway-price { font-family: var(--f-data); font-size: .95rem; color: var(--deep); white-space: nowrap; }
+  .hway-body { padding: 0 15px 14px; }
+  .hway-pros { margin-top: 11px; font-size: .85rem; line-height: 1.5; }
+  .hway-good, .hway-bad { padding-left: 20px; position: relative; margin-bottom: 5px; color: var(--ink-soft); }
+  .hway-good::before { content: "+"; position: absolute; left: 4px; color: var(--blade); font-weight: 700; }
+  .hway-bad::before  { content: "−"; position: absolute; left: 4px; color: var(--grain); font-weight: 700; }
+
+  /* เป้าหมาย SDG */
+  .sdg-row { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0;
+             border-bottom: 1px solid var(--rule-soft); }
+  .sdg-row:last-child { border-bottom: 0; }
+  .sdg-no { flex: 0 0 34px; height: 34px; border-radius: 8px; background: var(--deep);
+            color: #FFFFFF; font-family: var(--f-data); font-weight: 600;
+            display: flex; align-items: center; justify-content: center; }
+  .sdg-name { font-weight: 600; font-size: .92rem; }
+
   /* ── ตารางสองช่อง ใช้ทั้งส่วนผสมปุ๋ยและปลายทางของเหลือ ──
      บนจอแคบยุบเป็นบรรทัดซ้อนกัน ไม่ใช่ให้เลื่อนแนวนอน
      เพราะตารางที่ต้องเลื่อนซ้ายขวาบนมือถือคือตารางที่ไม่มีใครอ่านจนจบ */
@@ -1294,16 +1321,16 @@
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=25"></script>
-<script src="soil-guide.js?v=25"></script>
-<script src="fertilizer-guide.js?v=25"></script>
-<script src="cost-guide.js?v=25"></script>
-<script src="care-guide.js?v=25"></script>
-<script src="planting-guide.js?v=25"></script>
-<script src="pest-guide.js?v=25"></script>
-<script src="variety-guide.js?v=25"></script>
-<script src="media.js?v=25"></script>
-  <script src="pest-page.js?v=25"></script>
+<script src="disease-guide.js?v=26"></script>
+<script src="soil-guide.js?v=26"></script>
+<script src="fertilizer-guide.js?v=26"></script>
+<script src="cost-guide.js?v=26"></script>
+<script src="care-guide.js?v=26"></script>
+<script src="planting-guide.js?v=26"></script>
+<script src="pest-guide.js?v=26"></script>
+<script src="variety-guide.js?v=26"></script>
+<script src="media.js?v=26"></script>
+  <script src="pest-page.js?v=26"></script>
 <script>
 (function () {
 "use strict";
@@ -1383,19 +1410,19 @@ function th(l) {
 // เพราะเป็นงานตั้งค่าที่ทำครั้งเดียวจบ ไม่ควรกินที่ในเมนูหลักตลอดเวลา
 var PAGES = [
   { id: "field", label: "แปลงนา", kicker: "ก่อนปลูก",
-    parts: ["season", "soil", "fert", "cycle"],
-    jump: ["ฤดูนี้", "ดิน", "ปุ๋ย", "หมุนเวียน"],
+    parts: ["season", "soil", "fert"],
+    jump: ["ฤดูนี้", "ดิน", "ปุ๋ย"],
     icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
 
-  { id: "check", label: "ตรวจแปลง", kicker: "ระหว่างปลูก",
+  { id: "grow", label: "ระหว่างปลูก", kicker: "ดูแลรายวัน",
     parts: ["overview", "diagnose", "weather", "consult"],
     jump: ["สรุป", "โรคและแมลง", "อากาศ", "ระยะข้าว"],
     icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
 
-  { id: "money", label: "ต้นทุน", kicker: "ปิดฤดู",
-    parts: ["cost", "ledger"],
-    jump: ["ต้นทุนกำไร", "ประวัติ"],
-    icon: "M12 3v18M8 7h6a2.5 2.5 0 010 5H9a2.5 2.5 0 000 5h7" },
+  { id: "harvest", label: "เก็บเกี่ยว", kicker: "ปิดฤดู",
+    parts: ["harvest", "cost", "ledger", "cycle"],
+    jump: ["วิธีเกี่ยว", "กำไร", "ประวัติ", "หมุนเวียน"],
+    icon: "M4 19c6-1 10-5 16-14M8 19h11M6 15c3-1 6-3 9-7" },
 
   { id: "ask", label: "ถาม AI", kicker: "ผู้ช่วย",
     parts: ["ask"],
@@ -1408,7 +1435,7 @@ var PAGES = [
 
 // หน้าเดิมอยู่ในแท็บไหน ใช้ตอนที่โค้ดเก่าสั่ง open("soil") ซึ่งตอนนี้ไม่ใช่แท็บแล้ว
 // แท็บที่เนื้อหาผูกกับแปลงใดแปลงหนึ่ง ต้องขึ้นแถบสลับแปลง
-var PLOT_PAGES = ["field", "check", "money"];
+var PLOT_PAGES = ["field", "grow", "harvest"];
 
 function tabOf(viewId) {
   var hit = PAGES.filter(function (p) {
@@ -3470,6 +3497,7 @@ var PAGE_CITE = {
   diagnose: ["กรมการข้าว"],
   consult:  ["กรมการข้าว"],
   weather:  ["Open-Meteo", "WeatherAPI", "กรมการข้าว"],
+  harvest:  ["สำนักงานเศรษฐกิจการเกษตร", "กรมการข้าว"],
   cost:     ["สำนักงานเศรษฐกิจการเกษตร", "กรมการค้าภายใน"],
   ledger:   ["บันทึกของคุณเอง"],
   ask:      ["Google Gemini"],
@@ -4906,6 +4934,62 @@ views.cycle = function (root) {
 
   var card = plot(null);
   card.appendChild(picCycle());
+
+  // ── ราคาของการเผา คิดจากผลผลิตของแปลงนี้เอง ──
+  //
+  // ตัวเลขกิโลกรัมของธาตุอาหารไม่ทำให้ใครเปลี่ยนใจ แต่ตัวเลขบาทที่ลอยไปกับควันทำให้เปลี่ยน
+  // จึงคิดจากผลผลิตที่ผู้ใช้กรอกไว้จริงในแท็บเก็บเกี่ยว ไม่ใช่ค่ากลางของประเทศ
+  //
+  // สมมติฐานที่ใช้ บอกไว้ในปุ่ม "คิดจากอะไร" ทั้งหมด ไม่ซ่อน
+  //   น้ำหนักฟางต่อไร่ ≈ น้ำหนักข้าวเปลือกต่อไร่ (อัตราส่วนราว 1:1 ในพันธุ์ที่ปลูกทั่วไป)
+  //   ธาตุอาหารในฟางแห้ง ตัวเร่งใบเขียว 0.6% · ตัวเร่งราก 0.1% · ตัวทำให้ต้นแข็ง 1.5%
+  //   การเผาทำให้ตัวเร่งใบเขียวสูญไปกับควันเกือบทั้งหมด ส่วนที่เหลืออยู่ในขี้เถ้าคือตัวทำให้ต้นแข็งเป็นหลัก
+  var yieldPerRai = null;
+  try {
+    var cs = JSON.parse(localStorage.getItem(plotKey("cost")) || "{}");
+    if (typeof cs.yieldPerRai === "number" && cs.yieldPerRai > 0) yieldPerRai = cs.yieldPerRai;
+  } catch (e) { /* ไม่มีก็ใช้ค่าอ้างอิงแทน */ }
+
+  var C = window.COST_GUIDE;
+  var usingDefault = (yieldPerRai === null);
+  if (usingDefault && C && C.varieties && C.varieties.length) {
+    var avg = C.varieties.filter(function (v) { return v.key === "avg"; })[0] || C.varieties[0];
+    yieldPerRai = avg.yieldPerRai;
+  }
+
+  if (yieldPerRai) {
+    var strawKg = Math.round(yieldPerRai);              // ฟางต่อไร่ ≈ ข้าวเปลือกต่อไร่
+    var nKg = strawKg * 0.006, kKg = strawKg * 0.015;
+
+    var burn = plot(null);
+    burn.style.marginTop = "13px";
+    burn.appendChild(el("div", "rx-sect", "เผาฟาง 1 ไร่ เสียอะไรไปบ้าง"));
+
+    var cells = el("div", "cellrow");
+    cells.appendChild(readOut("ฟางที่ได้", money0(strawKg) + " กก./ไร่", usingDefault ? "ค่าอ้างอิง" : "จากผลผลิตที่คุณกรอก"));
+    cells.appendChild(readOut("ตัวเร่งใบเขียว", nKg.toFixed(1) + " กก.", "หายไปกับควันเกือบหมด"));
+    cells.appendChild(readOut("ตัวทำให้ต้นแข็ง", kKg.toFixed(1) + " กก.", "เหลือในขี้เถ้าบางส่วน"));
+    burn.appendChild(cells);
+
+    burn.appendChild(el("div", "flash flash-bad",
+      "ไถกลบแทนการเผา ได้ธาตุอาหารพวกนี้คืนลงดินทั้งหมด และไม่ต้องซื้อปุ๋ยมาทดแทน"));
+
+    burn.appendChild(more("คิดจากอะไร",
+      "น้ำหนักฟางต่อไร่ประมาณเท่ากับน้ำหนักข้าวเปลือกต่อไร่ ซึ่งเป็นอัตราส่วนที่ใช้กันทั่วไปในพันธุ์ที่ปลูกมาก\n\n" +
+      "ธาตุอาหารในฟางแห้งโดยประมาณ ตัวเร่งใบเขียว 0.6% ตัวเร่งราก 0.1% ตัวทำให้ต้นแข็ง 1.5%\n\n" +
+      "ทั้งหมดเป็นค่าประมาณจากเอกสารวิชาการ ค่าจริงต่างกันตามพันธุ์ ความสมบูรณ์ของดิน และปริมาณปุ๋ยที่ใส่ในฤดูนั้น " +
+      "ใช้เพื่อให้เห็นขนาดของสิ่งที่เสียไป ไม่ใช่ตัวเลขที่เอาไปอ้างอิงทางวิชาการได้"));
+
+    burn.appendChild(more("เรื่องที่ไม่ใช่เงิน",
+      "ควันจากการเผาในที่โล่งเป็นแหล่งฝุ่น PM2.5 หลักในภาคเกษตรช่วงหลังเก็บเกี่ยว " +
+      "ซึ่งกระทบคนในหมู่บ้านเดียวกันก่อนใคร\n\n" +
+      "หลายจังหวัดประกาศห้ามเผาในที่โล่งเป็นช่วงเวลา และมีโทษปรับ " +
+      "ควรตรวจประกาศของจังหวัดตัวเองก่อนตัดสินใจ\n\n" +
+      "การเผายังทำลายตัวจิ๋วในดินชั้นบนซึ่งเป็นตัวย่อยซากพืชให้เป็นอาหารของข้าวในรอบถัดไป"));
+
+    card.appendChild(burn);
+  }
+
   root.appendChild(card);
 
   CYCLE_USES.forEach(function (c) {
@@ -4935,6 +5019,30 @@ views.cycle = function (root) {
     if (c.warn) box.appendChild(more("ข้อควรระวัง", c.warn));
     root.appendChild(box);
   });
+
+  // ── เชื่อมกับเป้าหมายการพัฒนาที่ยั่งยืน ──
+  //
+  // ใส่ไว้เพราะเป็นสิ่งที่ต้องใช้ตอนนำเสนอและตอนขอทุน ไม่ใช่สิ่งที่ชาวนาเปิดมาอ่าน
+  // จึงยุบไว้หลังปุ่ม ไม่กางค้างให้ขวางเนื้อหาที่เอาไปทำจริงได้
+  var sdg = plot(null);
+  sdg.style.marginTop = "13px";
+  sdg.appendChild(fold(null, "การทำแบบนี้ตรงกับเป้าหมาย SDG ข้อไหน", null, function (body) {
+    [
+      ["2",  "ขจัดความหิวโหย", "ลดต้นทุนปุ๋ยและรักษาความอุดมสมบูรณ์ของดิน ทำให้ผลิตอาหารได้ต่อเนื่องในที่เดิม"],
+      ["12", "ผลิตและบริโภคอย่างรับผิดชอบ", "ของเหลือจากนากลับเข้าสู่การผลิตรอบใหม่แทนการทิ้งหรือเผา"],
+      ["13", "รับมือการเปลี่ยนแปลงสภาพภูมิอากาศ", "ไม่เผา = ไม่ปล่อยคาร์บอนและฝุ่นจากการเผาในที่โล่ง"],
+      ["15", "ระบบนิเวศบนบก", "ซากพืชผุที่ไถกลบช่วยฟื้นโครงสร้างดินและสิ่งมีชีวิตในดิน"]
+    ].forEach(function (g) {
+      var r = el("div", "sdg-row");
+      r.appendChild(el("div", "sdg-no", g[0]));
+      var t = el("div");
+      t.appendChild(el("div", "sdg-name", g[1]));
+      t.appendChild(el("div", "read-foot", g[2]));
+      r.appendChild(t);
+      body.appendChild(r);
+    });
+  }, false));
+  root.appendChild(sdg);
 };
 
 
@@ -5779,6 +5887,111 @@ views.fert = async function (root) {
   }
 
   root.appendChild(meCard);
+
+  // ══ ใส่ปุ๋ยไปแล้วเท่าไหร่ ══
+  //
+  // ── ทำไมต้องมีส่วนนี้ ──
+  //
+  // ทั้งหน้าบอกว่า "ควรใส่เท่าไหร่" แต่ไม่เคยถามว่า "ใส่ไปจริงเท่าไหร่"
+  // ซึ่งเป็นคนละเรื่องกันเสมอในนาจริง เพราะคนซื้อปุ๋ยเป็นกระสอบ ไม่ได้ซื้อเป็นกิโลต่อไร่
+  // แล้วหว่านตามความรู้สึกว่า "น่าจะพอ" ซึ่งมักเกินหรือขาดโดยไม่รู้ตัว
+  //
+  // การใส่เกินไม่ได้แค่เปลืองเงิน แต่ทำให้ต้นอวบล้มง่ายและเพลี้ยชอบเข้า
+  // ส่วนใส่ขาดก็ได้ผลผลิตต่ำทั้งที่จ่ายค่าเตรียมดินไปเต็มแล้ว
+  // ทั้งสองทางเสียเงินเหมือนกัน แต่คนละเหตุผล จึงต้องเตือนคนละแบบ
+  var FERT_SACK_KG = 50;   // กระสอบมาตรฐานที่ขายกันทั่วไป
+
+  root.appendChild(bund("ใส่ปุ๋ยไปแล้วเท่าไหร่"));
+  var logCard = plot(null);
+  var LOGKEY = plotKey("fertdone");
+
+  var doneState = { unit: "sack", value: null };
+  try {
+    var savedDone = JSON.parse(localStorage.getItem(LOGKEY) || "null");
+    if (savedDone && typeof savedDone === "object") doneState = savedDone;
+  } catch (e) { /* อ่านไม่ได้ก็ใช้ค่าเริ่มต้น */ }
+
+  var unitRow = el("div");
+  unitRow.style.cssText = "display:flex;gap:8px;margin-bottom:11px";
+  var logIn = el("input");
+  var verdictHost = el("div");
+
+  function kgPerRai() {
+    var v = parseFloat(logIn.value);
+    if (isNaN(v) || v <= 0) return null;
+    return doneState.unit === "sack" ? v * FERT_SACK_KG : v;
+  }
+
+  function paintVerdict() {
+    verdictHost.innerHTML = "";
+    var kg = kgPerRai();
+    if (kg === null) return;
+
+    // ช่วงที่ควรใส่มาจากสูตรที่ระบบเลือกให้ด้านบน ไม่ใช่ค่ากลางที่ตั้งไว้ตายตัว
+    // ถ้าดินคนละแบบ ช่วงนี้ก็ต่างกัน การเตือนจึงต้องอิงของแปลงนี้เท่านั้น
+    var lo = firstLo, hi = firstHi;
+    var pct = Math.round((kg / ((lo + hi) / 2)) * 100);
+
+    var tone, head, why;
+    if (kg < lo * 0.75) {
+      tone = "warn"; head = "น้อยกว่าที่ควร";
+      why = "ใส่ " + kg + " กก./ไร่ ควรอยู่ " + lo + "-" + hi + " กก./ไร่ · " +
+            "ข้าวจะแตกกอน้อยและได้รวงน้อยลง ทั้งที่จ่ายค่าเตรียมดินไปเต็มแล้ว";
+    } else if (kg > hi * 1.25) {
+      tone = "bad"; head = "มากกว่าที่ควร";
+      why = "ใส่ " + kg + " กก./ไร่ ควรอยู่ " + lo + "-" + hi + " กก./ไร่ · " +
+            "ส่วนที่เกินไม่ได้เพิ่มผลผลิต แต่ทำให้ต้นอวบล้มง่ายและเพลี้ยกระโดดเข้าง่ายขึ้น " +
+            "รอบหน้าลดลงมาอยู่ในช่วงจะประหยัดได้โดยไม่เสียผลผลิต";
+    } else {
+      tone = "ok"; head = "อยู่ในช่วงที่ควรใส่";
+      why = "ใส่ " + kg + " กก./ไร่ · ช่วงที่ควรคือ " + lo + "-" + hi + " กก./ไร่";
+    }
+
+    verdictHost.appendChild(el("div", "flash flash-" + tone, head));
+    verdictHost.appendChild(el("div", "read-foot", why));
+
+    // แปลงเป็นเงินให้เห็น เพราะตัวเลขกิโลกรัมไม่ได้ทำให้ใครเปลี่ยนพฤติกรรม
+    // แต่ตัวเลขบาทที่จ่ายเกินไปโดยไม่ได้อะไรกลับมา ทำให้เปลี่ยน
+    if (tone === "bad") {
+      var over = kg - hi;
+      verdictHost.appendChild(el("div", "read-foot",
+        "เกินอยู่ประมาณ " + over.toFixed(0) + " กก./ไร่ · ใส่ราคาปุ๋ยที่ซื้อมาในแท็บเก็บเกี่ยว " +
+        "แล้วจะเห็นว่าเป็นเงินเท่าไหร่ต่อไร่"));
+    }
+  }
+
+  [["sack", "กระสอบต่อไร่"], ["kg", "กิโลต่อไร่"]].forEach(function (u) {
+    var b = el("button", "act act-sm " + (doneState.unit === u[0] ? "act-go" : "act-line"), u[1]);
+    b.onclick = function () {
+      doneState.unit = u[0];
+      try { localStorage.setItem(LOGKEY, JSON.stringify(doneState)); } catch (e) {}
+      open(here);   // วาดใหม่ทั้งหน้าเพราะปุ่มหน่วยเปลี่ยนสีและตัวเลขต้องตีความใหม่
+    };
+    unitRow.appendChild(b);
+  });
+  logCard.appendChild(unitRow);
+
+  var lf = el("div", "inp");
+  lf.appendChild(el("label", "", doneState.unit === "sack"
+    ? "ใส่ไปกี่กระสอบต่อไร่ (กระสอบละ " + FERT_SACK_KG + " กิโล)"
+    : "ใส่ไปกี่กิโลต่อไร่"));
+  logIn.className = "num-in fert-done-in";
+  logIn.inputMode = "decimal";
+  logIn.placeholder = doneState.unit === "sack" ? "เช่น 0.5" : "เช่น 25";
+  if (doneState.value != null) logIn.value = String(doneState.value);
+  logIn.oninput = function () {
+    var v = parseFloat(logIn.value);
+    doneState.value = isNaN(v) ? null : v;
+    try { localStorage.setItem(LOGKEY, JSON.stringify(doneState)); } catch (e) {}
+    paintVerdict();
+  };
+  lf.appendChild(logIn);
+  logCard.appendChild(lf);
+
+  verdictHost.className = "fert-done-say";
+  logCard.appendChild(verdictHost);
+  paintVerdict();
+  root.appendChild(logCard);
 
   // ══ เลือกชนิดปุ๋ย ══
   root.appendChild(bund("เลือกชนิดปุ๋ย"));
@@ -6999,6 +7212,160 @@ function renderMyPrices(root) {
 // ตัวเลขทุกช่องแก้ได้โดยตั้งใจ เพราะราคาข้าวเปลือกเจ้าลดลง 33% ภายในปีเดียวในปี 2568
 // ค่าตั้งต้นที่ฝังไว้จึงล้าสมัยเร็วมาก สิ่งที่ระบบทำได้ดีกว่าคนคือเลขคณิตที่ไม่ผิด
 // ไม่ใช่การรู้ราคาปัจจุบัน
+// ═══════════════════════════════════════════════════
+// ระยะเก็บเกี่ยว
+// ═══════════════════════════════════════════════════
+//
+// ── ทำไมแยกออกมาจากตารางต้นทุน ──
+//
+// ค่าเก็บเกี่ยวเคยเป็นแค่บรรทัดหนึ่งในตารางต้นทุน 9 รายการ ซึ่งซ่อนของสำคัญไว้
+// จริงๆ แล้วมันคือการตัดสินใจที่ต่างกันหลายร้อยบาทต่อไร่ และตัดสินใจครั้งเดียวจบ
+// คือจะจ้างรถเกี่ยว หรือจ้างคนเกี่ยว ซึ่งไม่ใช่แค่เรื่องราคา แต่มีเงื่อนไขคนละแบบ
+//
+// ยกขึ้นมาเป็นส่วนแรกของแท็บ พร้อมบอกข้อดีข้อเสียของแต่ละทาง
+// แล้วค่าที่เลือกไหลลงตารางต้นทุนด้านล่างเอง ผู้ใช้ไม่ต้องกรอกซ้ำสองที่
+
+var HARVEST_WAYS = [
+  {
+    key: "combine", thai: "รถเกี่ยวนวด", perRai: 1000,
+    good: "เร็ว เกี่ยวได้ 10-15 ไร่ต่อวัน และนวดเสร็จในคันเดียว",
+    bad:  "ต้องรอคิว และเข้าแปลงที่ยังแฉะไม่ได้ ต้องระบายน้ำก่อน 7-10 วัน"
+  },
+  {
+    key: "labour", thai: "จ้างแรงงานคน", perRai: 1200,
+    good: "เข้าแปลงเล็ก แปลงที่รถลงไม่ได้ หรือแปลงที่ยังแฉะได้",
+    bad:  "ช้ากว่ามาก และยังต้องจ่ายค่านวดแยกอีก หาคนยากขึ้นทุกปี"
+  }
+];
+
+// ตัวต่อระหว่างส่วนเก็บเกี่ยวกับส่วนกำไร
+//
+// สองส่วนนี้อยู่คนละกล่องบนหน้าเดียวกัน และวาดพร้อมกันแบบขนาน
+// จึงต้องมีทางให้ส่วนบนสั่งส่วนล่างคำนวณใหม่เมื่อผู้ใช้เปลี่ยนค่า
+// ใช้ตัวแปรตัวเดียวแทนระบบ event เพราะมีผู้ฟังแค่รายเดียวและอยู่หน้าเดียวกันเสมอ
+var costRepaint = null;
+
+// วิธีเก็บเกี่ยวที่เลือกไว้ของสถานะชุดนี้ ถ้าไม่เคยเลือกให้เป็นรถเกี่ยวซึ่งใช้กันมากที่สุด
+function harvestWayOf(st) {
+  var k = st && st.harvestWay;
+  return HARVEST_WAYS.filter(function (w) { return w.key === k; })[0] || HARVEST_WAYS[0];
+}
+
+// ค่าเก็บเกี่ยวต่อไร่ที่ใช้จริง — ค่าที่ผู้ใช้พิมพ์เองมาก่อน ถ้าไม่มีใช้ค่าตั้งต้นของวิธีที่เลือก
+function harvestPerRai(st) {
+  var v = (st && st.items) ? st.items.harvest : undefined;
+  if (typeof v === "number" && !isNaN(v)) return v;
+  return harvestWayOf(st).perRai;
+}
+
+views.harvest = function (root) {
+  var C = window.COST_GUIDE;
+  if (!C) return;
+
+  var KEY = plotKey("cost");
+  function read() {
+    try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { return {}; }
+  }
+  function write(patch) {
+    var st = read();
+    Object.keys(patch).forEach(function (k) { st[k] = patch[k]; });
+    try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* พื้นที่เต็ม */ }
+  }
+
+  root.appendChild(bund("วิธีเก็บเกี่ยว"));
+  var card = plot(null);
+  var st = read();
+
+  // ค่าเริ่มต้นเป็นรถเกี่ยว เพราะเป็นวิธีที่ใช้กันมากที่สุดในนาข้าวไทยตอนนี้
+  var pickKey = HARVEST_WAYS.some(function (w) { return w.key === st.harvestWay; })
+    ? st.harvestWay : "combine";
+
+  var rowHost = el("div");
+  card.appendChild(rowHost);
+
+  function costOf(w) {
+    // เฉพาะวิธีที่เลือกอยู่เท่านั้นที่ใช้ค่าที่ผู้ใช้พิมพ์เอง
+    // อีกวิธีต้องโชว์ค่าตั้งต้นของมันเสมอ เพื่อให้เทียบราคาสองทางได้ตรงๆ
+    return (w.key === pickKey) ? harvestPerRai(st) : w.perRai;
+  }
+
+  function paint() {
+    rowHost.innerHTML = "";
+    st = read();
+
+    HARVEST_WAYS.forEach(function (w) {
+      var on = (w.key === pickKey);
+      var box = el("div", "hway" + (on ? " on" : ""));
+
+      var head = el("button", "hway-head");
+      head.setAttribute("aria-pressed", on ? "true" : "false");
+      head.appendChild(el("span", "hway-name", w.thai));
+      head.appendChild(el("span", "hway-price", money0(costOf(w)) + " บาท/ไร่"));
+      head.onclick = function () {
+        pickKey = w.key;
+        // เปลี่ยนวิธีแล้วค่าที่เคยแก้ไว้ของวิธีเดิมต้องไม่ติดมาด้วย
+        // ไม่งั้นคนที่แก้ค่าจ้างรถเกี่ยวเป็น 1,300 แล้วสลับไปแรงงานคน
+        // จะเห็น 1,300 ค้างอยู่ทั้งที่เป็นคนละเรื่องกัน
+        var items = st.items || {};
+        delete items["harvest"];
+        write({ harvestWay: pickKey, items: items });
+        paint();
+        if (costRepaint) costRepaint();
+      };
+      box.appendChild(head);
+
+      if (on) {
+        var body = el("div", "hway-body");
+
+        var f = el("div", "inp");
+        f.appendChild(el("label", "", "ค่าจ้างจริงที่จ่าย (บาท/ไร่)"));
+        var inp = el("input");
+        inp.className = "num-in";
+        inp.inputMode = "decimal";
+        inp.value = String(costOf(w));
+        inp.oninput = function () {
+          var v = parseFloat(inp.value);
+          var items = read().items || {};
+          if (isNaN(v)) delete items["harvest"]; else items["harvest"] = v;
+          write({ items: items });
+          head.querySelector(".hway-price").textContent =
+            money0(isNaN(v) ? w.perRai : v) + " บาท/ไร่";
+          if (costRepaint) costRepaint();
+        };
+        f.appendChild(inp);
+        body.appendChild(f);
+
+        var pros = el("div", "hway-pros");
+        pros.appendChild(el("div", "hway-good", w.good));
+        pros.appendChild(el("div", "hway-bad", w.bad));
+        body.appendChild(pros);
+
+        box.appendChild(body);
+      }
+      rowHost.appendChild(box);
+    });
+  }
+  paint();
+  root.appendChild(card);
+
+  // ── เตือนเรื่องจังหวะระบายน้ำ ──
+  // เป็นข้อผิดพลาดที่ทำให้ต้องเลื่อนคิวรถเกี่ยว ซึ่งค่าเสียหายมากกว่าค่าจ้างเสียอีก
+  var cal = fieldCalendar();
+  if (cal && cal.harvest) {
+    var daysLeft = Math.round((cal.harvest - Date.now()) / 86400000);
+    if (daysLeft >= 0 && daysLeft <= 20 && pickKey === "combine") {
+      var when = daysLeft <= 10
+        ? "ควรระบายน้ำออกแล้วตอนนี้"
+        : "อีก " + (daysLeft - 10) + " วันถึงวันที่ควรระบายน้ำออก";
+      card.appendChild(el("div", "flash flash-warn",
+        when + " · รถเกี่ยวลงแปลงแฉะไม่ได้ ต้องระบายก่อนเกี่ยว 7-10 วัน"));
+    }
+  }
+};
+
+// จำนวนเงินแบบไม่มีทศนิยม ใช้ร่วมกันหลายที่
+function money0(n) { return Math.round(n).toLocaleString("th-TH"); }
+
 views.cost = async function (root) {
   root.appendChild(pageHead("cost"));
   var C = window.COST_GUIDE;
@@ -7029,6 +7396,8 @@ views.cost = async function (root) {
     return C.varieties.filter(function (v) { return v.key === st.variety; })[0] || C.varieties[0];
   }
   function itemCost(it) {
+    // ค่าเก็บเกี่ยวมีที่คิดของตัวเองเพราะค่าตั้งต้นเปลี่ยนตามวิธีที่เลือกด้านบน
+    if (it.key === "harvest") return harvestPerRai(st);
     var v = st.items[it.key];
     return typeof v === "number" && !isNaN(v) ? v : it.perRai;
   }
@@ -7088,9 +7457,9 @@ views.cost = async function (root) {
 
   // ── รายการต้นทุนต่อไร่ ──
   root.appendChild(bund("ต้นทุนต่อไร่"));
-  var costCard = plot(null, "ไม่มีให้ใส่ 0");
+  var costCard = plot(null, "ค่าเก็บเกี่ยวอยู่ในส่วนวิธีเก็บเกี่ยวด้านบน · ไม่มีรายการไหนให้ใส่ 0");
   var totalTag = el("div", "costsum");
-  C.costItems.forEach(function (it) {
+  C.costItems.filter(function (it) { return it.key !== "harvest"; }).forEach(function (it) {
     var row = el("div", "citem");
 
     var left = el("div", "citem-mid");
@@ -7243,6 +7612,18 @@ views.cost = async function (root) {
 
   syncDefaults();
   recalc();
+
+  // ให้ส่วนวิธีเก็บเกี่ยวด้านบนสั่งคำนวณใหม่ได้เมื่อผู้ใช้เปลี่ยนวิธีหรือแก้ค่าจ้าง
+  // ต้องอ่านค่าจาก localStorage ใหม่ทุกครั้ง ไม่ใช้ st ที่ค้างอยู่ในหน่วยความจำ
+  // เพราะสองส่วนนี้เขียนคีย์เดียวกันคนละเวลา ถ้าใช้ของเก่าจะได้ยอดที่ไม่ตรงกับที่เห็นด้านบน
+  costRepaint = function () {
+    try {
+      var fresh = JSON.parse(localStorage.getItem(KEY) || "{}");
+      st.items = fresh.items || {};
+      st.harvestWay = fresh.harvestWay;
+    } catch (e) { /* อ่านไม่ได้ก็ใช้ค่าที่มีอยู่ */ }
+    recalc();
+  };
 
   // ══════════════════════════════════════════════
   // ส่วนที่ 4 · สมุดราคาส่วนตัว
@@ -9076,7 +9457,7 @@ document.getElementById("signOut").onclick = async function () {
 function startApp() {
   paintWho();
   markBrain();
-  open("check");
+  open("grow");
 }
 
 // ตรวจ token ที่เก็บไว้ก่อน ถ้ายังใช้ได้ก็เข้าแอปเลย ไม่ต้องล็อกอินซ้ำ
