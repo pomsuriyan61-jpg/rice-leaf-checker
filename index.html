@@ -300,6 +300,28 @@
            width: 100%; max-width: 340px; box-shadow: var(--lift); }
   .sheet-title { font-weight: 600; margin-bottom: 11px; }
   .sheet-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  /* ── ช่องกรอกต้นทุนที่แทรกอยู่ตามแท็บ ──
+     ต้องดูไม่เหมือนช่องกรอกหลักของหน้านั้น เพราะเป็นของเสริมที่กรอกเมื่อพร้อม
+     แต่ก็ต้องไม่จางจนมองไม่เห็น เพราะยอดกำไรทั้งหมดขึ้นกับช่องพวกนี้ */
+  .cfield { display: flex; align-items: center; gap: 10px; padding: 11px 0;
+            border-bottom: 1px solid var(--rule-soft); }
+  .cfield:last-child { border-bottom: 0; }
+  .cfield-mid { flex: 1; min-width: 0; }
+  .cfield-name { font-size: .92rem; }
+  .cfield-hint { font-size: .74rem; color: var(--ink-faint); margin-top: 2px; }
+  .cfield-hint.on { color: var(--blade); }
+  .cfield .num-in { max-width: 104px; flex: 0 0 104px; }
+  .cfield-unit { font-size: .78rem; color: var(--ink-faint); flex: 0 0 auto; }
+
+  /* สรุปต้นทุนในแท็บเก็บเกี่ยว อ่านอย่างเดียว แก้ต้องกลับไปแท็บที่กรอก */
+  .csum-row { display: flex; align-items: baseline; gap: 10px; padding: 9px 0;
+              border-bottom: 1px solid var(--rule-soft); font-size: .89rem; }
+  .csum-row:last-of-type { border-bottom: 0; }
+  .csum-name { flex: 1; min-width: 0; }
+  .csum-where { font-size: .72rem; color: var(--ink-faint); display: block; margin-top: 1px; }
+  .csum-val { font-family: var(--f-data); white-space: nowrap; }
+  .csum-val.soft { color: var(--ink-faint); }
+
   /* ── วิธีเก็บเกี่ยว: เลือกได้ทีละทาง กางรายละเอียดเฉพาะทางที่เลือก ──
      ทั้งสองทางต้องเห็นราคาพร้อมกันตั้งแต่แรก เพราะราคาคือสิ่งที่ใช้ตัดสินใจ
      แต่ข้อดีข้อเสียกางเฉพาะอันที่เลือก ไม่งั้นต้องอ่านสี่ย่อหน้าก่อนจะกดอะไรได้ */
@@ -1321,16 +1343,16 @@
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=26"></script>
-<script src="soil-guide.js?v=26"></script>
-<script src="fertilizer-guide.js?v=26"></script>
-<script src="cost-guide.js?v=26"></script>
-<script src="care-guide.js?v=26"></script>
-<script src="planting-guide.js?v=26"></script>
-<script src="pest-guide.js?v=26"></script>
-<script src="variety-guide.js?v=26"></script>
-<script src="media.js?v=26"></script>
-  <script src="pest-page.js?v=26"></script>
+<script src="disease-guide.js?v=27"></script>
+<script src="soil-guide.js?v=27"></script>
+<script src="fertilizer-guide.js?v=27"></script>
+<script src="cost-guide.js?v=27"></script>
+<script src="care-guide.js?v=27"></script>
+<script src="planting-guide.js?v=27"></script>
+<script src="pest-guide.js?v=27"></script>
+<script src="variety-guide.js?v=27"></script>
+<script src="media.js?v=27"></script>
+  <script src="pest-page.js?v=27"></script>
 <script>
 (function () {
 "use strict";
@@ -4344,6 +4366,9 @@ views.diagnose = function (root) {
   pestHost.id = "pestSection";
   root.appendChild(pestHost);
   renderPestSection(pestHost, "list");
+
+  root.appendChild(bund("ค่ายาที่จ่ายจริง"));
+  root.appendChild(costFields(["pest"], "รวมทุกครั้งที่พ่นในฤดูนี้ · ยอดไปโผล่ที่แท็บเก็บเกี่ยว"));
 };
 
 // แยกเป็นฟังก์ชันธรรมดา ไม่ใช่ views.* แล้ว เพราะไม่ได้เป็นหน้าของตัวเองอีกต่อไป
@@ -5242,208 +5267,73 @@ views.soil = async function (root) {
 
   // ── ค่า pH ──
   //
-  // จิ้ม 3 ครั้งต่อจุดแล้วเฉลี่ย เพราะเครื่องวัดถูกๆ อ่านเพี้ยนได้ 0.3-0.5 หน่วยต่อครั้ง
-  // ถ้าเชื่อค่าจากการจิ้มครั้งเดียวแล้วเอาไปคิดว่าจะใส่ปูนกี่ตัน ความเพี้ยนจะกลายเป็นเงินจริง
-  var READS = 3;
-  var START_POINTS = 5;
-  var phPoints = [];
-
+  // ช่องเดียว กรอกเลขที่อ่านได้จากเครื่องแล้วจบ
+  //
+  // ของเดิมเป็นตาราง 5 จุด จุดละ 3 ครั้ง แล้วเฉลี่ยให้ ซึ่งถูกต้องกว่าในทางวิชาการ
+  // แต่ของจริงคือไม่มีใครจิ้ม 15 ครั้งแล้วมานั่งกรอกครบทุกช่อง
+  // ตารางที่กรอกไม่ครบให้ค่าเฉลี่ยที่หลอกตัวเองยิ่งกว่าการกรอกเลขเดียวตรงๆ
+  // และหน้าจอที่มีช่องว่าง 15 ช่องรออยู่ ทำให้คนกดข้ามทั้งส่วนไปเลย
   var phHead = el("div");
   phHead.style.marginBottom = "6px";
   phHead.appendChild(el("div", "read-label", "ค่า pH"));
   form.appendChild(phHead);
-  // แถบสีบอกช่วงที่ข้าวชอบ แทนประโยคที่ต้องอ่านแล้วนึกภาพเอง
+
   var phScaleHost = el("div");
   phScaleHost.appendChild(picPhScale(null));
   form.appendChild(phScaleHost);
 
-  var phGrid = el("div", "phgrid");
-  var gHead = el("div", "phgrid-head");
-  ["จุดวัด", "ครั้งที่ 1", "ครั้งที่ 2", "ครั้งที่ 3", "ค่าเฉลี่ยของจุด"].forEach(function (t) {
-    gHead.appendChild(el("div", "", t));
-  });
-  phGrid.appendChild(gHead);
-  var phBody = el("div");
-  phGrid.appendChild(phBody);
-  form.appendChild(phGrid);
-
-  function addPoint() {
-    var idx = phPoints.length;
-    var row = el("div", "phrow");
-    var name = el("div", "phrow-name", "จุดที่ " + (idx + 1));
-    row.appendChild(name);
-
-    var fields = [];
-    for (var r = 0; r < READS; r++) {
-      var inp = el("input");
-      inp.inputMode = "decimal";
-      inp.placeholder = "0.0";
-      inp.oninput = phRecalc;
-      row.appendChild(inp);
-      fields.push(inp);
-    }
-
-    var end = el("div", "phrow-end");
-    var avgTag = el("div", "phpt-avg", "—");
-    end.appendChild(avgTag);
-
-    // จุดที่เพิ่มเองเอาออกได้ ส่วน 5 จุดแรกเอาออกไม่ได้
-    // เพราะกดพลาดแล้วต้องกรอกใหม่หมด ซึ่งน่าหงุดหงิดกว่าประโยชน์ที่ได้
-    if (idx >= START_POINTS) {
-      var drop = el("button", "phpt-drop", "เอาออก");
-      drop.onclick = function () {
-        row.remove();
-        phPoints = phPoints.filter(function (p) { return p.row !== row; });
-        renumber();
-        phRecalc();
-      };
-      end.appendChild(drop);
-    }
-    row.appendChild(end);
-
-    phPoints.push({ row: row, fields: fields, avgTag: avgTag, name: name });
-    phBody.appendChild(row);
-    relabel();
-  }
-
-  // เลขจุดต้องเรียง 1,2,3 เสมอ ถ้าเอาจุดกลางออกแล้วไม่เรียงใหม่
-  // จะเหลือ "จุดที่ 1, จุดที่ 3, จุดที่ 4" ซึ่งคนกรอกจะงงว่าจุดที่ 2 หายไปไหน
-  function renumber() {
-    phPoints.forEach(function (p, i) { p.name.textContent = "จุดที่ " + (i + 1); });
-    relabel();
-  }
-
-  // หัวตารางถูกซ่อนบนมือถือ ช่องกรอกจึงต้องมีชื่อของตัวเองให้โปรแกรมอ่านหน้าจอบอกได้
-  function relabel() {
-    phPoints.forEach(function (p, i) {
-      p.fields.forEach(function (f, r) {
-        f.setAttribute("aria-label", "จุดที่ " + (i + 1) + " ครั้งที่ " + (r + 1));
-      });
-    });
-  }
-
-  for (var pn = 0; pn < START_POINTS; pn++) addPoint();
-
-  var addBtn = el("button", "act act-line act-wide", "+ เพิ่มอีก 1 จุด");
-  addBtn.style.marginTop = "4px";
-  addBtn.onclick = function () { addPoint(); phRecalc(); };
-  form.appendChild(addBtn);
-
-  var phOut = el("div", "phsum");
-  form.appendChild(phOut);
-
-  // เฉลี่ยเฉพาะครั้งที่กรอกจริง ไม่นับช่องว่างเป็นศูนย์
-  // ถ้านับเป็นศูนย์ คนที่จิ้มได้ 2 ครั้งคือ 6.0 กับ 6.2 จะได้ค่าเฉลี่ย 4.07 ซึ่งผิดไปคนละเรื่อง
-  function pointAvg(p) {
-    var v = p.fields
-      .map(function (f) { return parseFloat(f.value); })
-      .filter(function (x) { return !isNaN(x) && x > 0; });
-    if (!v.length) return null;
-    return { avg: v.reduce(function (a, b) { return a + b; }, 0) / v.length,
-             n: v.length,
-             spread: Math.max.apply(null, v) - Math.min.apply(null, v) };
-  }
-
-  // ค่าของทั้งแปลง = เฉลี่ยของค่าเฉลี่ยรายจุด ไม่ใช่เฉลี่ยจากทุกช่องรวมกัน
-  // ไม่งั้นจุดที่กรอกครบ 3 ครั้งจะมีน้ำหนักมากกว่าจุดที่กรอกครั้งเดียวโดยไม่มีเหตุผล
-  function phValues() {
-    return phPoints.map(pointAvg).filter(Boolean).map(function (p) { return p.avg; });
-  }
-  function phAverage(vals) {
-    return vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
-  }
-
   var phMsg = el("div");
+  var phIn = el("input");
 
-  function phRecalc() {
-    phPoints.forEach(function (p) {
-      var r = pointAvg(p);
-      if (!r) {
-        p.avgTag.textContent = "—";
-        p.avgTag.className = "phpt-avg";
-        return;
-      }
-      if (r.avg < 3 || r.avg > 10) {
-        p.avgTag.textContent = "เลขผิดปกติ";
-        p.avgTag.className = "phpt-avg bad";
-        return;
-      }
-      // 3 ครั้งที่จิ้มจุดเดียวกันไม่ควรต่างกันเกิน 0.5 ถ้าเกินแปลว่าหัววัดแนบดินไม่ดี
-      if (r.n >= 2 && r.spread > 0.5) {
-        p.avgTag.textContent = r.avg.toFixed(2) + " · ควรจิ้มใหม่";
-        p.avgTag.className = "phpt-avg warn";
-        return;
-      }
-      p.avgTag.textContent = r.avg.toFixed(2) + (r.n < READS ? " (" + r.n + " ครั้ง)" : "");
-      p.avgTag.className = "phpt-avg ok";
-    });
-
-    var vals = phValues();
-    phOut.innerHTML = "";
-
-    if (!vals.length) {
-      phScaleHost.innerHTML = "";
-      phScaleHost.appendChild(picPhScale(null));
-      paintResults();
-      return;
-    }
-
-    if (vals.filter(function (v) { return v < 3 || v > 10; }).length) {
-      phOut.appendChild(el("div", "flash flash-warn", "ค่าควรอยู่ 3–10"));
-      paintResults();
-      return;
-    }
-
-    var avg = phAverage(vals);
-    // เข็มบนแถบสีต้องขยับตามที่พิมพ์ทันที ไม่ต้องรอกดบันทึก
-    phScaleHost.innerHTML = "";
-    phScaleHost.appendChild(picPhScale(avg));
-    phOut.appendChild(el("div", "phsum-label", "ค่าเฉลี่ยของทั้งแปลง"));
-    phOut.appendChild(el("div", "phsum-val", avg.toFixed(2)));
-    phOut.appendChild(el("div", "phsum-foot", "เฉลี่ยจาก " + vals.length + " จุดที่กรอกแล้ว"));
-
-    // ดินที่ต่างกันเกิน 1 หน่วยระหว่างจุด ค่าเฉลี่ยเดียวอธิบายไม่ได้ ต้องแยกโซนจัดการ
-    var spread = Math.max.apply(null, vals) - Math.min.apply(null, vals);
-    if (vals.length >= 2 && spread >= 1.0) {
-      phOut.appendChild(el("div", "phsum-foot",
-        "ต่างกัน " + spread.toFixed(1) + " หน่วย · ควรแยกดูแลเป็นโซน"));
-    }
-
-    paintResults();
+  // ค่าที่ใช้ตอนนี้ — เอาที่กำลังพิมพ์ก่อน ถ้ายังไม่พิมพ์ค่อยใช้ค่าที่บันทึกไว้ล่าสุด
+  function typedPh() {
+    var v = parseFloat(phIn.value);
+    return (isNaN(v) || v < 3 || v > 10) ? null : v;
   }
+
+  var phField = el("div", "inp");
+  phField.appendChild(el("label", "", "เลขที่อ่านได้จากเครื่องวัด"));
+  phIn.className = "num-in";
+  phIn.inputMode = "decimal";
+  phIn.placeholder = "เช่น 5.8";
+  phIn.oninput = function () {
+    phMsg.innerHTML = "";
+    var v = parseFloat(phIn.value);
+    if (!isNaN(v) && (v < 3 || v > 10)) {
+      phMsg.appendChild(el("div", "flash flash-warn", "ค่าควรอยู่ 3–10 ลองเช็กเครื่องวัดอีกที"));
+    }
+    phScaleHost.innerHTML = "";
+    phScaleHost.appendChild(picPhScale(typedPh()));
+    paintResults();
+  };
+  phField.appendChild(phIn);
+  form.appendChild(phField);
 
   var phSave = el("button", "act act-go act-wide", "บันทึกค่าที่วัดได้");
-  phSave.style.marginTop = "15px";
+  phSave.style.marginTop = "13px";
   form.appendChild(phSave);
   form.appendChild(phMsg);
 
   phSave.onclick = async function () {
-    var vals = phValues();
+    var v = typedPh();
     phMsg.innerHTML = "";
-
-    if (!vals.length) {
-      phMsg.appendChild(el("div", "flash flash-warn", "กรอกค่าที่วัดได้อย่างน้อย 1 จุดก่อนกดบันทึก"));
-      return;
-    }
-    if (vals.filter(function (v) { return v < 3 || v > 10; }).length) {
-      phMsg.appendChild(el("div", "flash flash-warn", "มีค่าที่เกินช่วง 3 ถึง 10 แก้ก่อนแล้วค่อยบันทึก"));
+    if (v === null) {
+      phMsg.appendChild(el("div", "flash flash-warn", "กรอกค่าระหว่าง 3 ถึง 10 ก่อนกดบันทึก"));
       return;
     }
 
     phSave.disabled = true;
     phSave.textContent = "กำลังบันทึก";
-
     try {
       // ใช้ Store.add ตัวเดียวกับบันทึกสำรวจ ค่า pH จึงไปอยู่ในทะเบียนเดียวกัน
       await Store.add({
         date: todayStamp(),
         owner: Store.profile().name || "ไม่ระบุ",
         gps: "",
-        ph: Math.round(phAverage(vals) * 100) / 100,
-        disease: "วัดความเปรี้ยวของดิน (ก่อนปลูก)",
+        ph: v,
+        disease: "วัดค่า pH ดิน (ก่อนปลูก)",
         score: null
       });
-
       phMsg.appendChild(el("div", "flash flash-ok", Store.isOffline()
         ? "เก็บไว้ในเครื่องแล้ว จะส่งขึ้นระบบให้เองเมื่อต่อเน็ตได้"
         : "บันทึกแล้ว"));
@@ -5452,7 +5342,6 @@ views.soil = async function (root) {
       phMsg.appendChild(el("div", "flash flash-warn",
         (err && err.message) || "บันทึกไม่ได้ ลองกดใหม่อีกครั้ง"));
     }
-
     phSave.disabled = false;
     phSave.textContent = "บันทึกค่าที่วัดได้";
   };
@@ -5468,10 +5357,8 @@ views.soil = async function (root) {
   // ค่าที่ใช้แปลผล เอาค่าที่กำลังพิมพ์ก่อน ถ้ายังไม่พิมพ์ค่อยใช้ค่าที่บันทึกไว้ล่าสุด
   // เพราะคนที่เพิ่งกรอกอยากเห็นผลทันทีโดยไม่ต้องกดบันทึกก่อน
   function activePh() {
-    var vals = phValues().filter(function (v) { return v >= 3 && v <= 10; });
-    if (vals.length) {
-      return { ph: Math.round(phAverage(vals) * 100) / 100, live: true, n: vals.length };
-    }
+    var v = typedPh();
+    if (v !== null) return { ph: v, live: true };
     if (phs.length) {
       return { ph: phs[0].ph, live: false, date: phs[0].date, created_at: phs[0].created_at };
     }
@@ -5502,7 +5389,7 @@ views.soil = async function (root) {
       nm.style.cssText = "font-weight:600;font-size:1.05rem;color:" + color;
       side.appendChild(nm);
       side.appendChild(el("div", "read-foot", cur.live
-        ? "จากค่าที่กำลังกรอก " + cur.n + " จุด · ยังไม่ได้บันทึก"
+        ? "ค่าที่กำลังกรอก · ยังไม่ได้บันทึก"
         : "วัดเมื่อ " + cur.date));
       head.appendChild(side);
       phCard.appendChild(head);
@@ -5627,6 +5514,11 @@ views.soil = async function (root) {
       }, false));
     });
     resultHost.appendChild(stepBox);
+
+    // ค่าใช้จ่ายของช่วงเตรียมดิน กรอกตอนที่เพิ่งจ่ายเสร็จ ซึ่งเป็นตอนที่ยังจำเลขได้แม่น
+    resultHost.appendChild(bund("ค่าใช้จ่ายช่วงเตรียมดิน"));
+    resultHost.appendChild(costFields(["till", "puddle", "seed", "sow"],
+      "กรอกที่จ่ายจริง ยอดรวมไปโผล่ที่แท็บเก็บเกี่ยว"));
 
     // ── การเตรียมต้นกล้า เฉพาะนาดำ ──
     if (G.nursery && G.nursery.forMethod === pick.method) {
@@ -5992,6 +5884,9 @@ views.fert = async function (root) {
   logCard.appendChild(verdictHost);
   paintVerdict();
   root.appendChild(logCard);
+
+  root.appendChild(bund("ค่าปุ๋ยที่จ่ายจริง"));
+  root.appendChild(costFields(["fert"], "รวมทุกครั้งที่ใส่ในฤดูนี้ · ยอดไปโผล่ที่แท็บเก็บเกี่ยว"));
 
   // ══ เลือกชนิดปุ๋ย ══
   root.appendChild(bund("เลือกชนิดปุ๋ย"));
@@ -7258,6 +7153,146 @@ function harvestPerRai(st) {
   return harvestWayOf(st).perRai;
 }
 
+// ═══════════════════════════════════════════════════
+// ต้นทุน: กรอกตรงที่จ่าย รวมยอดที่แท็บสุดท้าย
+// ═══════════════════════════════════════════════════
+//
+// ── ทำไมไม่รวมช่องกรอกไว้ที่เดียว ──
+//
+// ของเดิมเป็นตาราง 9 ช่องอยู่ในแท็บต้นทุนอย่างเดียว ซึ่งแปลว่า
+// คนที่เพิ่งจ้างรถไถเสร็จวันนี้ ต้องจำตัวเลขไว้แล้วไปเปิดอีกแท็บหนึ่งเพื่อกรอก
+// ของจริงคือไม่มีใครทำ แล้วตัวเลขต้นทุนก็เป็นค่ากลางของประเทศไปทั้งฤดู
+//
+// ตอนนี้ช่องกรอกไปอยู่ตรงที่เกิดค่าใช้จ่ายนั้นจริง
+// ค่าไถอยู่ในส่วนเตรียมดิน ค่าปุ๋ยอยู่ในส่วนปุ๋ย ค่ายาอยู่ในส่วนโรคและแมลง
+// กรอกตอนที่เพิ่งจ่ายเสร็จ ซึ่งเป็นตอนเดียวที่คนยังจำตัวเลขได้แม่น
+// แล้วแท็บเก็บเกี่ยวรวมทุกช่องมาคำนวณกำไรให้เอง
+//
+// ทุกช่องเขียนลงคีย์เดียวกันคือ plotKey("cost").items เสมอ
+// ห้ามมีที่เก็บซ้อนกันสองที่ ไม่งั้นยอดรวมจะไม่ตรงกับที่ผู้ใช้เห็นตอนกรอก
+
+// รายการต้นทุนอยู่แท็บไหน — ใช้ทั้งตอนวางช่องกรอกและตอนบอกว่า "แก้ได้ที่ไหน"
+var COST_HOME = {
+  till:    { page: "field",   where: "แปลงนา · เตรียมดิน" },
+  puddle:  { page: "field",   where: "แปลงนา · เตรียมดิน" },
+  seed:    { page: "field",   where: "แปลงนา · เตรียมดิน" },
+  sow:     { page: "field",   where: "แปลงนา · เตรียมดิน" },
+  fert:    { page: "field",   where: "แปลงนา · ปุ๋ย" },
+  pest:    { page: "grow",    where: "ระหว่างปลูก · โรคและแมลง" },
+  water:   { page: "grow",    where: "ระหว่างปลูก · อากาศ" },
+  harvest: { page: "harvest", where: "เก็บเกี่ยว · วิธีเกี่ยว" },
+  haul:    { page: "harvest", where: "เก็บเกี่ยว · วิธีเกี่ยว" }
+};
+
+var CostStore = {
+  read: function () {
+    try { return JSON.parse(localStorage.getItem(plotKey("cost")) || "{}"); }
+    catch (e) { return {}; }
+  },
+  write: function (patch) {
+    var st = this.read();
+    Object.keys(patch).forEach(function (k) { st[k] = patch[k]; });
+    try { localStorage.setItem(plotKey("cost"), JSON.stringify(st)); } catch (e) { /* พื้นที่เต็ม */ }
+    return st;
+  },
+  items: function () { return this.read().items || {}; },
+
+  // ค่าที่ผู้ใช้กรอกเอง คืน null ถ้ายังไม่เคยกรอก
+  // แยกให้ชัดจาก 0 ซึ่งแปลว่า "รายการนี้ไม่มีค่าใช้จ่าย" ซึ่งเป็นคำตอบที่ตั้งใจ
+  typed: function (key) {
+    var v = this.items()[key];
+    return (typeof v === "number" && !isNaN(v)) ? v : null;
+  },
+
+  set: function (key, value) {
+    var items = this.items();
+    if (value === null) delete items[key]; else items[key] = value;
+    this.write({ items: items });
+  },
+
+  // ค่าที่ใช้คำนวณจริง — ของผู้ใช้ก่อน ถ้าไม่มีใช้ค่ากลางจากฐานข้อมูล
+  effective: function (key) {
+    var typed = this.typed(key);
+    if (typed !== null) return typed;
+    if (key === "harvest") return harvestWayOf(this.read()).perRai;
+    var it = costItemOf(key);
+    return it ? it.perRai : 0;
+  },
+
+  total: function () {
+    var self = this;
+    var C = window.COST_GUIDE;
+    if (!C) return 0;
+    return C.costItems.reduce(function (a, it) { return a + self.effective(it.key); }, 0);
+  }
+};
+
+function costItemOf(key) {
+  var C = window.COST_GUIDE;
+  if (!C) return null;
+  return C.costItems.filter(function (x) { return x.key === key; })[0] || null;
+}
+
+// ── ช่องกรอกต้นทุน วางได้ทุกแท็บ ──
+//
+// คืน element เดียวที่เอาไปแปะตรงไหนก็ได้
+// onChange เรียกเมื่อค่าเปลี่ยน ใช้ให้ส่วนสรุปคำนวณใหม่ถ้าอยู่หน้าเดียวกัน
+function costFields(keys, title) {
+  var box = plot(null);
+  if (title) box.appendChild(el("div", "rx-sect", title));
+
+  keys.forEach(function (key) {
+    var it = costItemOf(key);
+    if (!it) return;
+
+    var row = el("div", "cfield");
+
+    var left = el("div", "cfield-mid");
+    var nm = el("div", "cfield-name");
+    nm.appendChild(document.createTextNode(it.name));
+    if (it.note) nm.title = it.note;
+    left.appendChild(nm);
+
+    var hint = el("div", "cfield-hint");
+    left.appendChild(hint);
+    row.appendChild(left);
+
+    var inp = el("input");
+    inp.className = "num-in";
+    inp.inputMode = "decimal";
+    inp.setAttribute("aria-label", it.name + " บาทต่อไร่");
+    // ค่ากลางไปอยู่ใน placeholder ไม่ใช่ใน value
+    //
+    // ถ้าใส่เป็น value ผู้ใช้จะเห็นเลขเต็มช่องแล้วเข้าใจว่า "กรอกแล้ว"
+    // ทั้งที่เป็นค่ากลางของประเทศ ไม่ใช่ของแปลงเขา แล้วก็ปล่อยผ่านไปทั้งฤดู
+    // placeholder บอกว่าถ้าไม่กรอกจะใช้เลขนี้ โดยยังเห็นชัดว่าช่องยังว่างอยู่
+    inp.placeholder = String(it.perRai);
+    var typed = CostStore.typed(key);
+    if (typed !== null) inp.value = String(typed);
+
+    function paintHint() {
+      var t = CostStore.typed(key);
+      hint.textContent = (t === null) ? "ยังไม่กรอก · ใช้ค่ากลาง " + it.perRai : "กรอกเองแล้ว";
+      hint.className = "cfield-hint" + (t === null ? "" : " on");
+    }
+    paintHint();
+
+    inp.oninput = function () {
+      var raw = inp.value.trim();
+      var v = parseFloat(raw);
+      CostStore.set(key, (raw === "" || isNaN(v) || v < 0) ? null : v);
+      paintHint();
+      if (costRepaint) costRepaint();
+    };
+
+    row.appendChild(inp);
+    row.appendChild(el("span", "cfield-unit", "บาท/ไร่"));
+    box.appendChild(row);
+  });
+
+  return box;
+}
+
 views.harvest = function (root) {
   var C = window.COST_GUIDE;
   if (!C) return;
@@ -7361,6 +7396,9 @@ views.harvest = function (root) {
         when + " · รถเกี่ยวลงแปลงแฉะไม่ได้ ต้องระบายก่อนเกี่ยว 7-10 วัน"));
     }
   }
+
+  // ค่าขนส่งจ่ายวันเดียวกับวันเกี่ยว จึงอยู่ด้วยกัน
+  root.appendChild(costFields(["haul"], "ค่าขนไปโรงสี"));
 };
 
 // จำนวนเงินแบบไม่มีทศนิยม ใช้ร่วมกันหลายที่
@@ -7394,12 +7432,6 @@ views.cost = async function (root) {
 
   function varOf() {
     return C.varieties.filter(function (v) { return v.key === st.variety; })[0] || C.varieties[0];
-  }
-  function itemCost(it) {
-    // ค่าเก็บเกี่ยวมีที่คิดของตัวเองเพราะค่าตั้งต้นเปลี่ยนตามวิธีที่เลือกด้านบน
-    if (it.key === "harvest") return harvestPerRai(st);
-    var v = st.items[it.key];
-    return typeof v === "number" && !isNaN(v) ? v : it.perRai;
   }
   function money(n) { return Math.round(n).toLocaleString("th-TH"); }
 
@@ -7456,37 +7488,46 @@ views.cost = async function (root) {
   root.appendChild(inCard);
 
   // ── รายการต้นทุนต่อไร่ ──
+  // ── สรุปต้นทุน อ่านอย่างเดียว ──
+  //
+  // ช่องกรอกทั้งหมดย้ายไปอยู่ในแท็บที่เกิดค่าใช้จ่ายจริงแล้ว
+  // ที่นี่จึงเป็นที่ "รวมยอด" ไม่ใช่ที่กรอก และต้องบอกให้ชัดว่าแต่ละรายการกรอกได้ที่ไหน
+  // ไม่งั้นคนที่เห็นตัวเลขผิดตรงนี้จะไม่รู้ว่าต้องไปแก้ที่ไหน แล้วก็ปล่อยผิดไว้ทั้งฤดู
   root.appendChild(bund("ต้นทุนต่อไร่"));
-  var costCard = plot(null, "ค่าเก็บเกี่ยวอยู่ในส่วนวิธีเก็บเกี่ยวด้านบน · ไม่มีรายการไหนให้ใส่ 0");
+  var costCard = plot(null, "กรอกที่แท็บของแต่ละช่วง ตรงนี้รวมยอดให้อย่างเดียว");
   var totalTag = el("div", "costsum");
-  C.costItems.filter(function (it) { return it.key !== "harvest"; }).forEach(function (it) {
-    var row = el("div", "citem");
+  var costRows = el("div");
+  costCard.appendChild(costRows);
 
-    var left = el("div", "citem-mid");
-    var nm = el("div", "citem-name");
-    nm.appendChild(document.createTextNode(it.name));
-    // แยกให้ชัดว่าตัวไหนมีแหล่งอ้างอิงตรง ตัวไหนเป็นค่าประมาณ
-    // ถ้าแสดงเหมือนกันหมด ผู้ใช้จะเข้าใจว่าทุกตัวเลขแม่นเท่ากัน
-    nm.appendChild(el("span", it.cited ? "tag-yes" : "tag-wait", it.cited ? "มีอ้างอิง" : "ค่าประมาณ"));
-    if (it.note) nm.title = it.note;
-    left.appendChild(nm);
-    row.appendChild(left);
+  function paintCostRows() {
+    costRows.innerHTML = "";
+    var untouched = 0;
 
-    var inp = el("input");
-    inp.className = "num-in citem-in";
-    inp.inputMode = "decimal";
-    inp.value = String(itemCost(it));
-    inp.oninput = function () {
-      var v = parseFloat(inp.value);
-      st.items[it.key] = isNaN(v) ? it.perRai : v;
-      save();
-      recalc();
-    };
-    row.appendChild(inp);
-    row.appendChild(el("span", "read-foot", "บาท"));
+    C.costItems.forEach(function (it) {
+      var typed = CostStore.typed(it.key);
+      var home = COST_HOME[it.key];
 
-    costCard.appendChild(row);
-  });
+      var row = el("div", "csum-row");
+      var nm = el("div", "csum-name");
+      nm.appendChild(document.createTextNode(it.name));
+      if (home) nm.appendChild(el("span", "csum-where", "กรอกที่ " + home.where));
+      row.appendChild(nm);
+
+      // ค่าที่ยังไม่ได้กรอกแสดงจางกว่า เพื่อให้กวาดตาเห็นทันทีว่าเหลืออะไรที่ยังไม่ใช่ของจริง
+      var val = el("div", "csum-val" + (typed === null ? " soft" : ""),
+        money(CostStore.effective(it.key)));
+      row.appendChild(val);
+      costRows.appendChild(row);
+
+      if (typed === null) untouched++;
+    });
+
+    if (untouched) {
+      costRows.appendChild(el("div", "read-foot",
+        "ยังใช้ค่ากลางอยู่ " + untouched + " รายการ (ตัวเลขสีจาง) · กรอกของจริงแล้วกำไรจะตรงขึ้น"));
+    }
+  }
+
   costCard.appendChild(totalTag);
   root.appendChild(costCard);
 
@@ -7508,7 +7549,8 @@ views.cost = async function (root) {
     var yPer = parseFloat(yIn.value);
     var price = parseFloat(pIn.value);
 
-    var perRai = C.costItems.reduce(function (a, it) { return a + itemCost(it); }, 0);
+    paintCostRows();
+    var perRai = CostStore.total();
     totalTag.textContent = "รวมต้นทุน " + money(perRai) + " บาทต่อไร่";
 
     if (!yPer || yPer <= 0 || !price || price <= 0) {
@@ -8049,6 +8091,9 @@ views.weather = async function (root) {
     "ปัจจัยอื่นที่มีผลมากแต่ยังไม่ได้นำมาคำนวณ ได้แก่ พันธุ์ข้าวที่ปลูก ความหนาแน่นของการปลูก " +
     "ปริมาณปุ๋ยตัวเร่งใบเขียว และประวัติการระบาดในพื้นที่ ควรใช้ประกอบการสำรวจแปลงด้วยตาเสมอ"));
   root.appendChild(riskCard);
+
+  root.appendChild(bund("ค่าน้ำที่จ่ายจริง"));
+  root.appendChild(costFields(["water"], "ค่าไฟสูบน้ำหรือค่าน้ำทั้งฤดู · ยอดไปโผล่ที่แท็บเก็บเกี่ยว"));
 
   // ── ตัดกราฟฝน/แดด 14 วันออก (แก้ 2026-08) ──
   //
