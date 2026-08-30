@@ -6,7 +6,7 @@
 <title>SmartRice AI — ระบบวินิจฉัยโรคข้าวและติดตามแปลงนา</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Mitr:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     /* ══ จานสี "นาข้าวเช้าตรู่" — เขียว ขาว เขียวอ่อน ══
@@ -1292,6 +1292,240 @@
     .field.enter > *, .bar-title.swap, .bar-kicker.swap { animation: none !important; }
     .loadbar.on::after, .dot.live, .rail-item.on::before { animation: none !important; }
   }
+
+  /* ══════════════════════════════════════════════════════════
+     รีดีไซน์ 2026-08 — "นาข้าวตอนเช้า"
+     ══════════════════════════════════════════════════════════
+
+     จุดยืน: แอพนี้ถูกเปิดกลางแดด ด้วยมือที่อาจเปียกหรือเปื้อนดิน
+     โดยคนที่สายตาไม่ได้ดีที่สุดแล้ว ดีไซน์จึงต้องทำสามอย่างพร้อมกัน
+       1. อ่านออกกลางแดด — คอนทราสต์สูง ตัวใหญ่ ไม่มีเทาจางบนขาว
+       2. กดโดนตั้งแต่ครั้งแรก — ปุ่มสูงอย่างน้อย 48px ระยะห่างพอ
+       3. รู้สึกเป็นมิตร ไม่ใช่แบบฟอร์มราชการ — น้องข้าวเป็นตัวพาอารมณ์
+
+     จานสีเปลี่ยนจากเขียวล้วนเป็นสีที่เห็นจริงในนาตอนเช้า
+     น้ำสะท้อนฟ้า ใบข้าวสองระดับ รวงสุก เปลือกข้าว และฟางเป็นพื้น
+     พื้นเดิมขาวอมเขียวซึ่งเย็นและดูเหมือนแอพโรงพยาบาล
+     พื้นใหม่อมฟางซึ่งอุ่นและตรงกับสิ่งที่คนใช้เห็นรอบตัวจริง */
+
+  :root {
+    --straw:    #F5F1E4;   /* ฟาง — พื้นหลังหน้า */
+    --mist:     #F5F1E4;
+    --husk:     #F5F1E4;
+    --paper:    #FFFFFF;
+    --paper-up: #FBF8EF;
+    --canopy:   #E8F0DC;   /* เขียวอ่อนอมเหลือง — พื้นป้าย */
+
+    --paddy:    #0D3B2A;   /* เขียวก้นนา — ตัวหนังสือหลัก ปุ่มหลัก */
+    --deep:     #0D3B2A;
+    --flood:    #0D3B2A;
+    --flood-up: #145140;
+    --blade:    #3E9B57;   /* ใบข้าว */
+    --sprout:   #8FCB4A;   /* ต้นกล้า — ตัวเน้น */
+    --leaf-pale:#CFE6B4;
+    --grain:    #E8A93A;   /* รวงสุก — เฝ้าระวัง */
+    --shell:    #C9773C;   /* เปลือกข้าว/ดิน */
+    --water:    #2E7D95;   /* น้ำสะท้อนฟ้า */
+    --rust:     #C0492F;   /* แผลโรค — อันตราย */
+
+    --ink:      #14261C;
+    --ink-soft: #4A5C4F;
+    --ink-faint:#7C8C7F;
+
+    --rule:     #DFDCCB;
+    --rule-soft:#EBE8DA;
+
+    --tint-ok:   #E8F0DC;
+    --tint-warn: #FBF0D8;
+    --tint-bad:  #FAE6E0;
+
+    --f-display: 'Mitr', 'IBM Plex Sans Thai', sans-serif;
+    --f-body:    'IBM Plex Sans Thai', sans-serif;
+    --f-data:    'IBM Plex Mono', monospace;
+
+    --r:    18px;
+    --r-sm: 12px;
+    --lift: 0 1px 2px rgba(13,59,42,.04), 0 6px 18px rgba(13,59,42,.06);
+  }
+
+  body { background: var(--straw); color: var(--ink); }
+
+  /* หัวข้อใช้ Mitr ซึ่งกลมและเป็นมิตรกว่า แต่ยังคมพอสำหรับตัวเลข
+     น้ำหนัก 500 พอ ไม่ต้อง 600 เพราะ Mitr หนากว่า Plex อยู่แล้วที่น้ำหนักเท่ากัน */
+  h1, h2, h3, .bar-title, .bund-label, .plot-title { font-family: var(--f-display); font-weight: 500; }
+
+  /* ── ปุ่ม ────────────────────────────────────
+     ทรงยาแคปซูล มีขอบล่างเข้มกว่าตัวปุ่ม ทำให้ดู "กดได้" จริงโดยไม่ต้องมีเงา
+     กดแล้วปุ่มยุบลง 2px และขอบล่างหาย ซึ่งเป็นจังหวะเดียวที่ใช้ทั้งเว็บ
+     สูง 48px ขั้นต่ำ เพราะนิ้วเปียกหรือใส่ถุงมือกดปุ่มเล็กไม่โดน */
+  .act {
+    border: 0; border-radius: 999px;
+    padding: 13px 24px; min-height: 48px;
+    font-family: var(--f-display); font-size: .95rem; font-weight: 500;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    transition: background .13s, color .13s, transform .08s, box-shadow .13s;
+  }
+  .act-go {
+    background: var(--paddy); color: #FFFFFF;
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,.22);
+  }
+  .act-go:hover:not(:disabled) { background: var(--flood-up); }
+  .act-go:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 -1px 0 rgba(0,0,0,.18); }
+  .act-go:disabled { background: var(--rule); color: var(--ink-faint); box-shadow: none; cursor: not-allowed; }
+
+  .act-line {
+    background: var(--paper); color: var(--paddy);
+    box-shadow: inset 0 0 0 2px var(--rule);
+  }
+  .act-line:hover { box-shadow: inset 0 0 0 2px var(--blade); background: var(--tint-ok); }
+  .act-line:active { transform: translateY(2px); }
+
+  .act-wide { width: 100%; }
+  .act-sm { padding: 8px 16px; min-height: 38px; font-size: .85rem; }
+
+  /* ── ช่องกรอก ──
+     สูงเท่าปุ่ม ขอบหนาขึ้น เพราะช่องขอบบางบนพื้นอ่อนมองไม่เห็นกลางแดด */
+  .inp input, .inp select, .num-in, input[type="date"], input[type="text"],
+  input[type="password"], input[type="email"], input[type="number"], select, textarea {
+    border-radius: var(--r-sm);
+    border: 2px solid var(--rule);
+    background: var(--paper);
+    min-height: 46px;
+    font-size: 1rem;
+  }
+  .inp input:focus, .num-in:focus, select:focus, textarea:focus {
+    border-color: var(--blade); outline: none;
+    box-shadow: 0 0 0 3px rgba(62,155,87,.16);
+  }
+  .inp label {
+    font-size: .82rem; letter-spacing: 0; text-transform: none;
+    color: var(--ink-soft); font-weight: 500; margin-bottom: 6px;
+  }
+  :focus-visible { outline: 3px solid var(--sprout); outline-offset: 2px; }
+
+  /* ── การ์ด ── มุมมนขึ้นและเส้นขอบอมฟาง ให้เข้ากับพื้นใหม่ */
+  .plot { border-radius: var(--r); border: 1px solid var(--rule); background: var(--paper); }
+
+  /* ── หัวข้อกลุ่ม: รวงข้าวเล็กๆ แทนขีดเปล่า ──
+     เป็นจุดที่ธีมนาข้าวโผล่ซ้ำทุกหน้าโดยไม่กินที่ */
+  .bund { display: flex; align-items: center; gap: 10px; }
+  .bund-label { font-size: 1.06rem; color: var(--paddy); }
+  .bund-line { flex: 1; height: 2px; border: 0;
+               background: repeating-linear-gradient(90deg, var(--rule) 0 8px, transparent 8px 14px); }
+
+  /* ── น้องข้าว ── ตัวการ์ตูนที่พาอารมณ์ของสถานะ */
+  .buddy { display: block; }
+  .buddy svg { display: block; width: 100%; height: auto; }
+  .state { text-align: center; padding: 34px 20px; }
+  .state .buddy { width: 78px; margin: 0 auto 12px; }
+  .state-lead { font-family: var(--f-display); font-weight: 500; font-size: 1.02rem; color: var(--paddy); margin-bottom: 3px; }
+  .state-note { font-size: .86rem; color: var(--ink-soft); max-width: 280px; margin: 0 auto; }
+
+  /* น้องข้าวในหัวเว็บ ขยับเบาๆ ตอนเปิดหน้าเท่านั้น ไม่ขยับตลอดเวลาให้รำคาญ */
+  .mark-name .buddy { width: 30px; flex: 0 0 30px; }
+  @media (prefers-reduced-motion: no-preference) {
+    .mark-name .buddy { animation: buddyHi .7s ease-out 1; transform-origin: 50% 90%; }
+  }
+  @keyframes buddyHi {
+    0%   { transform: rotate(-9deg) scale(.9); }
+    55%  { transform: rotate(6deg)  scale(1.04); }
+    100% { transform: rotate(0)     scale(1); }
+  }
+
+  /* ── ป้ายและชิป ── */
+  .flash { border-radius: var(--r-sm); font-size: .88rem; padding: 12px 15px; border: 0; }
+  .flash-ok   { background: var(--tint-ok);   color: #1D5230; box-shadow: inset 3px 0 0 var(--blade); }
+  .flash-warn { background: var(--tint-warn); color: #7A5410; box-shadow: inset 3px 0 0 var(--grain); }
+  .flash-bad  { background: var(--tint-bad);  color: #8C2F1C; box-shadow: inset 3px 0 0 var(--rust); }
+  .jump-b, .phead-chip, .plotchip { border-radius: 999px; }
+  .jump-b { min-height: 40px; padding: 8px 16px; font-size: .87rem; border: 2px solid var(--rule); }
+  .jump-b:hover { border-color: var(--blade); }
+  .jump { background: var(--straw); }
+  .plotchip { min-height: 40px; }
+
+  /* แถบอ้างอิงเป็นข้อมูลรอง ทำให้จางลงและเล็กลง ไม่ให้แย่งที่กับเนื้อหา */
+  .phead { font-size: .72rem; gap: 6px; margin-bottom: 14px; opacity: .85; }
+  .phead-chip { padding: 2px 9px; background: transparent; box-shadow: inset 0 0 0 1px var(--rule); }
+
+  /* ── ตัวเลขพระเอก ── */
+  .hero-val, .num.hero-val { font-family: var(--f-display); font-weight: 600; }
+  .read-value { font-family: var(--f-display); font-weight: 500; }
+
+  /* ── แถบเมนูล่างสำหรับมือถือ ──
+     คนไทยทุกคนใช้ LINE และ Facebook ซึ่งใช้แถบล่างเหมือนกันหมด
+     เมนูสไลด์จากข้างที่ต้องกดขีดสามขีดก่อน เป็นรูปแบบที่ต้องเรียนรู้ก่อนใช้
+     แถบล่างอยู่ในระยะนิ้วโป้งพอดีและเห็นทุกแท็บพร้อมกันตลอดเวลา */
+  .tabbar { display: none; }
+  @media (max-width: 760px) {
+    .tabbar {
+      display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+      background: var(--paper); border-top: 1px solid var(--rule);
+      padding-bottom: env(safe-area-inset-bottom, 0);
+      box-shadow: 0 -2px 14px rgba(13,59,42,.07);
+    }
+    .tab-item {
+      flex: 1; border: 0; background: none; padding: 8px 4px 9px;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      color: var(--ink-faint); font-family: var(--f-body); font-size: .7rem;
+      min-height: 58px; position: relative;
+    }
+    .tab-item svg { width: 23px; height: 23px; }
+    .tab-item.on { color: var(--paddy); font-weight: 600; }
+    /* จุดเขียวเหนือไอคอนบอกแท็บที่เปิดอยู่ เห็นชัดกว่าการเปลี่ยนสีอย่างเดียว */
+    .tab-item.on::before {
+      content: ""; position: absolute; top: 2px; width: 22px; height: 3px;
+      border-radius: 3px; background: var(--sprout);
+    }
+    .field { padding-bottom: 84px; }
+    /* มีแถบล่างแล้วไม่ต้องมีขีดสามขีดกับเมนูสไลด์อีก */
+    .rail, .rail-toggle { display: none !important; }
+    .seek { display: none; }
+    .bar { padding: 12px 16px 10px; }
+    .bar-title { font-size: 1.25rem; }
+  }
+
+  /* จอกว้างยังใช้เมนูข้างเหมือนเดิม เพราะมีที่เหลือและกวาดตาได้ทั้งหมดในครั้งเดียว */
+  @media (min-width: 761px) {
+    .rail-item { border-radius: 12px; }
+    .rail-item.on { background: var(--tint-ok); color: var(--paddy); }
+  }
+
+
+  /* ── น้องข้าวที่แถบบน ── อยู่ที่นี่แทนเมนูข้าง เพราะเมนูข้างถูกซ่อนบนมือถือ */
+  .bar-buddy { display: block; width: 34px; flex: 0 0 34px; }
+  .bar-buddy .buddy { width: 100%; }
+
+  /* ── แถบอ้างอิง ยุบเหลือชิปเดียว ──
+     กดแล้วค่อยกางรายชื่อ ประหยัดไปสองบรรทัดเต็มบนมือถือ */
+  .phead { margin-bottom: 12px; }
+  .phead-tag {
+    border: 0; background: transparent; cursor: pointer; font-family: var(--f-body);
+    font-size: .72rem; letter-spacing: .04em; color: var(--ink-faint);
+    padding: 4px 10px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--rule);
+    text-transform: none; font-weight: 500;
+  }
+  .phead-tag.on { color: var(--paddy); box-shadow: inset 0 0 0 1px var(--blade); background: var(--tint-ok); }
+  .phead-list { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ── แถบกระโดด ── ทำให้เป็นแท็บย่อย ไม่ใช่ปุ่มใหญ่ที่แย่งสายตากับปุ่มจริง
+     ของเดิมเป็นแคปซูลขอบหนาเท่าปุ่มหลัก ทำให้เหนือเนื้อหามีของหน้าตาเหมือนปุ่มสี่อัน
+     ทั้งที่มันแค่ทางลัดเลื่อนหน้า ไม่ได้ทำอะไรกับข้อมูล */
+  .jump { gap: 5px; margin-bottom: 14px; padding: 6px 0; }
+  .jump-b {
+    min-height: 34px; padding: 6px 13px; font-size: .82rem;
+    border: 0; box-shadow: none; background: var(--paper-up); color: var(--ink-soft);
+  }
+  .jump-b:hover { background: var(--tint-ok); color: var(--paddy); }
+
+
+  /* แถบสลับแปลงไม่ต้องมีพื้นเทา ชิปบอกตัวเองได้อยู่แล้วว่าเป็นตัวเลือก
+     พื้นทึบทำให้เกิดแถบหนาคาดหน้าจอก่อนถึงเนื้อหา ซึ่งกินที่ฟรีบนมือถือ */
+  .plotbar { background: transparent; padding: 6px 0 4px; }
+  .phead { margin: 0; display: inline-flex; }
+
+  /* น้องข้าวในวงเกจตอนยังไม่มีคะแนน */
+  .gauge-buddy { width: 56px; margin: 0 auto; }
+
 </style>
 </head>
 <body>
@@ -1300,12 +1534,7 @@
   <aside class="rail" id="rail">
     <div class="mark">
       <div class="mark-name">
-        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 21c0-6 0-9 0-11" stroke="#1B5E3A" stroke-width="1.6" stroke-linecap="round"/>
-          <path d="M12 10C12 6 9 3.5 5.5 3c-.4 3.8 2 7 6.5 7z" fill="#2E8B57"/>
-          <path d="M12 13c0-3.6 2.8-6 6-6.4.4 3.5-1.9 6.4-6 6.4z" fill="#6FBF73"/>
-        </svg>
-        SmartRice AI
+SmartRice AI
       </div>
       <div class="mark-sub">Field diagnostics</div>
     </div>
@@ -1323,6 +1552,7 @@
         <button class="rail-toggle" id="railToggle" aria-label="เปิดเมนู">
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="#1B5E3A" stroke-width="1.8" stroke-linecap="round"/></svg>
         </button>
+        <span id="markBuddy" class="bar-buddy"></span>
         <div style="min-width:0">
           <div class="bar-kicker" id="barKicker">แปลงนา</div>
           <h1 class="bar-title" id="barTitle">ภาพรวมแปลงนา</h1>
@@ -1338,6 +1568,7 @@
     </header>
     <div class="loadbar" id="loadbar" aria-hidden="true"></div>
     <main class="field" id="field"></main>
+    <nav class="tabbar" id="tabBar" aria-label="เมนูหลัก"></nav>
   </div>
 </div>
 
@@ -1352,16 +1583,16 @@
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=28"></script>
-<script src="soil-guide.js?v=28"></script>
-<script src="fertilizer-guide.js?v=28"></script>
-<script src="cost-guide.js?v=28"></script>
-<script src="care-guide.js?v=28"></script>
-<script src="planting-guide.js?v=28"></script>
-<script src="pest-guide.js?v=28"></script>
-<script src="variety-guide.js?v=28"></script>
-<script src="media.js?v=28"></script>
-  <script src="pest-page.js?v=28"></script>
+<script src="disease-guide.js?v=29"></script>
+<script src="soil-guide.js?v=29"></script>
+<script src="fertilizer-guide.js?v=29"></script>
+<script src="cost-guide.js?v=29"></script>
+<script src="care-guide.js?v=29"></script>
+<script src="planting-guide.js?v=29"></script>
+<script src="pest-guide.js?v=29"></script>
+<script src="variety-guide.js?v=29"></script>
+<script src="media.js?v=29"></script>
+  <script src="pest-page.js?v=29"></script>
 <script>
 (function () {
 "use strict";
@@ -3508,13 +3739,81 @@ function more(label, text) {
 }
 
 // สถานะว่าง/กำลังโหลด/ผิดพลาด ต้องบอกเสมอว่าเกิดอะไรและทำอะไรต่อ
+// ═══════════════════════════════════════════════════
+// น้องข้าว — ตัวการ์ตูนเมล็ดข้าวประจำเว็บ
+// ═══════════════════════════════════════════════════
+//
+// ไม่ใช่ของตกแต่ง แต่เป็นตัวพา "สถานะ" ของหน้าจอ
+//
+// เดิมสถานะว่าง กำลังโหลด และผิดพลาด ใช้อักขระ ◇ ◌ ! ซึ่งไม่มีใครแยกออก
+// ว่าอันไหนแปลว่าอะไร และหน้าจอที่ยังไม่มีข้อมูลดูเหมือนเว็บเสียมากกว่าเว็บที่รอข้อมูล
+//
+// น้องข้าวเปลี่ยนสีหน้าตามสถานะ คนดูรู้ทันทีว่าควรกังวลหรือแค่ยังไม่ได้กรอก
+// โดยไม่ต้องอ่านตัวหนังสือเลย ซึ่งตรงกับเป้าหมายว่าตัวหนังสือต้องน้อยที่สุด
+//
+// อารมณ์ที่มี
+//   ok    ยิ้ม        ทุกอย่างปกติ
+//   hi    ยิ้มกว้าง   ทักทาย ใช้ที่หัวเว็บ
+//   wait  หลับตา      กำลังโหลด หรือยังไม่มีข้อมูล
+//   warn  ห่วง        ต้องดูให้ดี
+//   bad   ตกใจ        ต้องรีบจัดการ
+var BUDDY_FACE = {
+  ok:   '<path d="M25 49q7 7 14 0" stroke="#0D3B2A" stroke-width="2.6" fill="none" stroke-linecap="round"/>',
+  hi:   '<path d="M23 47q9 10 18 0" stroke="#0D3B2A" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+        '<path d="M23 47q9 3 18 0" fill="#C0492F" opacity=".5"/>',
+  wait: '<path d="M22 37q4 4 8 0M34 37q4 4 8 0" stroke="#0D3B2A" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+        '<path d="M28 50q4 3 8 0" stroke="#0D3B2A" stroke-width="2.4" fill="none" stroke-linecap="round"/>',
+  warn: '<path d="M26 52q6-5 12 0" stroke="#0D3B2A" stroke-width="2.6" fill="none" stroke-linecap="round"/>',
+  bad:  '<ellipse cx="32" cy="51" rx="4.6" ry="5.4" fill="#0D3B2A"/>'
+};
+
+function riceBuddy(mood, cls) {
+  var m = BUDDY_FACE[mood] ? mood : "ok";
+
+  // ตาเป็นเส้นเฉพาะตอนหลับ นอกนั้นเป็นจุด — ตาอยู่ในชุดสีหน้าของ wait อยู่แล้ว
+  var eyes = (m === "wait") ? "" :
+    '<circle cx="26" cy="38" r="3.3" fill="#0D3B2A"/><circle cx="38" cy="38" r="3.3" fill="#0D3B2A"/>' +
+    '<circle cx="27.2" cy="36.8" r="1.1" fill="#FFFFFF"/><circle cx="39.2" cy="36.8" r="1.1" fill="#FFFFFF"/>';
+
+  // คิ้วเฉพาะตอนห่วงกับตกใจ ทำให้แยกสองอารมณ์นี้ออกจากกันได้ที่ขนาดเล็ก
+  var brows = "";
+  if (m === "warn") brows = '<path d="M21 30l8 3M43 30l-8 3" stroke="#0D3B2A" stroke-width="2.2" stroke-linecap="round"/>';
+  if (m === "bad")  brows = '<path d="M21 32l8-3M43 32l-8-3" stroke="#0D3B2A" stroke-width="2.2" stroke-linecap="round"/>';
+
+  var box = el("div", "buddy" + (cls ? " " + cls : ""));
+  box.innerHTML =
+    '<svg viewBox="0 0 64 74" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">' +
+      // ใบอ่อนงอกจากหัวเมล็ด
+      '<path d="M32 14C32 6 27 1 19 0c-1 8 4 13 13 14z" fill="#8FCB4A"/>' +
+      '<path d="M32 14c1-6 5-9 11-9 0 6-4 9-11 9z" fill="#3E9B57"/>' +
+      // ตัวเมล็ดข้าว
+      '<path d="M32 12c12 0 18 16 18 33 0 16-8 24-18 24s-18-8-18-24c0-17 6-33 18-33z" ' +
+        'fill="#F6E7C6" stroke="#D9BE86" stroke-width="2"/>' +
+      // ร่องเปลือกข้าว บอกว่าเป็นเมล็ดข้าวไม่ใช่ไข่
+      '<path d="M32 18v46M23 26c-2 12-2 24 1 34M41 26c2 12 2 24-1 34" ' +
+        'stroke="#E3CFA0" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
+      // แก้ม
+      '<ellipse cx="19" cy="45" rx="4" ry="3" fill="#E8A93A" opacity=".38"/>' +
+      '<ellipse cx="45" cy="45" rx="4" ry="3" fill="#E8A93A" opacity=".38"/>' +
+      brows + eyes + BUDDY_FACE[m] +
+    '</svg>';
+  return box;
+}
+
+// ── สถานะว่าง / กำลังโหลด / ผิดพลาด ──
+//
+// รับสัญลักษณ์เดิมไว้เพื่อไม่ต้องไล่แก้จุดเรียกทั้งเว็บ แต่แปลงเป็นสีหน้าน้องข้าวแทน
+// ที่เรียกใหม่ส่งชื่ออารมณ์ตรงๆ ได้เลย เช่น stateBlock("warn", ...)
+var STATE_MOOD = { "!": "bad", "◌": "wait", "◇": "wait", "〜": "wait", "?": "warn" };
+
 function stateBlock(mark, lead, note) {
   var s = el("div", "state");
-  s.appendChild(el("div", "state-mark", mark));
+  s.appendChild(riceBuddy(BUDDY_FACE[mark] ? mark : (STATE_MOOD[mark] || "wait")));
   s.appendChild(el("div", "state-lead", lead));
   if (note) s.appendChild(el("div", "state-note", note));
   return s;
 }
+
 
 
 // ─── แถบอ้างอิงบนหัวแท็บ ────────────────────────
@@ -3554,8 +3853,16 @@ function tabCite(page) {
   });
   if (!cites.length) return null;
   var box = el("div", "phead");
-  box.appendChild(el("span", "phead-tag", "อ้างอิง"));
-  cites.forEach(function (c) { box.appendChild(el("span", "phead-chip", c)); });
+  var btn = el("button", "phead-tag", "อ้างอิง " + cites.length);
+  var list = el("span", "phead-list");
+  list.hidden = true;
+  cites.forEach(function (c) { list.appendChild(el("span", "phead-chip", c)); });
+  btn.onclick = function () {
+    list.hidden = !list.hidden;
+    btn.classList.toggle("on", !list.hidden);
+  };
+  box.appendChild(btn);
+  box.appendChild(list);
   return box;
 }
 
@@ -3602,14 +3909,16 @@ function buildGauge(score, caption) {
   var water = el("div", "gauge-water");
   var read = el("div", "gauge-read");
   var hasScore = typeof score === "number";
-  var fig = el("div", "gauge-figure" + (hasScore ? "" : " dim"), hasScore ? String(score) : "—");
-  var unit = el("div", "gauge-unit" + (hasScore ? "" : " dim"), "คะแนนสุขภาพ");
-  read.appendChild(fig); read.appendChild(unit);
+  if (hasScore) {
+    read.appendChild(el("div", "gauge-figure", String(score)));
+    read.appendChild(el("div", "gauge-unit", "คะแนนสุขภาพ"));
+  } else {
+    read.appendChild(riceBuddy("wait", "gauge-buddy"));
+  }
   g.appendChild(water); g.appendChild(read);
   wrap.appendChild(g);
 
   var side = el("div", "gauge-side");
-  side.appendChild(el("div", "verdict-label", "แปลงตอนนี้เป็นยังไง"));
   var name = el("div", "verdict-name " + (s === "none" ? "" : s), statusWord(s));
   side.appendChild(name);
   if (caption) side.appendChild(el("div", "read-foot", caption));
@@ -7439,7 +7748,7 @@ views.harvest = function (root) {
         var body = el("div", "hway-body");
 
         var f = el("div", "inp");
-        f.appendChild(el("label", "", "ค่าจ้างจริง (บาท/ไร่)"));
+        f.appendChild(el("label", "", "ค่าจ้างจริง"));
         var inp = el("input");
         inp.className = "num-in";
         inp.inputMode = "decimal";
@@ -9145,19 +9454,44 @@ function visiblePages() {
 
 // เหลือ 4 ปุ่ม จึงไม่ต้องมีหัวข้อกลุ่มคั่นอีกแล้ว
 // หัวข้อกลุ่มมีไว้ช่วยหาของในเมนูยาว พอเมนูสั้นมันกลายเป็นตัวหนังสือส่วนเกิน
+// น้องข้าวที่หัวเว็บ ใส่ครั้งเดียวตอนเริ่ม ไม่ต้องวาดใหม่ทุกครั้งที่เปลี่ยนหน้า
+function paintMark() {
+  var host = document.getElementById("markBuddy");
+  if (!host || host.firstChild) return;
+  host.appendChild(riceBuddy("hi"));
+}
+
 function paintNav() {
+  paintMark();
   var nav = document.getElementById("railNav");
+  var bar = document.getElementById("tabBar");
   nav.innerHTML = "";
+  if (bar) bar.innerHTML = "";
+
+  // จอกว้างใช้เมนูข้าง จอมือถือใช้แถบล่าง แต่ทั้งสองมาจากรายการแท็บชุดเดียวกัน
+  // ถ้าแยกกันเขียน วันหนึ่งจะมีแท็บที่โผล่แค่ที่เดียวแล้วหาสาเหตุยาก
   visiblePages().forEach(function (p) {
+    var icon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + p.icon + '"/></svg>';
+
     var b = el("button", "rail-item" + (p.id === here ? " on" : ""));
     b.dataset.page = p.id;
-    b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + p.icon + '"/></svg>';
+    b.innerHTML = icon;
     b.appendChild(document.createTextNode(p.label));
     b.onclick = function () {
       open(p.id);
       document.getElementById("rail").classList.remove("open");
     };
     nav.appendChild(b);
+
+    if (!bar) return;
+    var t = el("button", "tab-item" + (p.id === here ? " on" : ""));
+    t.dataset.page = p.id;
+    if (p.id === here) t.setAttribute("aria-current", "page");
+    t.innerHTML = icon.replace('width="16" height="16"', 'width="23" height="23"');
+    t.appendChild(el("span", "", p.label));
+    t.onclick = function () { open(p.id); };
+    bar.appendChild(t);
   });
 }
 
@@ -9251,8 +9585,14 @@ async function open(id) {
     if (PLOT_PAGES.indexOf(page.id) !== -1) root.appendChild(plotBar());
 
     var cite = tabCite(page);
-    if (cite) root.appendChild(cite);
-    if (parts.length > 1 && page.jump) root.appendChild(jumpBar(page));
+    var jumps = (parts.length > 1 && page.jump) ? jumpBar(page) : null;
+    if (jumps && cite) {
+      jumps.appendChild(cite);          // ชิปอ้างอิงไปต่อท้ายปุ่มกระโดดในแถวเดียวกัน
+      root.appendChild(jumps);
+    } else {
+      if (cite) root.appendChild(cite);
+      if (jumps) root.appendChild(jumps);
+    }
 
     // ── สร้างกล่องทุกส่วนก่อน แล้วค่อยวาดพร้อมกัน ──
     //
@@ -9611,3 +9951,4 @@ function startApp() {
 </script>
 </body>
 </html>
+  
