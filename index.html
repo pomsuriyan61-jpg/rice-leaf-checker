@@ -417,6 +417,15 @@
   .pic svg { display: block; width: 100%; height: auto; }
   .pic-bag  { max-width: 330px; }
   .pic-ph   { max-width: 330px; margin: 14px auto 4px; }
+
+  /* จุดวัด pH — แถวเดียวจบต่อจุด เลขจุด ช่องกรอก ปุ่มลบ */
+  .phpt { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .phpt-no { flex: 0 0 66px; font-size: .84rem; color: var(--ink-soft); }
+  .phpt .ph-in { flex: 1; max-width: 130px; }
+  .phpt-x { flex: 0 0 auto; border: 0; background: none; cursor: pointer;
+            font-family: inherit; font-size: .8rem; color: var(--ink-faint);
+            padding: 6px 8px; border-radius: 6px; }
+  .phpt-x:hover { color: var(--rust); background: var(--tint-bad); }
   .pic-pile { max-width: 380px; }
   .pic-leaf { max-width: 84px; margin: 0 auto; }
   /* เทียบใบสองแบบ วางคู่กันเสมอ ต้องเห็นพร้อมกันถึงจะเทียบได้ */
@@ -1343,16 +1352,16 @@
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=27"></script>
-<script src="soil-guide.js?v=27"></script>
-<script src="fertilizer-guide.js?v=27"></script>
-<script src="cost-guide.js?v=27"></script>
-<script src="care-guide.js?v=27"></script>
-<script src="planting-guide.js?v=27"></script>
-<script src="pest-guide.js?v=27"></script>
-<script src="variety-guide.js?v=27"></script>
-<script src="media.js?v=27"></script>
-  <script src="pest-page.js?v=27"></script>
+<script src="disease-guide.js?v=28"></script>
+<script src="soil-guide.js?v=28"></script>
+<script src="fertilizer-guide.js?v=28"></script>
+<script src="cost-guide.js?v=28"></script>
+<script src="care-guide.js?v=28"></script>
+<script src="planting-guide.js?v=28"></script>
+<script src="pest-guide.js?v=28"></script>
+<script src="variety-guide.js?v=28"></script>
+<script src="media.js?v=28"></script>
+  <script src="pest-page.js?v=28"></script>
 <script>
 (function () {
 "use strict";
@@ -1437,8 +1446,8 @@ var PAGES = [
     icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
 
   { id: "grow", label: "ระหว่างปลูก", kicker: "ดูแลรายวัน",
-    parts: ["overview", "diagnose", "weather", "consult"],
-    jump: ["สรุป", "โรคและแมลง", "อากาศ", "ระยะข้าว"],
+    parts: ["overview", "consult", "diagnose", "weather"],
+    jump: ["สรุป", "ระยะข้าว", "โรคและแมลง", "อากาศ"],
     icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
 
   { id: "harvest", label: "เก็บเกี่ยว", kicker: "ปิดฤดู",
@@ -4367,8 +4376,8 @@ views.diagnose = function (root) {
   root.appendChild(pestHost);
   renderPestSection(pestHost, "list");
 
-  root.appendChild(bund("ค่ายาที่จ่ายจริง"));
-  root.appendChild(costFields(["pest"], "รวมทุกครั้งที่พ่นในฤดูนี้ · ยอดไปโผล่ที่แท็บเก็บเกี่ยว"));
+  root.appendChild(bund("ค่ายา"));
+  root.appendChild(costFields(["pest"], "รวมทุกครั้งที่พ่นในฤดูนี้"));
 };
 
 // แยกเป็นฟังก์ชันธรรมดา ไม่ใช่ views.* แล้ว เพราะไม่ได้เป็นหน้าของตัวเองอีกต่อไป
@@ -4592,9 +4601,14 @@ function picFertBag(formula) {
 //
 // แทนคำอธิบายว่าเลขมากน้อยแปลว่าอะไร ตาเห็นตำแหน่งเข็มแล้วเข้าใจทันที
 // ไม่ต้องอ่านว่า "ต่ำกว่า 5.5 คือเปรี้ยว สูงกว่า 6.5 คือด่าง"
-function picPhScale(value) {
+function picPhScale(points) {
   var lo = 3, hi = 10;
   function x(v) { return 22 + ((Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo)) * 286; }
+
+  // รับได้ทั้งเลขเดียวและรายการหลายจุด ที่อื่นในเว็บยังส่งเลขเดียวมา
+  var list = [];
+  if (typeof points === "number" && !isNaN(points)) list = [{ n: 1, ph: points }];
+  else if (Array.isArray(points)) list = points;
 
   var inner =
     '<defs><linearGradient id="phg" x1="0" x2="1">' +
@@ -4606,26 +4620,29 @@ function picPhScale(value) {
       '<stop offset="1"   stop-color="#3B4E9B"/>' +
     '</linearGradient></defs>' +
     '<rect x="22" y="34" width="286" height="20" rx="10" fill="url(#phg)"/>' +
-    // ช่วงที่ข้าวชอบ
     '<rect x="' + x(5.5) + '" y="29" width="' + (x(6.5) - x(5.5)) + '" height="30" rx="6" ' +
       'fill="none" stroke="var(--ink)" stroke-width="2.5"/>' +
     '<text x="' + ((x(5.5) + x(6.5)) / 2) + '" y="22" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">ข้าวชอบ</text>' +
-    // ปลายสองข้าง
     '<text x="22"  y="76" font-size="14" fill="var(--ink-faint)">เปรี้ยว 3</text>' +
     '<text x="308" y="76" text-anchor="end" font-size="14" fill="var(--ink-faint)">10 ด่าง</text>';
 
-  if (typeof value === "number" && !isNaN(value)) {
-    var px = x(value);
-    inner +=
-      '<path d="M' + px + ' 62 l-8 12 h16 z" fill="var(--ink)"/>' +
-      '<text x="' + px + '" y="92" text-anchor="middle" font-size="16" font-weight="700" fill="var(--ink)">' +
-        value.toFixed(1) + '</text>';
-  }
+  // เข็มหนึ่งอันต่อหนึ่งจุด เห็นพร้อมกันว่าดินในแปลงกระจายแค่ไหน
+  // ซึ่งเป็นสิ่งที่ค่าเฉลี่ยตัวเดียวบอกไม่ได้เลย
+  list.forEach(function (pt) {
+    var px = x(pt.ph);
+    inner += '<path d="M' + px + ' 62 l-7 11 h14 z" fill="var(--ink)"/>';
+    if (list.length === 1) {
+      inner += '<text x="' + px + '" y="92" text-anchor="middle" font-size="16" font-weight="700" fill="var(--ink)">' +
+               pt.ph.toFixed(1) + '</text>';
+    } else {
+      inner += '<text x="' + px + '" y="90" text-anchor="middle" font-size="12" fill="var(--ink-soft)">' + pt.n + '</text>';
+    }
+  });
 
   var box = svgWrap("0 0 330 100", inner, "pic-ph");
   box.querySelector("svg").setAttribute("aria-label",
-    "แถบค่ากรดด่างจาก 3 ถึง 10 ข้าวชอบช่วง 5.5 ถึง 6.5" +
-    (typeof value === "number" ? " ค่าของแปลงคุณคือ " + value.toFixed(1) : ""));
+    "แถบค่ากรดด่าง 3 ถึง 10 ข้าวชอบ 5.5 ถึง 6.5" +
+    (list.length ? " · วัดได้ " + list.map(function (q) { return q.ph.toFixed(1); }).join(", ") : ""));
   return box;
 }
 
@@ -5267,83 +5284,142 @@ views.soil = async function (root) {
 
   // ── ค่า pH ──
   //
-  // ช่องเดียว กรอกเลขที่อ่านได้จากเครื่องแล้วจบ
+  // กรอกเลขที่อ่านได้ตรงๆ จุดละช่อง เพิ่มจุดได้ไม่จำกัด
   //
-  // ของเดิมเป็นตาราง 5 จุด จุดละ 3 ครั้ง แล้วเฉลี่ยให้ ซึ่งถูกต้องกว่าในทางวิชาการ
-  // แต่ของจริงคือไม่มีใครจิ้ม 15 ครั้งแล้วมานั่งกรอกครบทุกช่อง
-  // ตารางที่กรอกไม่ครบให้ค่าเฉลี่ยที่หลอกตัวเองยิ่งกว่าการกรอกเลขเดียวตรงๆ
-  // และหน้าจอที่มีช่องว่าง 15 ช่องรออยู่ ทำให้คนกดข้ามทั้งส่วนไปเลย
+  // ไม่เฉลี่ยให้ โดยตั้งใจ
+  // ดินในแปลงเดียวกันต่างกันได้เกินหนึ่งหน่วย ค่าเฉลี่ยจะกลบจุดที่เป็นปัญหาจนมองไม่เห็น
+  // เช่นมุมหนึ่ง 4.2 อีกมุม 6.4 เฉลี่ยได้ 5.3 ซึ่งดูเหมือนไม่ต้องแก้อะไร
+  // ทั้งที่มุมแรกเปรี้ยวจัดและข้าวตรงนั้นจะไม่โต
+  //
+  // จึงใช้จุดที่ห่างจากช่วงที่ข้าวชอบมากที่สุดเป็นตัวตั้งคำแนะนำ แล้วบอกให้ชัดว่าใช้จุดไหน
+  var phFields = [];
+
   var phHead = el("div");
   phHead.style.marginBottom = "6px";
   phHead.appendChild(el("div", "read-label", "ค่า pH"));
   form.appendChild(phHead);
 
   var phScaleHost = el("div");
-  phScaleHost.appendChild(picPhScale(null));
   form.appendChild(phScaleHost);
 
+  var phRows = el("div");
+  form.appendChild(phRows);
   var phMsg = el("div");
-  var phIn = el("input");
 
-  // ค่าที่ใช้ตอนนี้ — เอาที่กำลังพิมพ์ก่อน ถ้ายังไม่พิมพ์ค่อยใช้ค่าที่บันทึกไว้ล่าสุด
-  function typedPh() {
-    var v = parseFloat(phIn.value);
-    return (isNaN(v) || v < 3 || v > 10) ? null : v;
+  // ระยะห่างจากช่วงที่ข้าวชอบ ใช้ทั้งตอนเลือกจุดที่แย่สุดและตอนเทียบกับค่าเดิม
+  function offIdeal(v) { return v < 5.5 ? 5.5 - v : (v > 6.5 ? v - 6.5 : 0); }
+
+  // ค่าที่กรอกไว้ทุกจุด พร้อมเลขจุด เพื่อบอกได้ว่าคำแนะนำมาจากจุดไหน
+  function phTyped() {
+    var out = [];
+    phFields.forEach(function (f, i) {
+      var v = parseFloat(f.value);
+      if (!isNaN(v) && v >= 3 && v <= 10) out.push({ n: i + 1, ph: v });
+    });
+    return out;
   }
 
-  var phField = el("div", "inp");
-  phField.appendChild(el("label", "", "เลขที่อ่านได้จากเครื่องวัด"));
-  phIn.className = "num-in";
-  phIn.inputMode = "decimal";
-  phIn.placeholder = "เช่น 5.8";
-  phIn.oninput = function () {
-    phMsg.innerHTML = "";
-    var v = parseFloat(phIn.value);
-    if (!isNaN(v) && (v < 3 || v > 10)) {
-      phMsg.appendChild(el("div", "flash flash-warn", "ค่าควรอยู่ 3–10 ลองเช็กเครื่องวัดอีกที"));
-    }
-    phScaleHost.innerHTML = "";
-    phScaleHost.appendChild(picPhScale(typedPh()));
-    paintResults();
-  };
-  phField.appendChild(phIn);
-  form.appendChild(phField);
+  function phWorst() {
+    var list = phTyped();
+    if (!list.length) return null;
+    return list.slice().sort(function (a, b) {
+      var d = offIdeal(b.ph) - offIdeal(a.ph);
+      return d !== 0 ? d : a.ph - b.ph;   // เท่ากันให้เอาฝั่งเปรี้ยวก่อน เพราะพบบ่อยกว่าและแก้ช้ากว่า
+    })[0];
+  }
 
-  var phSave = el("button", "act act-go act-wide", "บันทึกค่าที่วัดได้");
-  phSave.style.marginTop = "13px";
+  function phRepaint() {
+    phScaleHost.innerHTML = "";
+    phScaleHost.appendChild(picPhScale(phTyped()));
+    paintResults();
+  }
+
+  function addPhPoint(focus) {
+    var i = phFields.length;
+    var row = el("div", "phpt");
+    row.appendChild(el("div", "phpt-no", "จุดที่ " + (i + 1)));
+
+    var inp = el("input");
+    inp.className = "num-in ph-in";
+    inp.inputMode = "decimal";
+    inp.placeholder = i === 0 ? "เช่น 5.8" : "—";
+    inp.setAttribute("aria-label", "ค่า pH จุดที่ " + (i + 1));
+    inp.oninput = function () {
+      phMsg.innerHTML = "";
+      var v = parseFloat(inp.value);
+      if (!isNaN(v) && (v < 3 || v > 10)) {
+        phMsg.appendChild(el("div", "flash flash-warn", "ค่าควรอยู่ 3–10"));
+      }
+      phRepaint();
+    };
+    phFields.push(inp);
+    row.appendChild(inp);
+
+    // จุดแรกลบไม่ได้ เพราะต้องมีอย่างน้อยหนึ่งช่องเสมอ
+    if (i > 0) {
+      var drop = el("button", "phpt-x", "ลบ");
+      drop.setAttribute("aria-label", "ลบจุดที่ " + (i + 1));
+      drop.onclick = function () {
+        phFields = phFields.filter(function (f) { return f !== inp; });
+        row.remove();
+        // เลขจุดต้องเรียง 1,2,3 เสมอ ถ้าลบจุดกลางแล้วไม่เรียงใหม่
+        // จะเหลือ "จุดที่ 1, จุดที่ 3" ซึ่งคนกรอกจะงงว่าจุดที่ 2 หายไปไหน
+        [].forEach.call(phRows.children, function (r, k) {
+          r.querySelector(".phpt-no").textContent = "จุดที่ " + (k + 1);
+        });
+        phRepaint();
+      };
+      row.appendChild(drop);
+    }
+
+    phRows.appendChild(row);
+    if (focus) inp.focus();
+  }
+  addPhPoint(false);
+  phScaleHost.appendChild(picPhScale([]));
+
+  var addPh = el("button", "act act-line act-sm", "+ เพิ่มจุดวัด");
+  addPh.style.marginTop = "9px";
+  addPh.onclick = function () { addPhPoint(true); };
+  form.appendChild(addPh);
+
+  var phSave = el("button", "act act-go act-wide", "บันทึก");
+  phSave.style.marginTop = "11px";
   form.appendChild(phSave);
   form.appendChild(phMsg);
 
   phSave.onclick = async function () {
-    var v = typedPh();
+    var worst = phWorst();
     phMsg.innerHTML = "";
-    if (v === null) {
-      phMsg.appendChild(el("div", "flash flash-warn", "กรอกค่าระหว่าง 3 ถึง 10 ก่อนกดบันทึก"));
+    if (!worst) {
+      phMsg.appendChild(el("div", "flash flash-warn", "กรอกค่าระหว่าง 3 ถึง 10 ก่อน"));
       return;
     }
 
     phSave.disabled = true;
     phSave.textContent = "กำลังบันทึก";
     try {
-      // ใช้ Store.add ตัวเดียวกับบันทึกสำรวจ ค่า pH จึงไปอยู่ในทะเบียนเดียวกัน
+      // บันทึกค่าที่ใช้ตั้งคำแนะนำจริง ไม่ใช่ค่าเฉลี่ยที่ไม่มีอยู่จริงในแปลง
+      // จำนวนจุดติดไปด้วย เพื่อให้ดูย้อนหลังแล้วรู้ว่าวัดละเอียดแค่ไหน
+      var n = phTyped().length;
       await Store.add({
         date: todayStamp(),
         owner: Store.profile().name || "ไม่ระบุ",
         gps: "",
-        ph: v,
-        disease: "วัดค่า pH ดิน (ก่อนปลูก)",
+        ph: worst.ph,
+        disease: "วัด pH ดิน" + (n > 1 ? " " + n + " จุด" : ""),
         score: null
       });
       phMsg.appendChild(el("div", "flash flash-ok", Store.isOffline()
-        ? "เก็บไว้ในเครื่องแล้ว จะส่งขึ้นระบบให้เองเมื่อต่อเน็ตได้"
+        ? "เก็บในเครื่องแล้ว จะส่งขึ้นระบบเมื่อต่อเน็ตได้"
         : "บันทึกแล้ว"));
       setTimeout(function () { open(tabOf("soil")); }, 900);
     } catch (err) {
       phMsg.appendChild(el("div", "flash flash-warn",
-        (err && err.message) || "บันทึกไม่ได้ ลองกดใหม่อีกครั้ง"));
+        (err && err.message) || "บันทึกไม่ได้ ลองใหม่อีกครั้ง"));
     }
     phSave.disabled = false;
-    phSave.textContent = "บันทึกค่าที่วัดได้";
+    phSave.textContent = "บันทึก";
   };
 
   root.appendChild(form);
@@ -5357,8 +5433,15 @@ views.soil = async function (root) {
   // ค่าที่ใช้แปลผล เอาค่าที่กำลังพิมพ์ก่อน ถ้ายังไม่พิมพ์ค่อยใช้ค่าที่บันทึกไว้ล่าสุด
   // เพราะคนที่เพิ่งกรอกอยากเห็นผลทันทีโดยไม่ต้องกดบันทึกก่อน
   function activePh() {
-    var v = typedPh();
-    if (v !== null) return { ph: v, live: true };
+    var worst = phWorst();
+    if (worst) {
+      var all = phTyped();
+      return { ph: worst.ph, live: true, point: worst.n, count: all.length,
+               spread: all.length > 1
+                 ? Math.max.apply(null, all.map(function (x) { return x.ph; })) -
+                   Math.min.apply(null, all.map(function (x) { return x.ph; }))
+                 : 0 };
+    }
     if (phs.length) {
       return { ph: phs[0].ph, live: false, date: phs[0].date, created_at: phs[0].created_at };
     }
@@ -5389,8 +5472,15 @@ views.soil = async function (root) {
       nm.style.cssText = "font-weight:600;font-size:1.05rem;color:" + color;
       side.appendChild(nm);
       side.appendChild(el("div", "read-foot", cur.live
-        ? "ค่าที่กำลังกรอก · ยังไม่ได้บันทึก"
+        ? (cur.count > 1 ? "จุดที่ " + cur.point + " · ห่างจากช่วงที่ข้าวชอบมากสุดใน " + cur.count + " จุด"
+                         : "ยังไม่ได้บันทึก")
         : "วัดเมื่อ " + cur.date));
+
+      // ดินต่างกันเกินหนึ่งหน่วยระหว่างจุด = แปลงเดียวแต่ต้องดูแลคนละแบบ
+      if (cur.live && cur.spread >= 1.0) {
+        phCard.appendChild(el("div", "flash flash-warn",
+          "จุดต่างกัน " + cur.spread.toFixed(1) + " หน่วย · ควรแยกดูแลเป็นโซน"));
+      }
       head.appendChild(side);
       phCard.appendChild(head);
 
@@ -5516,9 +5606,9 @@ views.soil = async function (root) {
     resultHost.appendChild(stepBox);
 
     // ค่าใช้จ่ายของช่วงเตรียมดิน กรอกตอนที่เพิ่งจ่ายเสร็จ ซึ่งเป็นตอนที่ยังจำเลขได้แม่น
-    resultHost.appendChild(bund("ค่าใช้จ่ายช่วงเตรียมดิน"));
+    resultHost.appendChild(bund("ค่าใช้จ่าย"));
     resultHost.appendChild(costFields(["till", "puddle", "seed", "sow"],
-      "กรอกที่จ่ายจริง ยอดรวมไปโผล่ที่แท็บเก็บเกี่ยว"));
+      "กรอกที่จ่ายจริง · ยอดไปรวมที่แท็บเก็บเกี่ยว"));
 
     // ── การเตรียมต้นกล้า เฉพาะนาดำ ──
     if (G.nursery && G.nursery.forMethod === pick.method) {
@@ -5793,7 +5883,7 @@ views.fert = async function (root) {
   // ทั้งสองทางเสียเงินเหมือนกัน แต่คนละเหตุผล จึงต้องเตือนคนละแบบ
   var FERT_SACK_KG = 50;   // กระสอบมาตรฐานที่ขายกันทั่วไป
 
-  root.appendChild(bund("ใส่ปุ๋ยไปแล้วเท่าไหร่"));
+  root.appendChild(bund("ใส่ไปแล้วเท่าไหร่"));
   var logCard = plot(null);
   var LOGKEY = plotKey("fertdone");
 
@@ -5827,16 +5917,14 @@ views.fert = async function (root) {
     var tone, head, why;
     if (kg < lo * 0.75) {
       tone = "warn"; head = "น้อยกว่าที่ควร";
-      why = "ใส่ " + kg + " กก./ไร่ ควรอยู่ " + lo + "-" + hi + " กก./ไร่ · " +
-            "ข้าวจะแตกกอน้อยและได้รวงน้อยลง ทั้งที่จ่ายค่าเตรียมดินไปเต็มแล้ว";
+      why = kg + " กก./ไร่ · ควรได้ " + lo + "-" + hi + " · ข้าวจะแตกกอน้อย ได้รวงน้อยลง";
     } else if (kg > hi * 1.25) {
       tone = "bad"; head = "มากกว่าที่ควร";
-      why = "ใส่ " + kg + " กก./ไร่ ควรอยู่ " + lo + "-" + hi + " กก./ไร่ · " +
-            "ส่วนที่เกินไม่ได้เพิ่มผลผลิต แต่ทำให้ต้นอวบล้มง่ายและเพลี้ยกระโดดเข้าง่ายขึ้น " +
-            "รอบหน้าลดลงมาอยู่ในช่วงจะประหยัดได้โดยไม่เสียผลผลิต";
+      why = kg + " กก./ไร่ · ควรได้ " + lo + "-" + hi + " · ส่วนเกินไม่เพิ่มผลผลิต " +
+            "แต่ทำให้ต้นอวบล้มง่ายและเพลี้ยเข้าง่าย";
     } else {
       tone = "ok"; head = "อยู่ในช่วงที่ควรใส่";
-      why = "ใส่ " + kg + " กก./ไร่ · ช่วงที่ควรคือ " + lo + "-" + hi + " กก./ไร่";
+      why = kg + " กก./ไร่ · ควรได้ " + lo + "-" + hi;
     }
 
     verdictHost.appendChild(el("div", "flash flash-" + tone, head));
@@ -5846,9 +5934,7 @@ views.fert = async function (root) {
     // แต่ตัวเลขบาทที่จ่ายเกินไปโดยไม่ได้อะไรกลับมา ทำให้เปลี่ยน
     if (tone === "bad") {
       var over = kg - hi;
-      verdictHost.appendChild(el("div", "read-foot",
-        "เกินอยู่ประมาณ " + over.toFixed(0) + " กก./ไร่ · ใส่ราคาปุ๋ยที่ซื้อมาในแท็บเก็บเกี่ยว " +
-        "แล้วจะเห็นว่าเป็นเงินเท่าไหร่ต่อไร่"));
+      verdictHost.appendChild(el("div", "read-foot", "เกินอยู่ราว " + over.toFixed(0) + " กก./ไร่"));
     }
   }
 
@@ -5865,8 +5951,8 @@ views.fert = async function (root) {
 
   var lf = el("div", "inp");
   lf.appendChild(el("label", "", doneState.unit === "sack"
-    ? "ใส่ไปกี่กระสอบต่อไร่ (กระสอบละ " + FERT_SACK_KG + " กิโล)"
-    : "ใส่ไปกี่กิโลต่อไร่"));
+    ? "กี่กระสอบต่อไร่ (กระสอบละ " + FERT_SACK_KG + " กิโล)"
+    : "กี่กิโลต่อไร่"));
   logIn.className = "num-in fert-done-in";
   logIn.inputMode = "decimal";
   logIn.placeholder = doneState.unit === "sack" ? "เช่น 0.5" : "เช่น 25";
@@ -5885,8 +5971,8 @@ views.fert = async function (root) {
   paintVerdict();
   root.appendChild(logCard);
 
-  root.appendChild(bund("ค่าปุ๋ยที่จ่ายจริง"));
-  root.appendChild(costFields(["fert"], "รวมทุกครั้งที่ใส่ในฤดูนี้ · ยอดไปโผล่ที่แท็บเก็บเกี่ยว"));
+  root.appendChild(bund("ค่าปุ๋ย"));
+  root.appendChild(costFields(["fert"], "รวมทุกครั้งที่ใส่ในฤดูนี้"));
 
   // ══ เลือกชนิดปุ๋ย ══
   root.appendChild(bund("เลือกชนิดปุ๋ย"));
@@ -7123,13 +7209,13 @@ function renderMyPrices(root) {
 var HARVEST_WAYS = [
   {
     key: "combine", thai: "รถเกี่ยวนวด", perRai: 1000,
-    good: "เร็ว เกี่ยวได้ 10-15 ไร่ต่อวัน และนวดเสร็จในคันเดียว",
-    bad:  "ต้องรอคิว และเข้าแปลงที่ยังแฉะไม่ได้ ต้องระบายน้ำก่อน 7-10 วัน"
+    good: "เร็ว 10-15 ไร่ต่อวัน นวดเสร็จในคันเดียว",
+    bad:  "ต้องรอคิว และแปลงต้องแห้ง ระบายน้ำก่อน 7-10 วัน"
   },
   {
     key: "labour", thai: "จ้างแรงงานคน", perRai: 1200,
-    good: "เข้าแปลงเล็ก แปลงที่รถลงไม่ได้ หรือแปลงที่ยังแฉะได้",
-    bad:  "ช้ากว่ามาก และยังต้องจ่ายค่านวดแยกอีก หาคนยากขึ้นทุกปี"
+    good: "เข้าแปลงเล็กหรือแปลงที่ยังแฉะได้",
+    bad:  "ช้ากว่ามาก ต้องจ่ายค่านวดแยก และหาคนยากขึ้นทุกปี"
   }
 ];
 
@@ -7272,7 +7358,7 @@ function costFields(keys, title) {
 
     function paintHint() {
       var t = CostStore.typed(key);
-      hint.textContent = (t === null) ? "ยังไม่กรอก · ใช้ค่ากลาง " + it.perRai : "กรอกเองแล้ว";
+      hint.textContent = (t === null) ? "ค่ากลาง " + it.perRai : "ของคุณ";
       hint.className = "cfield-hint" + (t === null ? "" : " on");
     }
     paintHint();
@@ -7353,7 +7439,7 @@ views.harvest = function (root) {
         var body = el("div", "hway-body");
 
         var f = el("div", "inp");
-        f.appendChild(el("label", "", "ค่าจ้างจริงที่จ่าย (บาท/ไร่)"));
+        f.appendChild(el("label", "", "ค่าจ้างจริง (บาท/ไร่)"));
         var inp = el("input");
         inp.className = "num-in";
         inp.inputMode = "decimal";
@@ -7393,12 +7479,12 @@ views.harvest = function (root) {
         ? "ควรระบายน้ำออกแล้วตอนนี้"
         : "อีก " + (daysLeft - 10) + " วันถึงวันที่ควรระบายน้ำออก";
       card.appendChild(el("div", "flash flash-warn",
-        when + " · รถเกี่ยวลงแปลงแฉะไม่ได้ ต้องระบายก่อนเกี่ยว 7-10 วัน"));
+        when + " · รถเกี่ยวลงแปลงแฉะไม่ได้"));
     }
   }
 
   // ค่าขนส่งจ่ายวันเดียวกับวันเกี่ยว จึงอยู่ด้วยกัน
-  root.appendChild(costFields(["haul"], "ค่าขนไปโรงสี"));
+  root.appendChild(costFields(["haul"]));
 };
 
 // จำนวนเงินแบบไม่มีทศนิยม ใช้ร่วมกันหลายที่
@@ -7494,7 +7580,7 @@ views.cost = async function (root) {
   // ที่นี่จึงเป็นที่ "รวมยอด" ไม่ใช่ที่กรอก และต้องบอกให้ชัดว่าแต่ละรายการกรอกได้ที่ไหน
   // ไม่งั้นคนที่เห็นตัวเลขผิดตรงนี้จะไม่รู้ว่าต้องไปแก้ที่ไหน แล้วก็ปล่อยผิดไว้ทั้งฤดู
   root.appendChild(bund("ต้นทุนต่อไร่"));
-  var costCard = plot(null, "กรอกที่แท็บของแต่ละช่วง ตรงนี้รวมยอดให้อย่างเดียว");
+  var costCard = plot(null, "รวมจากที่กรอกไว้ในแต่ละแท็บ");
   var totalTag = el("div", "costsum");
   var costRows = el("div");
   costCard.appendChild(costRows);
@@ -7510,7 +7596,7 @@ views.cost = async function (root) {
       var row = el("div", "csum-row");
       var nm = el("div", "csum-name");
       nm.appendChild(document.createTextNode(it.name));
-      if (home) nm.appendChild(el("span", "csum-where", "กรอกที่ " + home.where));
+      if (home) nm.appendChild(el("span", "csum-where", home.where));
       row.appendChild(nm);
 
       // ค่าที่ยังไม่ได้กรอกแสดงจางกว่า เพื่อให้กวาดตาเห็นทันทีว่าเหลืออะไรที่ยังไม่ใช่ของจริง
@@ -7524,7 +7610,7 @@ views.cost = async function (root) {
 
     if (untouched) {
       costRows.appendChild(el("div", "read-foot",
-        "ยังใช้ค่ากลางอยู่ " + untouched + " รายการ (ตัวเลขสีจาง) · กรอกของจริงแล้วกำไรจะตรงขึ้น"));
+        "เลขสีจาง " + untouched + " รายการยังเป็นค่ากลาง"));
     }
   }
 
@@ -8092,8 +8178,8 @@ views.weather = async function (root) {
     "ปริมาณปุ๋ยตัวเร่งใบเขียว และประวัติการระบาดในพื้นที่ ควรใช้ประกอบการสำรวจแปลงด้วยตาเสมอ"));
   root.appendChild(riskCard);
 
-  root.appendChild(bund("ค่าน้ำที่จ่ายจริง"));
-  root.appendChild(costFields(["water"], "ค่าไฟสูบน้ำหรือค่าน้ำทั้งฤดู · ยอดไปโผล่ที่แท็บเก็บเกี่ยว"));
+  root.appendChild(bund("ค่าน้ำ"));
+  root.appendChild(costFields(["water"], "ค่าไฟสูบน้ำหรือค่าน้ำทั้งฤดู"));
 
   // ── ตัดกราฟฝน/แดด 14 วันออก (แก้ 2026-08) ──
   //
