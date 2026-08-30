@@ -321,6 +321,46 @@
   .pic-cycle { max-width: 300px; margin: 4px auto 6px; }
   /* ข้อความในรูปต้องใช้ฟอนต์เดียวกับทั้งเว็บ ไม่ใช่ฟอนต์เริ่มต้นของเบราว์เซอร์ */
   .pic svg text { font-family: var(--f-body); }
+  /* ── รูปถ่ายจริงและคลิป ─────────────────────
+     กันหน้ากระตุกตอนรูปโหลดเสร็จด้วย aspect-ratio ที่จองที่ไว้ก่อน
+     ถ้าไม่จอง เนื้อหาใต้รูปจะกระโดดลงตอนรูปมาถึง ซึ่งบนเน็ตช้าคือกระโดดทีละใบ
+     คนที่กำลังจะกดปุ่มพอดีจะกดโดนของที่เลื่อนมาแทน */
+  .mv-shot { margin: 11px 0; }
+  /* ลูกโดยตรงเท่านั้น ไม่งั้นกฎนี้จะไปทับรูปปกคลิปที่อยู่ลึกลงไปอีกชั้น
+     แล้วกล่องคลิปที่ตั้งไว้ 16:9 จะถูกดันเป็น 4:3 จนปกเพี้ยน */
+  .mv-shot > img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3;
+              object-fit: cover; border-radius: var(--r-sm); background: var(--canopy);
+              cursor: zoom-in; }
+  .mv-cap { font-size: .82rem; color: var(--ink-soft); margin-top: 5px; line-height: 1.4; }
+
+  /* หลายรูป เลื่อนแนวนอน แถบเลื่อนซ่อนไว้เหมือนแกลเลอรีในแอปทั่วไป */
+  .mv-row { display: flex; gap: 9px; overflow-x: auto; margin: 11px 0;
+             scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .mv-row::-webkit-scrollbar { display: none; }
+  .mv-row .mv-shot { flex: 0 0 78%; margin: 0; scroll-snap-align: start; }
+
+  /* คลิป */
+  .mv-clip { position: relative; width: 100%; aspect-ratio: 16 / 9;
+          border-radius: var(--r-sm); overflow: hidden; background: #0B1A11; }
+  .mv-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .mv-frame, .mv-video { width: 100%; height: 100%; display: block; border: 0; }
+  .mv-play { position: absolute; inset: 0; margin: auto; width: 62px; height: 62px;
+               border-radius: 50%; border: 0; cursor: pointer; color: #FFFFFF;
+               background: rgba(27,94,58,.86); display: flex; align-items: center;
+               justify-content: center; box-shadow: 0 4px 18px rgba(0,0,0,.3); }
+  .mv-play:hover { background: var(--deep); }
+  .mv-clip-fig img { cursor: default; }
+
+  /* ดูรูปเต็มจอ */
+  /* พื้นหลังต้องทึบพอที่ตัวหนังสือของหน้าข้างหลังจะไม่ทะลุมาปนกับคำบรรยายรูป
+     ที่ .93 การ์ดสีขาวยังส่องผ่านมาจนอ่านคำบรรยายลำบาก */
+  .mv-zoom { position: fixed; inset: 0; z-index: 80; background: rgba(8,20,13,.985);
+               backdrop-filter: blur(3px);
+               display: flex; flex-direction: column; align-items: center;
+               justify-content: center; gap: 12px; padding: 18px; cursor: zoom-out; }
+  .mv-zoom-img { max-width: 100%; max-height: 82vh; object-fit: contain; border-radius: 8px; }
+  .mv-zoom-cap { color: #E8F5E9; font-size: .9rem; text-align: center; max-width: 560px; }
+
   /* ── รูปอธิบาย ─────────────────────────────
      รูปทำหน้าที่แทนย่อหน้า จึงต้องได้พื้นที่เท่าย่อหน้า ไม่ใช่ไอคอนจิ๋วข้างข้อความ
      กำหนด max-width ไว้เพราะบนจอกว้าง รูปที่ยืดเต็มความกว้างการ์ดจะใหญ่จนดูเล่อล่า */
@@ -1254,15 +1294,16 @@
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=22"></script>
-<script src="soil-guide.js?v=22"></script>
-<script src="fertilizer-guide.js?v=22"></script>
-<script src="cost-guide.js?v=22"></script>
-<script src="care-guide.js?v=22"></script>
-<script src="planting-guide.js?v=22"></script>
-<script src="pest-guide.js?v=22"></script>
-<script src="variety-guide.js?v=22"></script>
-  <script src="pest-page.js?v=22"></script>
+<script src="disease-guide.js?v=25"></script>
+<script src="soil-guide.js?v=25"></script>
+<script src="fertilizer-guide.js?v=25"></script>
+<script src="cost-guide.js?v=25"></script>
+<script src="care-guide.js?v=25"></script>
+<script src="planting-guide.js?v=25"></script>
+<script src="pest-guide.js?v=25"></script>
+<script src="variety-guide.js?v=25"></script>
+<script src="media.js?v=25"></script>
+  <script src="pest-page.js?v=25"></script>
 <script>
 (function () {
 "use strict";
@@ -1932,6 +1973,9 @@ function buildRx(label) {
     top.appendChild(el("span", "rx-flag " + flagTone, "ความเร่งด่วน " + urgent));
   }
   box.appendChild(top);
+  // รูปตัวอย่างของโรคนี้ ให้ผู้ใช้เทียบกับใบจริงในมือก่อนตัดสินใจ
+  // ใช้คีย์จากชื่อในฐานความรู้ ซึ่งเป็นชื่อเดียวกับที่โมเดลคืนมา
+  mediaInto(box, "disease-" + String(label).replace(/\s+/g, ""));
 
   function part(head, body) {
     if (!body || (Array.isArray(body) && !body.length)) return;
@@ -4285,7 +4329,7 @@ function renderPestSection(root, part) {
     part: part,
     el: el, plot: plot, bund: bund, fold: fold,
     more: more, stateBlock: stateBlock, readOut: readOut,
-    picLeafCompare: picLeafCompare
+    picLeafCompare: picLeafCompare, mediaInto: mediaInto, media: media
   });
 }
 
@@ -4301,6 +4345,138 @@ function renderPestSection(root, part) {
 // สิ่งที่ระบบทำได้จริงคือ "ปรับคู่มือให้ตรงกับบริบทของแปลงนี้"
 // เพราะขั้นตอนของนาหว่านน้ำตมกับนาหว่านข้าวแห้งต่างกันคนละทิศ
 // การให้อ่านคู่มือกลางที่รวมทุกแบบไว้ด้วยกันจะทำให้ทำผิดขั้นตอนได้ง่ายกว่า
+// ═══════════════════════════════════════════════════
+// รูปถ่ายจริงและวิดีโอ
+// ═══════════════════════════════════════════════════
+//
+// ของทั้งหมดมาจาก media.js ที่เดียว หน้าเว็บแค่ขอด้วยคีย์
+// ถ้าคีย์นั้นยังไม่มีไฟล์ ฟังก์ชันคืน null แล้วหน้าเว็บข้ามไป
+// ห้ามขึ้นกรอบว่างหรือไอคอนรูปแตกเด็ดขาด เพราะทำให้ดูเหมือนเว็บพัง
+// ทั้งที่ความจริงคือยังไม่ได้ใส่รูปตรงนั้น
+//
+// คลิป YouTube ไม่ฝัง iframe ตั้งแต่แรก
+// แต่วางรูปปกกับปุ่มเล่นไว้ก่อน แล้วค่อยสร้าง iframe ตอนกด
+// เหตุผล: iframe ของ YouTube ดึงสคริปต์หลายร้อยกิโลไบต์ต่อคลิปหนึ่งอัน
+// หน้าที่มีคลิป 4 อันจะโหลดของพวกนั้นทั้งหมดทันทีที่เปิดหน้า
+// ทั้งที่ผู้ใช้ส่วนใหญ่ไม่ได้กดดูสักอัน ซึ่งกลางนาที่สัญญาณอ่อนคือหน้าค้าง
+
+function mediaGet(key) {
+  var m = window.MEDIA && window.MEDIA[key];
+  if (!m) return null;
+  var has = m.img || m.yt || m.mp4 || (m.more && m.more.length);
+  return has ? m : null;
+}
+
+// รูปเดี่ยว กดแล้วขยายเต็มจอ
+function mediaImg(src, cap) {
+  var fig = el("figure", "mv-shot");
+  var im = el("img");
+  im.src = src;
+  im.alt = cap || "";
+  im.loading = "lazy";
+  im.decoding = "async";
+  // รูปที่โหลดไม่ขึ้น ต้องหายไปทั้งกล่อง ไม่ใช่เหลือไอคอนรูปแตกค้างไว้
+  im.onerror = function () { fig.remove(); };
+  im.onclick = function () { mediaZoom(src, cap); };
+  fig.appendChild(im);
+  if (cap) fig.appendChild(el("figcaption", "mv-cap", cap));
+  return fig;
+}
+
+// ดูรูปเต็มจอ ปิดด้วยการแตะที่ไหนก็ได้
+function mediaZoom(src, cap) {
+  var back = el("div", "mv-zoom");
+  var im = el("img", "mv-zoom-img");
+  im.src = src;
+  im.alt = cap || "";
+  back.appendChild(im);
+  if (cap) back.appendChild(el("div", "mv-zoom-cap", cap));
+  back.onclick = function () { back.remove(); };
+  document.body.appendChild(back);
+}
+
+// คลิป — รองรับทั้ง YouTube และไฟล์ในเว็บเอง
+function mediaClip(m) {
+  var box = el("div", "mv-clip");
+
+  if (m.yt) {
+    // รูปปกดึงจาก YouTube เอง ไม่ต้องเตรียมไฟล์แยก
+    var thumb = el("img", "mv-thumb");
+    thumb.src = "https://i.ytimg.com/vi/" + m.yt + "/hqdefault.jpg";
+    thumb.alt = m.cap || "คลิปวิดีโอ";
+    thumb.loading = "lazy";
+    box.appendChild(thumb);
+
+    var play = el("button", "mv-play");
+    play.setAttribute("aria-label", "เล่นคลิป " + (m.cap || ""));
+    play.innerHTML = '<svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true">' +
+      '<path d="M8 5.5 19 12 8 18.5 z" fill="currentColor"/></svg>';
+    play.onclick = function () {
+      var f = el("iframe", "mv-frame");
+      f.src = "https://www.youtube-nocookie.com/embed/" + m.yt + "?autoplay=1&rel=0&modestbranding=1";
+      f.title = m.cap || "คลิปวิดีโอ";
+      f.allow = "accelerometer; autoplay; encrypted-media; picture-in-picture";
+      f.allowFullscreen = true;
+      f.setAttribute("frameborder", "0");
+      box.innerHTML = "";
+      box.appendChild(f);
+    };
+    box.appendChild(play);
+
+  } else if (m.mp4) {
+    var v = el("video", "mv-video");
+    v.controls = true;
+    v.playsInline = true;
+    // ห้ามโหลดล่วงหน้า คลิปหลายสิบเมกจะกินเน็ตของคนที่ไม่ได้ตั้งใจดู
+    v.preload = "none";
+    if (m.poster) v.poster = m.poster;
+    var src = el("source");
+    src.src = m.mp4;
+    src.type = "video/mp4";
+    v.appendChild(src);
+    v.onerror = function () { box.remove(); };
+    box.appendChild(v);
+  }
+
+  var wrap = el("figure", "mv-shot mv-clip-fig");
+  wrap.appendChild(box);
+  if (m.cap) wrap.appendChild(el("figcaption", "mv-cap", m.cap));
+  return wrap;
+}
+
+// ตัวหลักที่หน้าเว็บเรียก — คืน null ถ้ายังไม่มีสื่อสำหรับคีย์นี้
+function media(key) {
+  var m = mediaGet(key);
+  if (!m) return null;
+
+  // มีคลิป ให้คลิปมาก่อนรูปนิ่งเสมอ
+  if (m.yt || m.mp4) return mediaClip(m);
+
+  var shots = [];
+  if (m.img) shots.push(m.img);
+  (m.more || []).forEach(function (x) { if (x) shots.push(x); });
+  if (!shots.length) return null;
+
+  if (shots.length === 1) return mediaImg(shots[0], m.cap);
+
+  // หลายรูป เรียงเป็นแถวเลื่อนแนวนอน แบบเดียวกับแกลเลอรีที่ทุกคนเคยใช้
+  var strip = el("div", "mv-row");
+  shots.forEach(function (src, i) {
+    strip.appendChild(mediaImg(src, i === 0 ? m.cap : null));
+  });
+  return strip;
+}
+
+// ใส่สื่อลงในกล่องถ้ามี คืนค่าว่าใส่ไปหรือเปล่า
+// ใช้ตัวนี้แทนการเขียน if ซ้ำๆ ทุกจุดที่มีช่องใส่รูป
+function mediaInto(host, key) {
+  var node = media(key);
+  if (!node || !host) return false;
+  host.appendChild(node);
+  return true;
+}
+
+
 // ═══════════════════════════════════════════════════
 // รูปอธิบาย — วาดด้วย SVG ในหน้าเว็บเอง
 // ═══════════════════════════════════════════════════
@@ -4473,9 +4649,9 @@ function picCompostPile() {
     '<path d="M148 22 v18" stroke="var(--water)" stroke-width="2.4" stroke-linecap="round"/>' +
     '<path d="M132 30 v12 M164 30 v12" stroke="var(--water)" stroke-width="2" stroke-linecap="round" opacity=".7"/>' +
     '<text x="148" y="16" text-anchor="middle" font-size="13" fill="var(--water)">รดน้ำให้ชื้น</text>' +
-    '<text x="140" y="164" text-anchor="middle" font-size="13" fill="var(--ink-faint)">สลับชั้นแบบนี้จนครบ 4 ชั้น</text>';
+    '<text x="140" y="170" text-anchor="middle" font-size="13" fill="var(--ink-faint)">สลับชั้นแบบนี้จนครบ 4 ชั้น</text>';
 
-  var box = svgWrap("0 0 380 172", inner, "pic-pile");
+  var box = svgWrap("0 0 380 180", inner, "pic-pile");
   box.querySelector("svg").setAttribute("aria-label",
     "ภาพตัดขวางกองปุ๋ยหมัก สลับชั้นเศษพืชแห้งกับมูลสัตว์ 4 ชั้น รดน้ำให้ชื้น");
   return box;
@@ -4743,6 +4919,7 @@ views.cycle = function (root) {
     nm.style.cssText = "font-weight:600;font-size:1.02rem";
     head.appendChild(nm);
     box.appendChild(head);
+    mediaInto(box, "cycle-" + c.from);
 
     // ตารางสองช่อง ทำอะไรได้ กับ ทำยังไง
     // เป็นรูปแบบเดียวกับตารางแยกโรคกับแมลง ผู้ใช้กวาดตาหาแถวที่สนใจได้เร็ว
@@ -4948,7 +5125,9 @@ views.soil = async function (root) {
   // เรียงให้ตรงกับลำดับปุ่มเลือกชนิดดินด้านบนเป๊ะๆ
   // ถ้าสลับลำดับ ผู้ใช้จะจับคู่รูปกับปุ่มผิดโดยไม่ทันสังเกต
   Object.keys(G.soils).forEach(function (k) {
-    handTest.appendChild(picSoilHand(k));
+    // รูปถ่ายจริงชนะรูปวาดเสมอถ้ามี เพราะเรื่องเนื้อดินต้องเห็นของจริงถึงเทียบกับในมือได้
+    var real = media("soil-" + k);
+    handTest.appendChild(real || picSoilHand(k));
   });
   soilBox.appendChild(handTest);
   form.appendChild(soilBox);
@@ -5331,7 +5510,10 @@ views.soil = async function (root) {
     var stepBox = plot(null);
     stepBox.appendChild(more("วิธีนี้ต่างจากวิธีอื่นยังไง", m.note));
     m.steps.forEach(function (st, i) {
+      // คีย์รูปผูกกับวิธีทำนาด้วย เพราะขั้นตอนของนาหว่านน้ำตมกับนาหว่านแห้งคนละภาพกัน
+      var picKey = "prep-" + pick.method + "-" + (i + 1);
       stepBox.appendChild(fold(i + 1, st.title, st.when, function (body) {
+        mediaInto(body, picKey);
         body.appendChild(el("p", "", st.detail));
         if (st.watch) body.appendChild(el("div", "fold-note", "จุดที่พลาดบ่อย: " + st.watch));
       }, false));
@@ -5643,6 +5825,8 @@ views.fert = async function (root) {
     meta.appendChild(readOut("ระยะเวลา", t.duration, null, true));
     head.appendChild(meta);
     head.appendChild(more("ปุ๋ยชนิดนี้คืออะไร", t.what));
+    // คลิปวิธีทำของปุ๋ยชนิดนี้ ถ้ายังไม่ได้ใส่ในไฟล์ media.js ก็ข้ามไปเงียบๆ
+    mediaInto(head, "fert-" + current);
     body.appendChild(head);
 
     // ── สูตรส่วนผสม (มีเฉพาะปุ๋ยหมัก) ──
@@ -5732,6 +5916,10 @@ views.fert = async function (root) {
     var myVarKey = myPhoto ? "photo" : "nonphoto";
 
     t.steps.forEach(function (st, i) {
+      // รูปของขั้นตอนนี้ ใส่ไว้ในกล่องที่กางออกมา ไม่ใช่กางค้างไว้ทุกขั้น
+      // ไม่งั้นหน้าจะยาวเป็นสิบจอทันทีที่ใส่รูปครบทุกขั้น
+      var stepPic = "" + current + "-step-" + (i + 1);
+
       // ── ขั้น "ต้องซื้อ 0-0-60 เพิ่มไหม" ── ตอบให้เลย ไม่ใช่ให้ไปไล่เงื่อนไขเอง
       if (st.id === "kBoost") {
         // ตัวเลขตัวท้ายของสูตร คือตัวทำให้ต้นแข็งที่มีมาให้ในกระสอบแล้ว
@@ -5779,6 +5967,7 @@ views.fert = async function (root) {
       var title = window.careText(st.title, myVarKey);
       var detail = window.careText(st.detail, myVarKey);
       fBox.appendChild(fold(i + 1, title, null, function (bd) {
+        mediaInto(bd, stepPic);
         paras(bd, detail);
 
         // ครั้งที่ 2 จังหวะสำคัญกว่าปริมาณ ถ้ารู้วันหว่านก็บอกวันจริงไปเลย

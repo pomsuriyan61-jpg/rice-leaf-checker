@@ -413,6 +413,14 @@ window.buildPestPage = function (root, ui) {
     head.appendChild(nm);
     if (pest.sci) head.appendChild(el("div", "pest-sci", pest.sci));
 
+    // รูปตัวจริงและรอยทำลาย
+    //
+    // ไฟล์นี้เคยเขียนไว้ว่าจะไม่ใส่ภาพ เพราะภาพวาดลายเส้นแยกเพลี้ยสองชนิดไม่ได้
+    // เหตุผลนั้นยังถูกอยู่สำหรับภาพวาด แต่ไม่ใช่สำหรับภาพถ่ายจริง
+    // ภาพถ่ายเห็นแถบสีบนหลังชัด ซึ่งเป็นจุดเดียวที่ใช้แยกสองชนิดนี้ออกจากกัน
+    // คำบรรยายด้านล่างยังอยู่ครบ ภาพเป็นตัวช่วยยืนยัน ไม่ใช่ตัวตัดสินแทน
+    if (typeof ui.mediaInto === "function") ui.mediaInto(head, "pest-" + key);
+
     if (L) {
       const act = el("div", "", "สิ่งที่ควรทำตอนนี้: " + L.act);
       act.style.cssText = "margin-top:11px;font-weight:600;font-size:.93rem;color:var(--deep)";
