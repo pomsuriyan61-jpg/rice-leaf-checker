@@ -527,6 +527,15 @@
                  border-radius: var(--r-sm); background: #FFFFFF; color: var(--ink);
                  text-align: center; font-family: var(--f-data); }
   .phrow-end { display: flex; align-items: center; gap: 9px; justify-content: flex-end; }
+  /* แถวประวัติค่า pH ของจุดหนึ่ง — วันที่ ค่า คำอธิบายการเปลี่ยนแปลง ปุ่มลบ */
+  .phhist { display: flex; align-items: center; gap: 10px; padding: 7px 0;
+            border-bottom: 1px solid var(--rule-soft); }
+  .phhist:last-child { border-bottom: 0; }
+  .phhist-date { flex: 0 0 74px; font-size: .8rem; color: var(--ink-soft);
+                 font-family: var(--f-data); }
+  .phhist-val { flex: 0 0 46px; font-weight: 600; }
+  .phhist-note { flex: 1; min-width: 0; font-size: .78rem; color: var(--ink-faint); }
+
   .phpt-avg { font-size: .78rem; color: var(--ink-faint); font-family: var(--f-data); }
   .phpt-avg.ok { color: var(--blade); }
   .phpt-avg.warn { color: #9A6B18; }
@@ -1469,7 +1478,8 @@
       color: var(--ink-faint); font-family: var(--f-body); font-size: .7rem;
       min-height: 58px; position: relative;
     }
-    .tab-item svg { width: 23px; height: 23px; }
+    .tab-item svg { width: 22px; height: 22px; }
+    .tab-item span { font-size: .66rem; line-height: 1.2; text-align: center; }
     .tab-item.on { color: var(--paddy); font-weight: 600; }
     /* จุดเขียวเหนือไอคอนบอกแท็บที่เปิดอยู่ เห็นชัดกว่าการเปลี่ยนสีอย่างเดียว */
     .tab-item.on::before {
@@ -1710,14 +1720,22 @@ function th(l) {
 // ข้อมูลผู้ใช้กับผู้ดูแลระบบย้ายออกจากเมนูไปอยู่ที่ชื่อผู้ใช้มุมขวาบน
 // เพราะเป็นงานตั้งค่าที่ทำครั้งเดียวจบ ไม่ควรกินที่ในเมนูหลักตลอดเวลา
 var PAGES = [
-  { id: "field", label: "ข้อมูลการเกษตร", kicker: "แปลงนา",
+  { id: "field", label: "ข้อมูลการเกษตร", short: "แปลงนา", kicker: "แปลงนา",
     parts: ["plots", "season", "method", "weather"],
     jump: ["ที่นา", "พันธุ์ข้าว", "วิธีทำนา", "อากาศ"],
     icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
 
-  { id: "grow", label: "ระหว่างปลูก", kicker: "ดูแลรายวัน",
-    parts: ["overview", "consult", "diagnose", "soil", "fert"],
-    jump: ["สรุป", "ระยะข้าว", "โรคและแมลง", "ดิน", "ปุ๋ย"],
+  // แท็บ 2 · ระยะเตรียมดิน — งานที่ทำครั้งเดียวก่อนข้าวลงแปลง
+  // แยกออกจาก "ระหว่างปลูก" เพราะคนละจังหวะเวลากันคนละเดือน
+  // สี่ส่วนเรียงตามลำดับที่ทำจริง: รู้ดิน → วัดดิน → เตรียมแปลง → จ่ายเงิน
+  { id: "prep", label: "ระยะเตรียมดิน", short: "เตรียมดิน", kicker: "ก่อนปลูก",
+    parts: ["soiltype", "phlog", "prepguide", "prepcost"],
+    jump: ["ชนิดดิน", "ค่า pH", "เตรียมแปลง", "ต้นทุน"],
+    icon: "M3 17h18M5 17l2-6h10l2 6M9 11V6h6v5M12 3v3" },
+
+  { id: "grow", label: "ระหว่างปลูก", short: "ระหว่างปลูก", kicker: "ดูแลรายวัน",
+    parts: ["overview", "consult", "diagnose", "fert"],
+    jump: ["สรุป", "ระยะข้าว", "โรคและแมลง", "ปุ๋ย"],
     icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
 
   { id: "harvest", label: "เก็บเกี่ยว", kicker: "ปิดฤดู",
@@ -1736,7 +1754,7 @@ var PAGES = [
 
 // หน้าเดิมอยู่ในแท็บไหน ใช้ตอนที่โค้ดเก่าสั่ง open("soil") ซึ่งตอนนี้ไม่ใช่แท็บแล้ว
 // แท็บที่เนื้อหาผูกกับแปลงใดแปลงหนึ่ง ต้องขึ้นแถบสลับแปลง
-var PLOT_PAGES = ["field", "grow", "harvest"];
+var PLOT_PAGES = ["field", "prep", "grow", "harvest"];
 
 function tabOf(viewId) {
   var hit = PAGES.filter(function (p) {
@@ -2785,7 +2803,7 @@ function knowledgeIndex() {
   return "[ระบบนี้มีข้อมูลเรื่องต่อไปนี้ ถ้าคำถามเกี่ยวข้อง ให้ชวนผู้ใช้ถามให้เจาะจงขึ้นเพื่อดึงข้อมูลมาตอบ]\n" +
     "- โรคข้าว 6 ชนิด พร้อมอาการ วิธีจัดการ และการป้องกัน (แท็บตรวจแปลง)\n" +
     "- แมลงและสัตว์ศัตรูข้าว 8 ชนิด พร้อมวิธีแยกว่าอาการที่เจอเป็นโรคหรือแมลง (ถามในช่องนี้ได้เลย)\n" +
-    "- การเตรียมดิน 3 วิธีทำนา และการแก้ปัญหาดิน 5 แบบ (แท็บแปลงนา ส่วนดิน)\n" +
+    "- การเตรียมดิน 3 วิธีทำนา และการแก้ปัญหาดิน 5 แบบ (แท็บระยะเตรียมดิน)\n" +
     "- วิธีปลูกข้าว 6 แบบ การเตรียมเมล็ดพันธุ์ การตกกล้า และการจัดการน้ำรวมถึงเปียกสลับแห้ง (ถามในช่องนี้ได้เลย)\n" +
     "- พันธุ์ข้าวรับรอง 8 พันธุ์ พร้อมอายุ ผลผลิต และความทนทานโรคแมลง (ตั้งพันธุ์ได้ที่แท็บแปลงนา)\n" +
     "- ผลตรวจดินและการแปลผลอาหารของต้นข้าว (หน้าข้อมูลดิน)\n" +
@@ -3990,6 +4008,10 @@ var PAGE_CITE = {
   season:   ["กรมการข้าว"],
   method:   ["กรมการข้าว", "สำนักงานเศรษฐกิจการเกษตร"],
   soil:     ["กรมพัฒนาที่ดิน", "กรมการข้าว"],
+  soiltype: ["กรมพัฒนาที่ดิน"],
+  phlog:    ["กรมพัฒนาที่ดิน"],
+  prepguide:["กรมพัฒนาที่ดิน", "กรมการข้าว"],
+  prepcost: ["สำนักงานเศรษฐกิจการเกษตร"],
   cycle:    ["กรมการข้าว", "กรมพัฒนาที่ดิน"],
   fert:     ["กรมการข้าว", "กรมพัฒนาที่ดิน", "สำนักงานเศรษฐกิจการเกษตร"],
   diagnose: ["กรมการข้าว"],
@@ -4873,7 +4895,7 @@ function renderPestSection(root, part) {
 }
 
 // เก็บไว้เป็นฟังก์ชันช่วย ไม่ใช่หน้าแล้ว — ตารางบันทึกย้ายไปแท็บต้นทุน
-// ส่วนช่องวัดค่าดินย้ายไปแท็บแปลงนา ส่วนดินซึ่งมีช่องเดียวกันอยู่ก่อนแล้ว
+// ส่วนช่องวัดค่าดินย้ายไปแท็บระยะเตรียมดิน ซึ่งเก็บค่าเป็นรายจุดทั้งฤดู
 // ─── แท็บแปลงนา ส่วนดิน ─────────────────────────────
 //
 // เป็นคู่มืออ่าน ไม่ใช่เครื่องคำนวณ โดยตั้งใจ
@@ -5698,8 +5720,6 @@ views.method = function (root) {
   var detail = el("div");
   card.appendChild(detail);
 
-  var costHost = el("div");
-
   function paint() {
     var cur = riceMethodOf();
 
@@ -5710,9 +5730,6 @@ views.method = function (root) {
       b.onclick = function () {
         setFieldMethod(m.key);
         paint();
-        // ช่องต้นทุนต้องวาดใหม่ ค่ากลางของมันเพิ่งเปลี่ยนไปตามวิธีที่กด
-        costHost.innerHTML = "";
-        costHost.appendChild(costFields(["sow"], "ค่าจ้างหว่านหรือปักดำ"));
       };
       chips.appendChild(b);
     });
@@ -5739,10 +5756,13 @@ views.method = function (root) {
   }
 
   paint();
-  root.appendChild(card);
 
-  costHost.appendChild(costFields(["sow"], "ค่าจ้างหว่านหรือปักดำ"));
-  root.appendChild(costHost);
+  // ค่าจ้างหว่านหรือปักดำย้ายไปกรอกรวมกับต้นทุนช่วงเตรียมแปลงที่แท็บระยะเตรียมดิน
+  // เพราะเป็นเงินที่จ่ายในจังหวะเดียวกับค่าไถและค่าเมล็ดพันธุ์ ควรกรอกทีเดียวจบ
+  card.appendChild(el("div", "read-foot",
+    "ค่าจ้างหว่านหรือปักดำ กรอกที่แท็บ " + pageName("prep") + " ส่วนต้นทุน"));
+
+  root.appendChild(card);
 };
 
 views.season = function (root) {
@@ -5858,8 +5878,156 @@ views.season = function (root) {
 };
 
 
-views.soil = async function (root) {
-  root.appendChild(pageHead("soil"));
+// ═══════════════════════════════════════════════════
+// แท็บ 2 · ระยะเตรียมดิน
+// ═══════════════════════════════════════════════════
+//
+// แท็บนี้ตอบคำถามเดียว: ก่อนเอาข้าวลงแปลง ต้องรู้อะไรและต้องจ่ายอะไรบ้าง
+//
+// แยกออกมาจากแท็บ "ระหว่างปลูก" เพราะงานเตรียมแปลงเกิดครั้งเดียวก่อนฤดู
+// ไม่ใช่งานที่ทำซ้ำทุกสัปดาห์เหมือนตรวจโรคหรือใส่ปุ๋ยแต่งหน้า
+// การเอาสองจังหวะเวลานี้ไว้แท็บเดียวกันทำให้คนที่เพิ่งเริ่มฤดูต้องเลื่อนผ่าน
+// เรื่องที่ยังไม่ถึงเวลาทำ กว่าจะเจอสิ่งที่ต้องทำวันนี้
+//
+// สี่ส่วน เรียงตามลำดับที่ชาวนาทำจริง
+//   1 ชนิดดิน     — ดินแปลงนี้เป็นอะไร (จำแยกรายแปลง)
+//   2 ค่า pH      — วัดเป็นจุด ไม่เฉลี่ย เติมเพิ่มได้ตลอดฤดู
+//   3 เตรียมแปลง  — ต้องทำอะไรบ้าง ตามดินและวิธีทำนาของแปลงนี้
+//   4 ต้นทุน      — จ่ายอะไรไปเท่าไหร่ ยอดไหลไปโผล่หน้าต้นทุนเอง
+
+// ── ตัวส่งสัญญาณระหว่างสี่ส่วน ──
+//
+// สี่ส่วนอยู่คนละกล่องและวาดพร้อมกัน ส่วนข้อแนะนำต้องวาดใหม่เมื่อชนิดดินหรือ pH เปลี่ยน
+// เก็บผู้ฟังคู่กับกล่องของมันไว้ พอเปลี่ยนแท็บกล่องหลุดออกจากหน้า ผู้ฟังนั้นก็ถูกทิ้งเอง
+// ไม่ต้องมีขั้นตอน "ถอดผู้ฟังตอนปิดหน้า" ซึ่งเป็นจุดที่ลืมกันบ่อยที่สุดและทำให้หน้าค้าง
+var PrepBus = {
+  subs: [],
+  on: function (node, fn) { this.subs.push({ node: node, fn: fn }); },
+  emit: function () {
+    this.subs = this.subs.filter(function (s) {
+      return s.node && (s.node.isConnected !== undefined
+        ? s.node.isConnected
+        : document.body.contains(s.node));
+    });
+    this.subs.forEach(function (s) {
+      try { s.fn(); } catch (e) { /* ส่วนหนึ่งพังต้องไม่ลากส่วนอื่นพังตาม */ }
+    });
+  }
+};
+
+// ── ชนิดดินของแปลง ──
+// เก็บในคีย์เดียวกับของเดิม (plotKey("soil")) เพื่อไม่ให้ข้อมูลที่ผู้ใช้เคยเลือกไว้หาย
+// และเพราะหน้าอื่น เช่น ปุ๋ยกับ AI อ่านคีย์นี้อยู่แล้ว
+function prepSoilState() {
+  try { return JSON.parse(localStorage.getItem(plotKey("soil")) || "{}"); }
+  catch (e) { return {}; }
+}
+function soilTypeOf() {
+  var G = window.SOIL_GUIDE;
+  var k = prepSoilState().soil;
+  return (G && G.soils && G.soils[k]) ? k : "clay";
+}
+function setSoilType(k) {
+  var st = prepSoilState();
+  st.soil = k;                       // คงค่าอื่นในคีย์นี้ไว้ โดยเฉพาะ method ที่หน้านี้ไม่ได้เป็นเจ้าของ
+  try { localStorage.setItem(plotKey("soil"), JSON.stringify(st)); } catch (e) { /* พื้นที่เต็ม */ }
+}
+
+// ── สมุดค่า pH รายจุด ──
+//
+// ทำไมเก็บเป็นจุด ไม่เก็บค่าเดียว
+// ดินในแปลงเดียวกันต่างกันได้เกินหนึ่งหน่วย มุมหนึ่ง 4.2 อีกมุม 6.4 เฉลี่ยได้ 5.3
+// ซึ่งดูเหมือนไม่ต้องแก้อะไร ทั้งที่มุมแรกเปรี้ยวจัดและข้าวตรงนั้นจะไม่โต
+// ค่าเฉลี่ยจึงกลบจุดที่เป็นปัญหาจนมองไม่เห็น ระบบนี้ไม่เฉลี่ยให้เด็ดขาด
+//
+// ทำไมเก็บเป็นประวัติ ไม่ทับของเดิม
+// pH ขยับได้ทั้งฤดูจากการใส่ปูน ใส่ปุ๋ย และการขังน้ำ วัดซ้ำจุดเดิมเดือนหน้าแล้วได้คนละค่า
+// เป็นเรื่องปกติ ไม่ใช่การวัดผิด ถ้าทับของเดิมจะไม่มีวันรู้ว่าที่ทำไปนั้นได้ผลหรือเปล่า
+//
+// เก็บในเครื่องแยกรายแปลง หนึ่งรายการคือการวัดหนึ่งครั้งที่จุดหนึ่ง
+//   { id, spot: เลขจุด, ph: ค่าที่วัดได้, date: "YYYY-MM-DD", at: เวลาที่บันทึก, note }
+var PhLog = {
+  read: function () {
+    try {
+      var v = JSON.parse(localStorage.getItem(plotKey("phlog")) || "[]");
+      return Array.isArray(v) ? v : [];
+    } catch (e) { return []; }
+  },
+  write: function (arr) {
+    try { localStorage.setItem(plotKey("phlog"), JSON.stringify(arr.slice(-400))); }
+    catch (e) { /* พื้นที่เต็ม */ }
+  },
+  add: function (rec) {
+    var arr = this.read();
+    rec.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    rec.at = Date.now();
+    arr.push(rec);
+    this.write(arr);
+    return rec;
+  },
+  remove: function (id) {
+    this.write(this.read().filter(function (r) { return r.id !== id; }));
+  },
+  // เลขจุดถัดไปที่ควรเสนอให้ตอนเพิ่มค่าใหม่
+  nextSpot: function () {
+    var max = 0;
+    this.read().forEach(function (r) { if (r.spot > max) max = r.spot; });
+    return max + 1;
+  },
+  // ค่าล่าสุดของแต่ละจุด — ชุดนี้คือ "สภาพดินวันนี้" ที่ใช้ตั้งคำแนะนำ
+  // ค่าที่วัดไว้เมื่อสามเดือนก่อนไม่ควรมีน้ำหนักเท่าค่าที่เพิ่งวัดเมื่อวาน
+  latest: function () {
+    var by = {};
+    this.read().forEach(function (r) {
+      var cur = by[r.spot];
+      if (!cur || r.date > cur.date || (r.date === cur.date && (r.at || 0) >= (cur.at || 0))) by[r.spot] = r;
+    });
+    return Object.keys(by).map(function (k) { return by[k]; })
+      .sort(function (a, b) { return a.spot - b.spot; });
+  },
+  // ประวัติของจุดหนึ่ง เรียงเก่าไปใหม่ ใช้ดูว่าที่แก้ไปได้ผลไหม
+  history: function (spot) {
+    return this.read().filter(function (r) { return r.spot === spot; })
+      .sort(function (a, b) {
+        if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+        return (a.at || 0) - (b.at || 0);
+      });
+  }
+};
+
+// ระยะห่างจากช่วงที่ข้าวชอบ (5.5-6.5) ใช้ทั้งตอนเลือกจุดที่แย่สุดและตอนเทียบกับค่าเดิม
+// ห้ามดูทิศทางตัวเลขอย่างเดียว เพราะ pH 5.0 ขึ้นเป็น 6.0 คือดีขึ้น แต่ 7.0 ขึ้นเป็น 8.0 คือแย่ลง
+function phOffIdeal(v) { return v < 5.5 ? 5.5 - v : (v > 6.5 ? v - 6.5 : 0); }
+
+// จุดที่ห่างจากช่วงที่ข้าวชอบมากที่สุด — ตัวตั้งคำแนะนำของทั้งแท็บ
+// เท่ากันให้เอาฝั่งเปรี้ยวก่อน เพราะพบบ่อยกว่าและแก้ช้ากว่า
+function phWorstOf(list) {
+  if (!list || !list.length) return null;
+  return list.slice().sort(function (a, b) {
+    var d = phOffIdeal(b.ph) - phOffIdeal(a.ph);
+    return d !== 0 ? d : a.ph - b.ph;
+  })[0];
+}
+function phSpreadOf(list) {
+  if (!list || list.length < 2) return 0;
+  var v = list.map(function (r) { return r.ph; });
+  return Math.max.apply(null, v) - Math.min.apply(null, v);
+}
+function phDateText(iso) {
+  var p = String(iso || "").split("-");
+  if (p.length !== 3) return iso || "";
+  return p[2] + "/" + p[1] + "/" + String(Number(p[0]) + 543).slice(-2);
+}
+function isoToday() {
+  var d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" +
+         String(d.getDate()).padStart(2, "0");
+}
+
+// ═══════════════════════════════════════════════════
+// ส่วนที่ 1 · ชนิดดิน
+// ═══════════════════════════════════════════════════
+views.soiltype = function (root) {
   var G = window.SOIL_GUIDE;
   if (!G) {
     root.appendChild(stateBlock("!", "ไม่พบไฟล์ฐานความรู้",
@@ -5867,395 +6035,396 @@ views.soil = async function (root) {
     return;
   }
 
-  var logs = plotLogs(await Store.list());
-  var phs = logs.filter(function (l) { return typeof l.ph === "number"; });
+  root.appendChild(bund("ชนิดดินในแปลงนี้"));
+  var card = plot(null, "จำแยกรายแปลง เปลี่ยนแปลงนี้ไม่กระทบแปลงอื่น");
 
-  // วิธีทำนากับชนิดดินของแปลงหนึ่งไม่เปลี่ยนบ่อย จำไว้ในเครื่องจะได้ไม่ต้องเลือกใหม่ทุกครั้ง
-  var KEY = plotKey("soil");
-  var saved = {};
-  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { saved = {}; }
-  var pick = {
-    soil: G.soils[saved.soil] ? saved.soil : "clay"
-  };
-  // เขียนเฉพาะชนิดดิน คงค่าอื่นในคีย์เดียวกันไว้ (โดยเฉพาะ method ที่หน้านี้ไม่ได้เป็นเจ้าของ)
-  function remember() {
-    var st = {};
-    try { st = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { st = {}; }
-    st.soil = pick.soil;
-    try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* พื้นที่เต็ม */ }
-  }
+  var chips = el("div");
+  chips.style.cssText = "display:flex;gap:8px;flex-wrap:wrap";
+  card.appendChild(chips);
 
-  // วิธีทำนาที่เลือกไว้ที่แท็บแรก ใช้เลือกชุดขั้นตอนเตรียมดินที่จะแสดง
-  // ฐานความรู้ยังไม่มีชุดของนาหยอด จึงยืมของนาหว่านข้าวแห้งซึ่งใกล้เคียงที่สุด
-  // (หยอดเป็นแถวบนดินแห้งเหมือนกัน ต่างกันที่เครื่องมือ) และบอกผู้ใช้ตรงๆ ว่ายืมมา
-  var METHOD_STEPS = { drill: "dry" };
-  var mKey = fieldMethod() || "wet";
-  var stepKey = G.methods[mKey] ? mKey : (METHOD_STEPS[mKey] || "wet");
-  var borrowed = (stepKey !== mKey);
-
-  // ══════════════════════════════════════════════
-  // ส่วนที่ 1 · ช่องกรอกทั้งหมดรวมอยู่บนสุดการ์ดเดียว
-  // ══════════════════════════════════════════════
-  //
-  // วิธีทำนา ชนิดดิน และค่า pH คือสามอย่างที่ผู้ใช้ต้อง "ป้อนเข้าไป"
-  // เดิมกระจายอยู่คนละที่ ต้องเลื่อนขึ้นลงสลับกับผลลัพธ์
-  // ตอนนี้อยู่ด้วยกันหมด ส่วนที่เหลือของหน้าเป็นผลลัพธ์ล้วน ไม่มีอะไรให้กดอีก
-  root.appendChild(bund("ข้อมูลแปลง"));
-  var form = plot(null);
-
-  function pickerBox(label, dict, getKey, onPick) {
-    var box = el("div");
-    box.style.marginBottom = "15px";
-    box.appendChild(el("div", "read-label", label));
-    var row = el("div");
-    row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-top:6px";
-    function paint() {
-      row.innerHTML = "";
-      Object.keys(dict).forEach(function (k) {
-        var b = el("button", "act act-sm " + (k === getKey() ? "act-go" : "act-line"), dict[k].thai);
-        b.onclick = function () { onPick(k); paint(); };
-        row.appendChild(b);
-      });
-    }
-    paint();
-    box.appendChild(row);
-    return box;
-  }
-
-  var soilBox = pickerBox("ชนิดดินในแปลง", G.soils,
-    function () { return pick.soil; },
-    function (k) { pick.soil = k; remember(); paintResults(); });
-
-  // วิธีดูชนิดดินด้วยมือ แสดงตรงนี้เลย ไม่ซ่อนไว้ในปุ่มกด
+  // วิธีดูชนิดดินด้วยมือ แสดงตรงนี้เลย ไม่ซ่อนไว้หลังปุ่ม
   // เพราะคนที่กำลังจะเลือกคือคนที่ยังไม่แน่ใจว่าแปลงตัวเองเป็นดินอะไร
-  // วิธีดูชนิดดินด้วยมือ วาดเป็นรูป ไม่ใช่บรรยายเป็นตัวหนังสือ
-  // เรื่องสัมผัสอย่าง "กำแล้วร่วน" กับ "กำแล้วเป็นก้อน" อธิบายด้วยคำได้ยากมาก
+  // และเรื่องสัมผัสอย่าง "กำแล้วร่วน" กับ "กำแล้วเป็นก้อน" อธิบายด้วยคำได้ยากมาก
   var handTest = el("div", "handrow");
-  // เรียงให้ตรงกับลำดับปุ่มเลือกชนิดดินด้านบนเป๊ะๆ
-  // ถ้าสลับลำดับ ผู้ใช้จะจับคู่รูปกับปุ่มผิดโดยไม่ทันสังเกต
   Object.keys(G.soils).forEach(function (k) {
-    // รูปถ่ายจริงชนะรูปวาดเสมอถ้ามี เพราะเรื่องเนื้อดินต้องเห็นของจริงถึงเทียบกับในมือได้
-    var real = media("soil-" + k);
+    var real = media("soil-" + k);          // รูปถ่ายจริงชนะรูปวาดเสมอถ้ามี
     handTest.appendChild(real || picSoilHand(k));
   });
-  soilBox.appendChild(handTest);
-  form.appendChild(soilBox);
+  card.appendChild(handTest);
 
-  // ── ค่า pH ──
-  //
-  // กรอกเลขที่อ่านได้ตรงๆ จุดละช่อง เพิ่มจุดได้ไม่จำกัด
-  //
-  // ไม่เฉลี่ยให้ โดยตั้งใจ
-  // ดินในแปลงเดียวกันต่างกันได้เกินหนึ่งหน่วย ค่าเฉลี่ยจะกลบจุดที่เป็นปัญหาจนมองไม่เห็น
-  // เช่นมุมหนึ่ง 4.2 อีกมุม 6.4 เฉลี่ยได้ 5.3 ซึ่งดูเหมือนไม่ต้องแก้อะไร
-  // ทั้งที่มุมแรกเปรี้ยวจัดและข้าวตรงนั้นจะไม่โต
-  //
-  // จึงใช้จุดที่ห่างจากช่วงที่ข้าวชอบมากที่สุดเป็นตัวตั้งคำแนะนำ แล้วบอกให้ชัดว่าใช้จุดไหน
-  var phFields = [];
+  var traits = el("div");
+  card.appendChild(traits);
 
-  var phHead = el("div");
-  phHead.style.marginBottom = "6px";
-  phHead.appendChild(el("div", "read-label", "ค่า pH"));
-  form.appendChild(phHead);
+  function paint() {
+    var cur = soilTypeOf();
 
-  var phScaleHost = el("div");
-  form.appendChild(phScaleHost);
-
-  var phRows = el("div");
-  form.appendChild(phRows);
-  var phMsg = el("div");
-
-  // ระยะห่างจากช่วงที่ข้าวชอบ ใช้ทั้งตอนเลือกจุดที่แย่สุดและตอนเทียบกับค่าเดิม
-  function offIdeal(v) { return v < 5.5 ? 5.5 - v : (v > 6.5 ? v - 6.5 : 0); }
-
-  // ค่าที่กรอกไว้ทุกจุด พร้อมเลขจุด เพื่อบอกได้ว่าคำแนะนำมาจากจุดไหน
-  function phTyped() {
-    var out = [];
-    phFields.forEach(function (f, i) {
-      var v = parseFloat(f.value);
-      if (!isNaN(v) && v >= 3 && v <= 10) out.push({ n: i + 1, ph: v });
-    });
-    return out;
-  }
-
-  function phWorst() {
-    var list = phTyped();
-    if (!list.length) return null;
-    return list.slice().sort(function (a, b) {
-      var d = offIdeal(b.ph) - offIdeal(a.ph);
-      return d !== 0 ? d : a.ph - b.ph;   // เท่ากันให้เอาฝั่งเปรี้ยวก่อน เพราะพบบ่อยกว่าและแก้ช้ากว่า
-    })[0];
-  }
-
-  function phRepaint() {
-    phScaleHost.innerHTML = "";
-    phScaleHost.appendChild(picPhScale(phTyped()));
-    paintResults();
-  }
-
-  function addPhPoint(focus) {
-    var i = phFields.length;
-    var row = el("div", "phpt");
-    row.appendChild(el("div", "phpt-no", "จุดที่ " + (i + 1)));
-
-    var inp = el("input");
-    inp.className = "num-in ph-in";
-    inp.inputMode = "decimal";
-    inp.placeholder = i === 0 ? "เช่น 5.8" : "—";
-    inp.setAttribute("aria-label", "ค่า pH จุดที่ " + (i + 1));
-    inp.oninput = function () {
-      phMsg.innerHTML = "";
-      var v = parseFloat(inp.value);
-      if (!isNaN(v) && (v < 3 || v > 10)) {
-        phMsg.appendChild(el("div", "flash flash-warn", "ค่าควรอยู่ 3–10"));
-      }
-      phRepaint();
-    };
-    phFields.push(inp);
-    row.appendChild(inp);
-
-    // จุดแรกลบไม่ได้ เพราะต้องมีอย่างน้อยหนึ่งช่องเสมอ
-    if (i > 0) {
-      var drop = el("button", "phpt-x", "ลบ");
-      drop.setAttribute("aria-label", "ลบจุดที่ " + (i + 1));
-      drop.onclick = function () {
-        phFields = phFields.filter(function (f) { return f !== inp; });
-        row.remove();
-        // เลขจุดต้องเรียง 1,2,3 เสมอ ถ้าลบจุดกลางแล้วไม่เรียงใหม่
-        // จะเหลือ "จุดที่ 1, จุดที่ 3" ซึ่งคนกรอกจะงงว่าจุดที่ 2 หายไปไหน
-        [].forEach.call(phRows.children, function (r, k) {
-          r.querySelector(".phpt-no").textContent = "จุดที่ " + (k + 1);
-        });
-        phRepaint();
+    chips.innerHTML = "";
+    Object.keys(G.soils).forEach(function (k) {
+      var on = (k === cur);
+      var b = el("button", "act act-sm " + (on ? "act-go" : "act-line"), G.soils[k].thai);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.onclick = function () {
+        setSoilType(k);
+        paint();
+        PrepBus.emit();                     // ข้อแนะนำด้านล่างต้องเปลี่ยนตามทันที
       };
-      row.appendChild(drop);
-    }
+      chips.appendChild(b);
+    });
 
-    phRows.appendChild(row);
-    if (focus) inp.focus();
+    var sl = G.soils[cur];
+    traits.innerHTML = "";
+    traits.style.marginTop = "13px";
+    traits.appendChild(readOut("ดินที่เลือกไว้", sl.thai, sl.trait, true));
+    traits.appendChild(fold(null, "ข้อควรระวังสำหรับ" + sl.thai, null, function (body) {
+      body.appendChild(keyPoints(sl.tips));
+    }, false));
   }
-  addPhPoint(false);
-  phScaleHost.appendChild(picPhScale([]));
+  paint();
 
-  var addPh = el("button", "act act-line act-sm", "+ เพิ่มจุดวัด");
-  addPh.style.marginTop = "9px";
-  addPh.onclick = function () { addPhPoint(true); };
-  form.appendChild(addPh);
+  root.appendChild(card);
+};
 
-  var phSave = el("button", "act act-go act-wide", "บันทึก");
-  phSave.style.marginTop = "11px";
-  form.appendChild(phSave);
-  form.appendChild(phMsg);
+// ═══════════════════════════════════════════════════
+// ส่วนที่ 2 · ค่า pH รายจุด เติมได้ตลอดฤดู
+// ═══════════════════════════════════════════════════
+views.phlog = function (root) {
+  var G = window.SOIL_GUIDE;
+  if (!G) return;
 
-  phSave.onclick = async function () {
-    var worst = phWorst();
-    phMsg.innerHTML = "";
-    if (!worst) {
-      phMsg.appendChild(el("div", "flash flash-warn", "กรอกค่าระหว่าง 3 ถึง 10 ก่อน"));
+  root.appendChild(bund("ค่า pH ของดิน"));
+
+  // ── ผลอ่านจากค่าล่าสุดของทุกจุด ──
+  var readCard = plot(null);
+  root.appendChild(readCard);
+
+  // ── จุดวัดทั้งหมด พร้อมประวัติของแต่ละจุด ──
+  var listHost = el("div");
+  root.appendChild(listHost);
+
+  // ── เพิ่มค่าใหม่ ──
+  root.appendChild(bund("เพิ่มค่าที่วัดได้"));
+  var addCard = plot(null, "วัดจุดใหม่หรือวัดซ้ำจุดเดิมก็ได้ เติมได้เรื่อยๆ ตลอดฤดู");
+  root.appendChild(addCard);
+
+  var grid = el("div", "inputs");
+
+  var fSpot = el("div", "inp");
+  fSpot.appendChild(el("label", "", "จุดที่"));
+  var spotIn = el("input");
+  spotIn.className = "num-in";
+  spotIn.inputMode = "numeric";
+  fSpot.appendChild(spotIn);
+  grid.appendChild(fSpot);
+
+  var fPh = el("div", "inp");
+  fPh.appendChild(el("label", "", "ค่า pH ที่อ่านได้"));
+  var phIn = el("input");
+  phIn.className = "num-in";
+  phIn.inputMode = "decimal";
+  phIn.placeholder = "เช่น 5.8";
+  fPh.appendChild(phIn);
+  grid.appendChild(fPh);
+
+  var fDate = el("div", "inp");
+  fDate.appendChild(el("label", "", "วันที่วัด"));
+  var dateIn = el("input");
+  dateIn.type = "date";
+  dateIn.value = isoToday();
+  fDate.appendChild(dateIn);
+  grid.appendChild(fDate);
+
+  addCard.appendChild(grid);
+
+  // โน้ตของจุด ช่วยให้กลับมาอ่านทีหลังแล้วรู้ว่าจุดนั้นคือมุมไหนของแปลงจริงๆ
+  // เลขจุดอย่างเดียวจำได้แค่ช่วงแรก พอผ่านไปสองเดือนจะไม่มีใครจำได้ว่าจุดที่ 3 อยู่ตรงไหน
+  var fNote = el("div", "inp");
+  fNote.style.marginTop = "11px";
+  fNote.appendChild(el("label", "", "จุดนี้อยู่ตรงไหน (ไม่ใส่ก็ได้)"));
+  var noteIn = el("input");
+  noteIn.placeholder = "เช่น มุมติดคันนาฝั่งเหนือ";
+  fNote.appendChild(noteIn);
+  addCard.appendChild(fNote);
+
+  var addBtn = el("button", "act act-go act-wide", "เพิ่มค่านี้");
+  addBtn.style.marginTop = "12px";
+  addCard.appendChild(addBtn);
+  var msg = el("div");
+  addCard.appendChild(msg);
+
+  function resetForm() {
+    spotIn.value = String(PhLog.nextSpot());
+    phIn.value = "";
+    noteIn.value = "";
+    dateIn.value = isoToday();
+  }
+
+  addBtn.onclick = async function () {
+    msg.innerHTML = "";
+    var spot = parseInt(spotIn.value, 10);
+    var ph = parseFloat(phIn.value);
+    if (!spot || spot < 1) {
+      msg.appendChild(el("div", "flash flash-warn", "ใส่เลขจุดก่อน เช่น 1"));
+      return;
+    }
+    if (isNaN(ph) || ph < 3 || ph > 10) {
+      msg.appendChild(el("div", "flash flash-warn", "ค่า pH ต้องอยู่ระหว่าง 3 ถึง 10"));
       return;
     }
 
-    phSave.disabled = true;
-    phSave.textContent = "กำลังบันทึก";
+    PhLog.add({
+      spot: spot,
+      ph: ph,
+      date: dateIn.value || isoToday(),
+      note: noteIn.value.trim() || ""
+    });
+    resetForm();
+    paintAll();
+    PrepBus.emit();
+
+    msg.appendChild(el("div", "flash flash-ok", "เก็บไว้ในเครื่องแล้ว"));
+
+    // ส่งขึ้นระบบด้วย เพื่อให้กราฟแนวโน้มกับหน้าประวัติเห็นค่านี้
+    // ล้มเหลวก็ไม่เป็นไร ค่าที่เก็บในเครื่องคือตัวจริงของแท็บนี้อยู่แล้ว
+    addBtn.disabled = true;
     try {
-      // บันทึกค่าที่ใช้ตั้งคำแนะนำจริง ไม่ใช่ค่าเฉลี่ยที่ไม่มีอยู่จริงในแปลง
-      // จำนวนจุดติดไปด้วย เพื่อให้ดูย้อนหลังแล้วรู้ว่าวัดละเอียดแค่ไหน
-      var n = phTyped().length;
       await Store.add({
         date: todayStamp(),
         owner: Store.profile().name || "ไม่ระบุ",
         gps: "",
-        ph: worst.ph,
-        disease: "วัด pH ดิน" + (n > 1 ? " " + n + " จุด" : ""),
+        ph: ph,
+        disease: "วัด pH ดิน จุดที่ " + spot,
         score: null
       });
-      phMsg.appendChild(el("div", "flash flash-ok", Store.isOffline()
-        ? "เก็บในเครื่องแล้ว จะส่งขึ้นระบบเมื่อต่อเน็ตได้"
-        : "บันทึกแล้ว"));
-      setTimeout(function () { open(tabOf("soil")); }, 900);
-    } catch (err) {
-      phMsg.appendChild(el("div", "flash flash-warn",
-        (err && err.message) || "บันทึกไม่ได้ ลองใหม่อีกครั้ง"));
-    }
-    phSave.disabled = false;
-    phSave.textContent = "บันทึก";
+    } catch (err) { /* เก็บในเครื่องไว้แล้ว ไม่ต้องรบกวนผู้ใช้ */ }
+    addBtn.disabled = false;
   };
 
-  root.appendChild(form);
+  // ── วาดสองส่วนบนใหม่ทุกครั้งที่ข้อมูลเปลี่ยน ──
+  function paintAll() {
+    var pts = PhLog.latest();
 
-  // ══════════════════════════════════════════════
-  // ส่วนที่ 2 · ผลลัพธ์ทั้งหมด แสดงตายตัว ไม่มีแท็บให้กด
-  // ══════════════════════════════════════════════
-  var resultHost = el("div");
-  root.appendChild(resultHost);
-
-  // ค่าที่ใช้แปลผล เอาค่าที่กำลังพิมพ์ก่อน ถ้ายังไม่พิมพ์ค่อยใช้ค่าที่บันทึกไว้ล่าสุด
-  // เพราะคนที่เพิ่งกรอกอยากเห็นผลทันทีโดยไม่ต้องกดบันทึกก่อน
-  function activePh() {
-    var worst = phWorst();
-    if (worst) {
-      var all = phTyped();
-      return { ph: worst.ph, live: true, point: worst.n, count: all.length,
-               spread: all.length > 1
-                 ? Math.max.apply(null, all.map(function (x) { return x.ph; })) -
-                   Math.min.apply(null, all.map(function (x) { return x.ph; }))
-                 : 0 };
-    }
-    if (phs.length) {
-      return { ph: phs[0].ph, live: false, date: phs[0].date, created_at: phs[0].created_at };
-    }
-    return null;
-  }
-
-  function paintResults() {
-    resultHost.innerHTML = "";
-    var cur = activePh();
-    var m = G.methods[stepKey], sl = G.soils[pick.soil];
-
-    // ── สภาพดินจากค่า pH ──
-    resultHost.appendChild(bund("ผลตรวจดิน"));
-    var phCard = plot(null);
-    if (!cur) {
-      phCard.appendChild(stateBlock("◇", "ยังไม่มีค่า pH", "กรอก pH ด้านบน"));
+    // ผลอ่าน
+    readCard.innerHTML = "";
+    if (!pts.length) {
+      readCard.appendChild(stateBlock("◇", "ยังไม่มีค่า pH",
+        "เพิ่มค่าที่วัดได้ด้านล่าง วัดกี่จุดก็ได้"));
     } else {
-      var band = window.readSoilPh(cur.ph);
+      readCard.appendChild(picPhScale(pts.map(function (r) { return { n: r.spot, ph: r.ph }; })));
+
+      var worst = phWorstOf(pts);
+      var band = window.readSoilPh(worst.ph);
       var color = band.key === "bad" ? "var(--rust)" : band.key === "warn" ? "var(--grain)" : "var(--blade)";
 
       var head = el("div");
-      head.style.cssText = "display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:12px";
-      var big = el("div", "num", cur.ph.toFixed(2));
+      head.style.cssText = "display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin:6px 0 12px";
+      var big = el("div", "num", worst.ph.toFixed(2));
       big.style.cssText = "font-size:2.4rem;font-weight:500;line-height:1;color:" + color;
       head.appendChild(big);
       var side = el("div");
       var nm = el("div", "", band.title);
       nm.style.cssText = "font-weight:600;font-size:1.05rem;color:" + color;
       side.appendChild(nm);
-      side.appendChild(el("div", "read-foot", cur.live
-        ? (cur.count > 1 ? "จุดที่ " + cur.point + " · ห่างจากช่วงที่ข้าวชอบมากสุดใน " + cur.count + " จุด"
-                         : "ยังไม่ได้บันทึก")
-        : "วัดเมื่อ " + cur.date));
+      side.appendChild(el("div", "read-foot", pts.length > 1
+        ? "จุดที่ " + worst.spot + " · ห่างจากช่วงที่ข้าวชอบมากสุดใน " + pts.length + " จุด · วัด " + phDateText(worst.date)
+        : "จุดที่ " + worst.spot + " · วัด " + phDateText(worst.date)));
+      head.appendChild(side);
+      readCard.appendChild(head);
 
       // ดินต่างกันเกินหนึ่งหน่วยระหว่างจุด = แปลงเดียวแต่ต้องดูแลคนละแบบ
-      if (cur.live && cur.spread >= 1.0) {
-        phCard.appendChild(el("div", "flash flash-warn",
-          "จุดต่างกัน " + cur.spread.toFixed(1) + " หน่วย · ควรแยกดูแลเป็นโซน"));
-      }
-      head.appendChild(side);
-      phCard.appendChild(head);
-
-      // เหลือเฉพาะสิ่งที่ต้องลงมือทำ ส่วนคำอธิบายว่าเลขนี้แปลว่าอะไรอยู่หลังปุ่ม
-      phCard.appendChild(el("p", "", band.todo));
-      phCard.appendChild(more("ทำไม", band.say));
-
-      // เทียบกับค่าที่บันทึกไว้ล่าสุด ดูว่าเข้าใกล้หรือออกห่างช่วง 5.5-6.5
-      // ไม่ดูทิศทางตัวเลขอย่างเดียว เพราะ pH ขึ้นจาก 5.0 เป็น 6.0 คือดีขึ้น แต่ 7.0 เป็น 8.0 คือแย่ลง
-      if (cur.live && phs.length) {
-        var prev = phs[0].ph;
-        var diff = cur.ph - prev;
-        function offIdeal(p) { return p < 5.5 ? 5.5 - p : (p > 6.5 ? p - 6.5 : 0); }
-        var verdict = Math.abs(diff) < 0.3
-          ? "ใกล้เคียงค่าเดิม อาจเป็นความคลาดเคลื่อนของเครื่องวัด"
-          : (offIdeal(cur.ph) < offIdeal(prev)
-              ? "ขยับเข้าใกล้ช่วงที่ข้าวชอบมากขึ้น"
-              : (offIdeal(cur.ph) > offIdeal(prev)
-                  ? "ห่างจากช่วงที่ข้าวชอบมากขึ้น"
-                  : "ยังอยู่ในช่วงที่ข้าวชอบทั้งสองครั้ง"));
-        phCard.appendChild(el("div", "read-foot",
-          "ครั้งก่อนวัดได้ " + prev.toFixed(1) + " · " + verdict));
+      var spread = phSpreadOf(pts);
+      if (spread >= 1.0) {
+        readCard.appendChild(el("div", "flash flash-warn",
+          "จุดต่างกัน " + spread.toFixed(1) + " หน่วย · ควรแยกดูแลเป็นโซน ไม่ใช่ทำเหมือนกันทั้งแปลง"));
       }
 
-      // ค่าเก่าเกิน 4 เดือนอาจไม่ตรงกับสภาพวันนี้แล้ว
-      if (!cur.live) {
-        var age = (Date.now() - new Date(cur.created_at || Date.now()).getTime()) / 86400000;
-        if (age > 120) {
-          phCard.appendChild(el("div", "flash flash-warn",
-            "ค่าเกิน 4 เดือน ควรวัดใหม่"));
-        }
+      readCard.appendChild(el("p", "", band.todo));
+      readCard.appendChild(more("ทำไม", band.say));
+      readCard.appendChild(more("ทำไมไม่เฉลี่ยค่าให้",
+        "ดินในแปลงเดียวกันต่างกันได้เกินหนึ่งหน่วย เช่นมุมหนึ่งวัดได้ 4.2 อีกมุม 6.4 " +
+        "ค่าเฉลี่ยจะออกมา 5.3 ซึ่งดูเหมือนไม่ต้องแก้อะไร ทั้งที่มุมแรกเปรี้ยวจัดจนข้าวตรงนั้นไม่โต\n\n" +
+        "ระบบจึงเก็บทุกจุดไว้ตามจริง แล้วตั้งคำแนะนำจากจุดที่ห่างจากช่วงที่ข้าวชอบมากที่สุด " +
+        "พร้อมบอกว่ามาจากจุดไหน จะได้รู้ว่าต้องไปแก้ตรงมุมไหนของแปลง"));
+
+      // ค่าล่าสุดเก่าเกิน 4 เดือนอาจไม่ตรงกับสภาพวันนี้แล้ว
+      var newest = pts.map(function (r) { return r.date; }).sort().pop();
+      var age = (Date.now() - new Date(newest + "T00:00:00").getTime()) / 86400000;
+      if (age > 120) {
+        readCard.appendChild(el("div", "flash flash-warn",
+          "ค่าล่าสุดเก่ากว่า 4 เดือน ควรวัดใหม่แล้วเติมเข้ามา"));
       }
     }
-    resultHost.appendChild(phCard);
 
-    // ── ดินเปรี้ยวและดินด่าง แสดงเฉพาะอันที่ตรงกับค่าที่วัดได้ ──
+    // รายการจุด
+    listHost.innerHTML = "";
+    if (!pts.length) return;
+
+    listHost.appendChild(bund("จุดวัดทั้งหมด " + pts.length + " จุด"));
+    var listCard = plot(null, "กดที่จุดเพื่อดูค่าที่เคยวัดไว้ทั้งหมดของจุดนั้น");
+
+    pts.forEach(function (r) {
+      var hist = PhLog.history(r.spot);
+      var band = window.readSoilPh(r.ph);
+      var sub = "ล่าสุด " + phDateText(r.date) + " · " + band.title +
+                (hist.length > 1 ? " · วัดมาแล้ว " + hist.length + " ครั้ง" : "");
+
+      listCard.appendChild(fold(r.spot, "จุดที่ " + r.spot + " · pH " + r.ph.toFixed(1), sub, function (body) {
+        if (r.note) body.appendChild(el("div", "fold-note", r.note));
+
+        // ประวัติเรียงใหม่ไปเก่า พร้อมบอกว่าขยับเข้าใกล้หรือออกห่างช่วงที่ข้าวชอบ
+        var rows = hist.slice().reverse();
+        rows.forEach(function (h, i) {
+          var line = el("div", "phhist");
+          line.appendChild(el("div", "phhist-date", phDateText(h.date)));
+          var v = el("div", "phhist-val num", h.ph.toFixed(1));
+          v.style.color = phOffIdeal(h.ph) === 0 ? "var(--blade)"
+                        : phOffIdeal(h.ph) >= 1 ? "var(--rust)" : "var(--grain)";
+          line.appendChild(v);
+
+          var prev = rows[i + 1];
+          var word = "";
+          if (prev) {
+            var d = h.ph - prev.ph;
+            word = Math.abs(d) < 0.3
+              ? "เท่าเดิม"
+              : (phOffIdeal(h.ph) < phOffIdeal(prev.ph) ? "ดีขึ้น " : "แย่ลง ") +
+                (d > 0 ? "+" : "") + d.toFixed(1);
+          }
+          line.appendChild(el("div", "phhist-note", word || (h.note || "ครั้งแรก")));
+
+          var x = el("button", "phpt-x", "ลบ");
+          x.setAttribute("aria-label", "ลบค่าวันที่ " + phDateText(h.date) + " ของจุดที่ " + h.spot);
+          x.onclick = function () {
+            PhLog.remove(h.id);
+            paintAll();
+            PrepBus.emit();
+          };
+          line.appendChild(x);
+
+          body.appendChild(line);
+        });
+      }, false));
+    });
+
+    listHost.appendChild(listCard);
+  }
+
+  resetForm();
+  paintAll();
+
+  // ถ้าแปลงถูกสลับหรือส่วนอื่นแก้ข้อมูล ให้ส่วนนี้วาดใหม่ด้วย
+  PrepBus.on(root, paintAll);
+};
+
+// ═══════════════════════════════════════════════════
+// ส่วนที่ 3 · ข้อแนะนำการเตรียมแปลง
+// ═══════════════════════════════════════════════════
+//
+// เป็นคู่มืออ่าน ไม่ใช่เครื่องคำนวณ โดยตั้งใจ
+// เหตุผล: อัตราปูนขาวที่ถูกต้องต้องมาจากปริมาณปูนที่ดินต้องการซึ่งได้จากการตรวจดิน
+// ไม่ใช่คำนวณจาก pH อย่างเดียว การใส่ปูนเกินทำให้ดินเป็นด่างถาวรซึ่งแก้ยากกว่าเดิมมาก
+// ระบบจึงบอกได้แค่ว่าดินอยู่ในสภาพไหนและควรไปปรึกษาใคร
+//
+// สิ่งที่ระบบทำได้จริงคือ "ปรับคู่มือให้ตรงกับแปลงนี้"
+// เพราะขั้นตอนของนาหว่านน้ำตมกับนาหว่านข้าวแห้งต่างกันคนละทิศ
+// การให้อ่านคู่มือกลางที่รวมทุกแบบไว้ด้วยกันทำให้ทำผิดขั้นตอนได้ง่ายกว่า
+views.prepguide = function (root) {
+  var G = window.SOIL_GUIDE;
+  if (!G) return;
+
+  root.appendChild(bund("ข้อแนะนำการเตรียมแปลง"));
+  var host = el("div");
+  root.appendChild(host);
+
+  function paint() {
+    host.innerHTML = "";
+
+    // ฐานความรู้ยังไม่มีชุดขั้นตอนของนาหยอด จึงยืมของนาหว่านข้าวแห้งซึ่งใกล้เคียงที่สุด
+    // (หยอดเป็นแถวบนดินแห้งเหมือนกัน ต่างกันที่เครื่องมือ) และบอกผู้ใช้ตรงๆ ว่ายืมมา
+    var METHOD_STEPS = { drill: "dry" };
+    var mKey = fieldMethod() || "wet";
+    var stepKey = G.methods[mKey] ? mKey : (METHOD_STEPS[mKey] || "wet");
+    var borrowed = (stepKey !== mKey);
+    var m = G.methods[stepKey];
+    var sl = G.soils[soilTypeOf()];
+
+    var pts = PhLog.latest();
+    var worst = phWorstOf(pts);
+
+    // ── ปัญหาดินตามค่าที่วัดได้ ──
     //
-    // เดิมแสดงทั้งสองอันเสมอ ซึ่งทำให้ผู้ใช้ที่ดินเปรี้ยวเห็นวิธีแก้ดินด่างด้วย
+    // แสดงเฉพาะอันที่ตรงกับค่าที่วัดได้เท่านั้น
+    // เดิมแสดงทั้งดินเปรี้ยวและดินด่างเสมอ ซึ่งทำให้คนที่ดินเปรี้ยวเห็นวิธีแก้ดินด่างด้วย
     // แล้วอาจเผลอทำตามจนดินเสียหนักกว่าเดิม เพราะสองปัญหานี้แก้กันคนละทาง
-    // ถ้าดินอยู่ในช่วงที่ดีอยู่แล้ว ไม่ต้องแสดงการ์ดปัญหาเลย แค่บอกว่ายังไม่มีปัญหา
     //
     // ใช้ readSoilPh เป็นตัวตัดสินที่เดียว ห้ามเขียนเกณฑ์ตัวเลขซ้ำที่นี่
     // ไม่งั้นวันหนึ่งแก้เกณฑ์ที่ soil-guide.js แล้วหน้านี้จะไม่ตรงกัน
-    if (G.problems) {
-      var matched = cur ? (window.readSoilPh(cur.ph) || {}).problem : null;
-
-      if (!cur) {
-        // ยังไม่ได้วัด pH ไม่ต้องแสดงวิธีแก้ปัญหาที่ยังไม่รู้ว่ามีไหม
-      } else if (matched && G.problems[matched]) {
-        resultHost.appendChild(bund(G.problems[matched].thai + " แก้ยังไง"));
-        renderPhProblems([matched], matched);
+    if (!worst) {
+      host.appendChild(el("div", "flash flash-warn",
+        "ยังไม่ได้กรอกค่า pH · ข้อแนะนำเรื่องการแก้ดินจะขึ้นเมื่อมีค่าแล้ว"));
+    } else if (G.problems) {
+      var matched = (window.readSoilPh(worst.ph) || {}).problem;
+      if (matched && G.problems[matched]) {
+        host.appendChild(bund(G.problems[matched].thai + " แก้ยังไง"));
+        host.appendChild(el("div", "read-foot",
+          "ตั้งจากจุดที่ " + worst.spot + " ซึ่งห่างจากช่วงที่ข้าวชอบมากที่สุด"));
+        renderPhProblem(matched, worst.ph);
       } else {
-        // pH อยู่ในช่วงที่ดี ไม่ต้องแสดงวิธีแก้ปัญหาที่ยังไม่มี
-        resultHost.appendChild(el("div", "flash flash-ok",
-          "pH " + cur.ph.toFixed(1) + " ปกติ ไม่ต้องแก้"));
+        host.appendChild(el("div", "flash flash-ok",
+          "pH " + worst.ph.toFixed(1) + " ปกติ ไม่ต้องแก้ดินก่อนปลูก"));
       }
     }
 
-    function renderPhProblems(phKeys, matched) {
-      phKeys.forEach(function (k) {
-        var pr = G.problems[k];
-        var isMine = (k === matched);
-        var card = plot(null);
-        card.style.marginBottom = "13px";
-        if (isMine) card.style.borderColor = "var(--blade)";
+    function renderPhProblem(k, latestPh) {
+      var pr = G.problems[k];
+      var card = plot(null);
+      card.style.marginBottom = "13px";
+      card.style.borderColor = "var(--blade)";
 
-        var ttl = el("div");
-        ttl.style.cssText = "display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:9px";
-        var tname = el("div", "", pr.thai);
-        tname.style.cssText = "font-weight:600;font-size:1.02rem";
-        ttl.appendChild(tname);
-        if (isMine) ttl.appendChild(el("span", "tag-yes", "ตรงกับค่าที่วัดได้"));
-        card.appendChild(ttl);
+      var ttl = el("div");
+      ttl.style.cssText = "display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:9px";
+      var tname = el("div", "", pr.thai);
+      tname.style.cssText = "font-weight:600;font-size:1.02rem";
+      ttl.appendChild(tname);
+      ttl.appendChild(el("span", "tag-yes", "ตรงกับค่าที่วัดได้"));
+      card.appendChild(ttl);
 
-        card.appendChild(more("อาการที่เห็น", pr.sign + "\n\n" + pr.why));
+      card.appendChild(more("อาการที่เห็น", pr.sign + "\n\n" + pr.why));
 
-        // ── แยกความรุนแรง ไม่เหมารวมว่ากรดคือกรดจัด ──
-        // วิธีหว่านปูน 1-4 ตันต่อไร่ เป็นของดินเปรี้ยวจัดที่ pH ต่ำกว่า 4.5
-        // ถ้าดินแค่เป็นกรดแล้วใส่ปูนขนาดนั้น จะดันขึ้นไปเป็นด่างซึ่งแก้ยากกว่า
-        var latestPh = cur ? cur.ph : null;
-        var isSevereAcid = (k === "acid" && latestPh !== null && latestPh < 4.5);
-        if (k === "acid" && latestPh !== null && !isSevereAcid) {
-          card.appendChild(el("div", "flash flash-warn",
-            "pH " + latestPh.toFixed(1) + " ยังไม่ต้องใส่ปูนมาก เริ่มจากวิธีที่ไม่ใช้ปูน"));
-        }
+      // ── แยกความรุนแรง ไม่เหมารวมว่ากรดคือกรดจัด ──
+      // วิธีหว่านปูน 1-4 ตันต่อไร่ เป็นของดินเปรี้ยวจัดที่ pH ต่ำกว่า 4.5
+      // ถ้าดินแค่เป็นกรดแล้วใส่ปูนขนาดนั้น จะดันขึ้นไปเป็นด่างซึ่งแก้ยากกว่า
+      var isSevereAcid = (k === "acid" && latestPh !== null && latestPh < 4.5);
+      if (k === "acid" && latestPh !== null && !isSevereAcid) {
+        card.appendChild(el("div", "flash flash-warn",
+          "pH " + latestPh.toFixed(1) + " ยังไม่ต้องใส่ปูนมาก เริ่มจากวิธีที่ไม่ใช้ปูน"));
+      }
 
-        card.appendChild(el("div", "rx-sect", "วิธีแก้ เรียงจากต้นทุนต่ำไปสูง"));
-        pr.fixes.forEach(function (fx, i) {
-          var usesLime = /ปูน/.test(fx.title + " " + fx.detail) &&
-                         /ตันต่อไร่|กิโลกรัมต่อไร่/.test(fx.detail);
-          var costLabel = fx.cost;
-          var costNote = null;
-          if (costLabel && costLabel.length > 40) { costNote = costLabel; costLabel = null; }
-          if (k === "acid" && usesLime && !isSevereAcid) {
-            costLabel = "เฉพาะ pH ต่ำกว่า 4.5";
-          }
-          // เปิดเฉพาะข้อแรก ที่เหลือย่อไว้
-          // เดิมกางหมดทุกข้อ ทำให้หน้าเดียวยาวเป็นสิบจอจนหาสิ่งที่ต้องทำไม่เจอ
-          card.appendChild(fold(i + 1, fx.title, costLabel, function (body) {
-            body.appendChild(el("p", "", fx.detail));
-            if (costNote) body.appendChild(el("div", "fold-note", costNote));
-          }, false));
-        });
-        if (pr.warn) card.appendChild(more("ข้อควรระวัง", pr.warn));
-
-        resultHost.appendChild(card);
+      card.appendChild(el("div", "rx-sect", "วิธีแก้ เรียงจากต้นทุนต่ำไปสูง"));
+      pr.fixes.forEach(function (fx, i) {
+        var usesLime = /ปูน/.test(fx.title + " " + fx.detail) &&
+                       /ตันต่อไร่|กิโลกรัมต่อไร่/.test(fx.detail);
+        var costLabel = fx.cost;
+        var costNote = null;
+        if (costLabel && costLabel.length > 40) { costNote = costLabel; costLabel = null; }
+        if (k === "acid" && usesLime && !isSevereAcid) costLabel = "เฉพาะ pH ต่ำกว่า 4.5";
+        // เปิดเฉพาะข้อแรก ที่เหลือย่อไว้ ไม่งั้นหน้าเดียวยาวเป็นสิบจอจนหาสิ่งที่ต้องทำไม่เจอ
+        card.appendChild(fold(i + 1, fx.title, costLabel, function (body) {
+          body.appendChild(el("p", "", fx.detail));
+          if (costNote) body.appendChild(el("div", "fold-note", costNote));
+        }, false));
       });
+      if (pr.warn) card.appendChild(more("ข้อควรระวัง", pr.warn));
+      host.appendChild(card);
     }
 
-    // ── ขั้นตอนเตรียมดินตามวิธีที่เลือก ──
-    resultHost.appendChild(bund("ขั้นตอนเตรียมดิน · " + riceMethodOf().thai));
+    // ── ขั้นตอนเตรียมแปลงตามวิธีทำนาที่เลือกไว้ ──
+    host.appendChild(bund("ขั้นตอนเตรียมแปลง · " + riceMethodOf().thai));
     var stepBox = plot(null);
     if (borrowed) {
       stepBox.appendChild(el("div", "flash flash-warn",
         "ยังไม่มีขั้นตอนเฉพาะของ" + riceMethodOf().thai + " แสดงของ" + m.thai + "ซึ่งใกล้เคียงที่สุดแทน"));
     }
+    stepBox.appendChild(el("div", "read-foot", "เปลี่ยนวิธีทำนาได้ที่แท็บ " + pageName("field")));
     stepBox.appendChild(more("วิธีนี้ต่างจากวิธีอื่นยังไง", m.note));
     m.steps.forEach(function (st, i) {
       // คีย์รูปผูกกับวิธีทำนาด้วย เพราะขั้นตอนของนาหว่านน้ำตมกับนาหว่านแห้งคนละภาพกัน
@@ -6266,19 +6435,12 @@ views.soil = async function (root) {
         if (st.watch) body.appendChild(el("div", "fold-note", "จุดที่พลาดบ่อย: " + st.watch));
       }, false));
     });
-    resultHost.appendChild(stepBox);
-
-    // ค่าใช้จ่ายของช่วงเตรียมดิน กรอกตอนที่เพิ่งจ่ายเสร็จ ซึ่งเป็นตอนที่ยังจำเลขได้แม่น
-    resultHost.appendChild(bund("ค่าใช้จ่าย"));
-    // ค่าจ้างหว่าน/ปักดำ ไม่อยู่ตรงนี้แล้ว ย้ายไปอยู่กับส่วนวิธีทำนาที่แท็บแรก
-    // เพราะค่ากลางของมันเปลี่ยนตามวิธีที่เลือก ต้องอยู่ติดกับปุ่มที่เปลี่ยนมัน
-    resultHost.appendChild(costFields(["till", "puddle", "seed"],
-      "กรอกที่จ่ายจริง · ยอดไปรวมที่แท็บเก็บเกี่ยว"));
+    host.appendChild(stepBox);
 
     // ── การเตรียมต้นกล้า เฉพาะนาดำ ──
     if (G.nursery && G.nursery.forMethod === mKey) {
       var N = G.nursery;
-      resultHost.appendChild(bund(N.title));
+      host.appendChild(bund(N.title));
       var nBox = plot(null);
       nBox.appendChild(more("ทำไมต้องเตรียมต้นกล้า", N.intro));
       N.steps.forEach(function (st, i) {
@@ -6287,26 +6449,76 @@ views.soil = async function (root) {
           if (st.watch) body.appendChild(el("div", "fold-note", "จุดที่พลาดบ่อย: " + st.watch));
         }, false));
       });
-      resultHost.appendChild(nBox);
-      if (N.tip) resultHost.appendChild(el("div", "flash flash-bad", N.tip));
+      host.appendChild(nBox);
+      if (N.tip) host.appendChild(el("div", "flash flash-bad", N.tip));
     }
 
-    // ── ข้อควรระวังตามชนิดดิน ──
+    // ── ข้อควรระวังตามชนิดดินที่เลือกไว้ ──
     var sc = plot(null);
-    sc.appendChild(fold(null, "ข้อควรระวังสำหรับ" + sl.thai, null, function (body) {
+    sc.appendChild(fold(null, "เตรียมแปลงใน" + sl.thai + " ต้องระวังอะไร", null, function (body) {
       body.appendChild(keyPoints(sl.tips));
       body.appendChild(el("div", "read-foot", sl.trait));
     }, false));
-    resultHost.appendChild(sc);
-
+    host.appendChild(sc);
   }
 
-  paintResults();
+  paint();
+  PrepBus.on(root, paint);     // ชนิดดินหรือ pH เปลี่ยน ข้อแนะนำต้องเปลี่ยนตาม
+};
+
+// ═══════════════════════════════════════════════════
+// ส่วนที่ 4 · ต้นทุนช่วงเตรียมแปลง
+// ═══════════════════════════════════════════════════
+//
+// เฉพาะของที่จ่ายก่อนข้าวลงแปลงเท่านั้น: ไถ ทำเทือก ปุ๋ยรองพื้น เมล็ดพันธุ์ ค่าจ้างหว่านหรือปักดำ
+// ค่าปุ๋ยแต่งหน้า ค่ายา ค่าน้ำ ค่าเกี่ยว อยู่คนละระยะ กรอกที่แท็บของระยะนั้น
+//
+// ทุกช่องเขียนลงคีย์เดียวกับที่หน้าต้นทุนอ่าน (plotKey("cost").items)
+// กรอกที่นี่แล้วยอดไปโผล่ที่หน้าต้นทุนเองทันที ไม่ต้องกรอกซ้ำ
+var PREP_COST_KEYS = ["till", "puddle", "basefert", "seed", "sow"];
+
+views.prepcost = function (root) {
+  ensurePrepCostItems();
+
+  root.appendChild(bund("ต้นทุนช่วงเตรียมแปลง"));
+
+  var box = costFields(PREP_COST_KEYS,
+    "กรอกที่จ่ายจริงต่อไร่ · ยอดไปโผล่ที่แท็บ " + pageName("harvest") + " ส่วนกำไรเอง");
+  root.appendChild(box);
+
+  var sum = el("div", "costsum");
+  box.appendChild(sum);
+
+  function paintSum() {
+    var total = 0, typed = 0;
+    PREP_COST_KEYS.forEach(function (k) {
+      if (!costItemOf(k)) return;
+      total += CostStore.effective(k);
+      if (CostStore.typed(k) !== null) typed++;
+    });
+    sum.textContent = "รวมช่วงเตรียมแปลง " + money0(total) + " บาทต่อไร่" +
+      (typed < PREP_COST_KEYS.length ? " (บางรายการยังเป็นค่ากลาง)" : "");
+  }
+  paintSum();
+
+  // ช่องกรอกอัปเดต CostStore ในตัวมันเองแล้ว ที่นี่แค่รอฟังว่ามีการพิมพ์
+  // แล้วคิดยอดรวมใหม่ ไม่ต้องมีตัวจัดการค่าซ้อนอีกชั้น
+  box.addEventListener("input", paintSum);
+
+  var foot = plot(null);
+  foot.appendChild(el("div", "rx-sect", "อะไรไม่อยู่ในนี้"));
+  foot.appendChild(keyPoints([
+    "ปุ๋ยแต่งหน้าระหว่างปลูก · กรอกที่แท็บ " + pageName("grow") + " ส่วนปุ๋ย",
+    "ค่ายาโรคและแมลง · กรอกที่แท็บ " + pageName("grow") + " ส่วนโรคและแมลง",
+    "ค่าน้ำ · กรอกที่แท็บ " + pageName("field") + " ส่วนอากาศ",
+    "ค่าเกี่ยวและค่าขน · กรอกที่แท็บ " + pageName("harvest")
+  ]));
+  root.appendChild(foot);
 };
 
 // ─── หน้าปุ๋ยอินทรีย์ ───────────────────────────
 //
-// เป็นคู่มืออ่าน ไม่ใช่เครื่องคำนวณ เหมือนแท็บแปลงนา ส่วนดิน
+// เป็นคู่มืออ่าน ไม่ใช่เครื่องคำนวณ เหมือนแท็บระยะเตรียมดิน
 // แต่ต่างกันตรงที่หน้านี้มี "ตัวเลขจากเอกสารทางการ" ให้ใช้ได้เลย
 // เช่น สูตรกอง 1 ตัน และอัตราใส่นาข้าว 2 ตันต่อไร่ ซึ่งเป็นค่าที่กรมพัฒนาที่ดินกำหนด
 // ไม่ใช่ค่าที่ระบบคำนวณเอง จึงปลอดภัยพอที่จะแสดงเป็นตัวเลขตรงๆ ได้
@@ -7832,10 +8044,11 @@ function sowPerRai() {
 
 // รายการต้นทุนอยู่แท็บไหน — ใช้ทั้งตอนวางช่องกรอกและตอนบอกว่า "แก้ได้ที่ไหน"
 var COST_HOME = {
-  till:    { page: "grow",    where: "ระหว่างปลูก · ดิน" },
-  puddle:  { page: "grow",    where: "ระหว่างปลูก · ดิน" },
-  seed:    { page: "grow",    where: "ระหว่างปลูก · ดิน" },
-  sow:     { page: "field",   where: "ข้อมูลการเกษตร · วิธีทำนา" },
+  till:     { page: "prep",    where: "ระยะเตรียมดิน · ต้นทุน" },
+  puddle:   { page: "prep",    where: "ระยะเตรียมดิน · ต้นทุน" },
+  basefert: { page: "prep",    where: "ระยะเตรียมดิน · ต้นทุน" },
+  seed:     { page: "prep",    where: "ระยะเตรียมดิน · ต้นทุน" },
+  sow:      { page: "prep",    where: "ระยะเตรียมดิน · ต้นทุน" },
   fert:    { page: "grow",    where: "ระหว่างปลูก · ปุ๋ย" },
   pest:    { page: "grow",    where: "ระหว่างปลูก · โรคและแมลง" },
   water:   { page: "field",   where: "ข้อมูลการเกษตร · อากาศ" },
@@ -7894,6 +8107,38 @@ function costDefault(key) {
   if (key === "sow") return riceMethodOf().sowCost;
   var it = costItemOf(key);
   return it ? it.perRai : 0;
+}
+
+// ── รายการต้นทุนที่ไฟล์ฐานราคายังไม่มี ──
+//
+// "หว่านปุ๋ยรองพื้น" เป็นค่าใช้จ่ายของช่วงเตรียมแปลงที่คนทำนาจ่ายจริงเกือบทุกแปลง
+// แต่ยังไม่มีในไฟล์ cost-guide.js จึงเติมเข้าไปตอนเริ่มระบบ ถ้าวันหนึ่งไฟล์นั้นมีให้แล้ว
+// ตัวนี้จะไม่เติมซ้ำ เพราะเช็คคีย์ก่อนเสมอ
+//
+// ค่ากลางตั้งไว้ 0 โดยตั้งใจ ไม่ใช่เพราะไม่รู้ราคา
+// แต่เพราะปุ๋ยรองพื้นบางแปลงไม่ใส่เลย ถ้าตั้งค่ากลางไว้จะทำให้ยอดรวมของคนที่ไม่ใส่
+// สูงเกินจริงตั้งแต่ยังไม่ได้กรอกอะไร ซึ่งอันตรายกว่าการเห็นเลข 0 แล้วรู้ว่าต้องกรอกเอง
+var PREP_EXTRA_ITEMS = [
+  { key: "basefert", name: "ปุ๋ยรองพื้นและค่าจ้างหว่าน", perRai: 0,
+    note: "ปุ๋ยที่ใส่ตอนเตรียมดินก่อนปลูก ส่วนปุ๋ยแต่งหน้าระหว่างปลูกกรอกที่ส่วนปุ๋ย" }
+];
+
+// เติมรายการที่ขาดเข้าไปในฐานราคา วางไว้ต่อจากรายการเตรียมดินอันสุดท้ายที่มีอยู่
+// เพื่อให้ตารางสรุปต้นทุนยังเรียงตามลำดับเวลาที่จ่ายจริง ไม่ใช่ไปต่อท้ายสุดหลังค่าเกี่ยว
+function ensurePrepCostItems() {
+  var C = window.COST_GUIDE;
+  if (!C || !Array.isArray(C.costItems)) return;
+  PREP_EXTRA_ITEMS.forEach(function (it) {
+    var has = C.costItems.some(function (x) { return x.key === it.key; });
+    if (has) return;
+    var after = -1;
+    ["puddle", "till"].forEach(function (k) {
+      if (after !== -1) return;
+      C.costItems.forEach(function (x, i) { if (x.key === k) after = i; });
+    });
+    if (after === -1) C.costItems.push(it);
+    else C.costItems.splice(after + 1, 0, it);
+  });
 }
 
 function costItemOf(key) {
@@ -8075,6 +8320,7 @@ function money0(n) { return Math.round(n).toLocaleString("th-TH"); }
 
 views.cost = async function (root) {
   root.appendChild(pageHead("cost"));
+  ensurePrepCostItems();
   var C = window.COST_GUIDE;
   if (!C) {
     root.appendChild(stateBlock("!", "ไม่พบไฟล์ฐานข้อมูลราคา", "ลองรีเฟรชหน้าอีกที"));
@@ -9895,7 +10141,9 @@ function paintNav() {
     t.dataset.page = p.id;
     if (p.id === here) t.setAttribute("aria-current", "page");
     t.innerHTML = icon.replace('width="16" height="16"', 'width="23" height="23"');
-    t.appendChild(el("span", "", p.label));
+    // แถบล่างมี 5 แท็บแล้ว ชื่อเต็มอย่าง "ข้อมูลการเกษตร" กว้างเกินช่องบนจอ 360px
+    // จึงใช้ชื่อสั้นเฉพาะที่นี่ ส่วนเมนูข้างและหัวหน้ายังใช้ชื่อเต็มเหมือนเดิม
+    t.appendChild(el("span", "", p.short || p.label));
     t.onclick = function () { open(p.id); };
     bar.appendChild(t);
   });
@@ -10334,6 +10582,7 @@ document.getElementById("signOut").onclick = async function () {
 function startApp() {
   paintWho();
   markBrain();
+  ensurePrepCostItems();   // เติมรายการต้นทุนที่ฐานราคายังไม่มี ก่อนหน้าไหนจะอ่านมันไปคำนวณ
   open("grow");
 }
 
