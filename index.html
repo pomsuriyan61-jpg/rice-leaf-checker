@@ -1526,6 +1526,17 @@
   /* น้องข้าวในวงเกจตอนยังไม่มีคะแนน */
   .gauge-buddy { width: 56px; margin: 0 auto; }
 
+
+  /* ── รายการความรู้ ──
+     หัวเรื่องตัวหนาให้กวาดตาเจอบรรทัดที่ต้องการก่อน แล้วค่อยอ่านคำอธิบาย
+     เส้นซ้ายบางแทนจุด bullet เพราะจุดกลมทำให้ทุกข้อดูมีน้ำหนักเท่ากันหมด */
+  .kpts { margin-top: 4px; }
+  .kpt { padding: 11px 0 11px 14px; border-left: 2px solid var(--leaf-pale); margin-bottom: 2px; }
+  .kpt:hover { border-left-color: var(--blade); }
+  .kpt-head { font-family: var(--f-display); font-weight: 500; font-size: .93rem;
+              color: var(--paddy); line-height: 1.45; }
+  .kpt-rest { font-size: .84rem; color: var(--ink-soft); line-height: 1.55; margin-top: 3px; }
+
 </style>
 </head>
 <body>
@@ -1583,16 +1594,16 @@ SmartRice AI
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=29"></script>
-<script src="soil-guide.js?v=29"></script>
-<script src="fertilizer-guide.js?v=29"></script>
-<script src="cost-guide.js?v=29"></script>
-<script src="care-guide.js?v=29"></script>
-<script src="planting-guide.js?v=29"></script>
-<script src="pest-guide.js?v=29"></script>
-<script src="variety-guide.js?v=29"></script>
-<script src="media.js?v=29"></script>
-  <script src="pest-page.js?v=29"></script>
+<script src="disease-guide.js?v=30"></script>
+<script src="soil-guide.js?v=30"></script>
+<script src="fertilizer-guide.js?v=30"></script>
+<script src="cost-guide.js?v=30"></script>
+<script src="care-guide.js?v=30"></script>
+<script src="planting-guide.js?v=30"></script>
+<script src="pest-guide.js?v=30"></script>
+<script src="variety-guide.js?v=30"></script>
+<script src="media.js?v=30"></script>
+  <script src="pest-page.js?v=30"></script>
 <script>
 (function () {
 "use strict";
@@ -3767,6 +3778,64 @@ var BUDDY_FACE = {
   bad:  '<ellipse cx="32" cy="51" rx="4.6" ry="5.4" fill="#0D3B2A"/>'
 };
 
+// ── รายการความรู้แบบกวาดตาอ่าน ───────────────────
+//
+// ปัญหาเดิม: เนื้อหาความรู้เป็นย่อหน้ายาวใส่ bullet ซึ่งอ่านเหมือนนิยาย
+// ชาวนาที่ยืนอยู่กลางแปลงไม่ได้อ่านทีละคำตั้งแต่ต้นจนจบ เขากวาดตาหาบรรทัดที่ตรงกับปัญหา
+// ย่อหน้าที่ไม่มีหัวเรื่องทำให้กวาดตาไม่ได้เลย ต้องอ่านทั้งก้อนถึงจะรู้ว่าใช่เรื่องที่หาอยู่ไหม
+//
+// วิธีแก้: ดึงใจความสำคัญของแต่ละข้อขึ้นมาเป็นหัวเรื่องตัวหนา แล้วที่เหลือเป็นคำอธิบายตัวเล็ก
+// ตัดคำที่ประโยคแรกจบตามธรรมชาติ คือที่ — หรือ · หรือ ซึ่ง/เพราะ/ทำให้ ตัวแรก
+// ไม่ต้องไปแก้ข้อความในไฟล์ความรู้ทีละบรรทัด ซึ่งมีเป็นร้อยบรรทัดและจะหลุดได้ง่าย
+var LEAD_SPLIT = /^(.{8,52}?)\s*(?:—|·|:)\s*(.+)$/;
+var LEAD_WORDS = /^(.{10,48}?[ก-๙])\s+(ซึ่ง|เพราะ|ทำให้|จึง|แต่|และ)\s*(.+)$/;
+
+function splitLead(text) {
+  var t = String(text || "").trim();
+
+  var m = LEAD_SPLIT.exec(t);
+  if (m) return { head: m[1], rest: m[2] };
+
+  m = LEAD_WORDS.exec(t);
+  if (m) return { head: m[1], rest: m[2] + m[3] };
+
+  if (t.length <= 60) return { head: t, rest: "" };
+
+  // ── ตัดที่ช่องว่างเท่านั้น ห้ามตัดกลางคำ ──
+  //
+  // ภาษาไทยไม่เว้นวรรคระหว่างคำ การตัดที่ตำแหน่งตัวอักษรตายตัวจะได้คำที่ขาดครึ่ง
+  // เช่น "ที่สำคัญที่สุด" กลายเป็น "ที่ส" กับ "คัญที่สุด" ซึ่งอ่านไม่รู้เรื่องเลย
+  // ถ้าหาช่องว่างที่เหมาะไม่เจอ ให้ไม่แยกดีกว่าแยกผิด
+  var cut = t.lastIndexOf(" ", 48);
+  if (cut < 14) cut = t.indexOf(" ", 40);
+  if (cut < 14 || cut > 72) return { head: t, rest: "" };
+
+  // อย่าตัดทิ้งตัวเลขไว้ต้นบรรทัดล่าง
+  // เช่น "...ติดต่อกันเกิน | 4 ฤดู ช่วยชะลอ..." ซึ่งอ่านแล้วหัวเรื่องห้วนและไม่จบความ
+  // ถ้าท่อนหลังขึ้นต้นด้วยตัวเลข ให้ดึงคำนั้นกลับไปอยู่กับหัวเรื่อง
+  // ตัวเลขมักมาคู่กับหน่วยเสมอ เช่น "4 ฤดู" หรือ "10-15 ไร่" จึงต้องดึงไปทั้งคู่
+  if (/^\s*\d/.test(t.slice(cut + 1))) {
+    var afterNum = t.indexOf(" ", cut + 1);
+    var afterUnit = (afterNum === -1) ? -1 : t.indexOf(" ", afterNum + 1);
+    if (afterUnit !== -1 && afterUnit <= 78) cut = afterUnit;
+    else if (afterNum !== -1 && afterNum <= 78) cut = afterNum;
+  }
+  return { head: t.slice(0, cut), rest: t.slice(cut + 1) };
+}
+
+// รายการที่กวาดตาอ่านได้ ใช้แทน <ul><li> ทุกที่ที่เนื้อหาเป็นความรู้ยาวๆ
+function keyPoints(lines) {
+  var box = el("div", "kpts");
+  (lines || []).forEach(function (line) {
+    var p = splitLead(line);
+    var row = el("div", "kpt");
+    row.appendChild(el("div", "kpt-head", p.head));
+    if (p.rest) row.appendChild(el("div", "kpt-rest", p.rest));
+    box.appendChild(row);
+  });
+  return box;
+}
+
 function riceBuddy(mood, cls) {
   var m = BUDDY_FACE[mood] ? mood : "ok";
 
@@ -4700,7 +4769,7 @@ function renderPestSection(root, part) {
     part: part,
     el: el, plot: plot, bund: bund, fold: fold,
     more: more, stateBlock: stateBlock, readOut: readOut,
-    picLeafCompare: picLeafCompare, mediaInto: mediaInto, media: media
+    picLeafCompare: picLeafCompare, mediaInto: mediaInto, media: media, keyPoints: keyPoints
   });
 }
 
@@ -5358,14 +5427,16 @@ views.cycle = function (root) {
 
     // ตารางสองช่อง ทำอะไรได้ กับ ทำยังไง
     // เป็นรูปแบบเดียวกับตารางแยกโรคกับแมลง ผู้ใช้กวาดตาหาแถวที่สนใจได้เร็ว
-    var tab = el("div", "mtab");
-    c.to.forEach(function (u) {
-      var r = el("div", "mtab-row");
-      r.appendChild(el("div", "mtab-k", u.what));
-      r.appendChild(el("div", "mtab-v", u.how));
-      tab.appendChild(r);
-    });
-    box.appendChild(tab);
+    box.appendChild(fold(null, "ใช้ทำอะไรได้ " + c.to.length + " ทาง", null, function (tb) {
+      var tab = el("div", "mtab");
+      c.to.forEach(function (u) {
+        var r = el("div", "mtab-row");
+        r.appendChild(el("div", "mtab-k", u.what));
+        r.appendChild(el("div", "mtab-v", u.how));
+        tab.appendChild(r);
+      });
+      tb.appendChild(tab);
+    }, false));
 
     if (c.warn) box.appendChild(more("ข้อควรระวัง", c.warn));
     root.appendChild(box);
@@ -5938,15 +6009,8 @@ views.soil = async function (root) {
     // ── ข้อควรระวังตามชนิดดิน ──
     var sc = plot(null);
     sc.appendChild(fold(null, "ข้อควรระวังสำหรับ" + sl.thai, null, function (body) {
-      var ul = el("ul");
-      ul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
-      sl.tips.forEach(function (x) {
-        var li = el("li", "", x);
-        li.style.marginBottom = "7px";
-        ul.appendChild(li);
-      });
-      body.appendChild(ul);
-      body.appendChild(el("p", "", sl.trait));
+      body.appendChild(keyPoints(sl.tips));
+      body.appendChild(el("div", "read-foot", sl.trait));
     }, false));
     resultHost.appendChild(sc);
 
@@ -6330,7 +6394,24 @@ views.fert = async function (root) {
     head.appendChild(more("ปุ๋ยชนิดนี้คืออะไร", t.what));
     // คลิปวิธีทำของปุ๋ยชนิดนี้ ถ้ายังไม่ได้ใส่ในไฟล์ media.js ก็ข้ามไปเงียบๆ
     mediaInto(head, "fert-" + current);
+    // ยุบคู่มือทั้งก้อนไว้หลังปุ่มเดียว เปิดแล้วค่อยวาด ไม่ใช่วาดไว้แล้วซ่อน
+    var guideHost = el("div");
+    guideHost.hidden = true;
+    var guideBtn = el("button", "act act-line act-wide", "ดูวิธีทำ" + t.thai);
+    guideBtn.style.marginTop = "12px";
+    guideBtn.onclick = function () {
+      var open = guideHost.hidden;
+      guideHost.hidden = !open;
+      guideBtn.textContent = open ? "ย่อคู่มือ" : ("ดูวิธีทำ" + t.thai);
+      if (open && !guideHost.firstChild) buildFertGuide(guideHost, t);
+    };
+    head.appendChild(guideBtn);
+
     body.appendChild(head);
+    body.appendChild(guideHost);
+  }
+
+  function buildFertGuide(body, t) {
 
     // ── สูตรส่วนผสม (มีเฉพาะปุ๋ยหมัก) ──
     if (t.recipe) {
@@ -7098,14 +7179,7 @@ views.fert = async function (root) {
     // ── วิธีนำไปใช้ ── ยุบไว้ ใครอยากอ่านค่อยกด
     var uc = plot(null);
     uc.appendChild(fold(null, "วิธีนำไปใช้ในนาข้าว", null, function (ubody) {
-      var uul = el("ul");
-      uul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
-      t.use.forEach(function (x) {
-        var li = el("li", "", x);
-        li.style.marginBottom = "6px";
-        uul.appendChild(li);
-      });
-      ubody.appendChild(uul);
+      ubody.appendChild(keyPoints(t.use));
     }, false));
     body.appendChild(uc);
   }
@@ -7321,12 +7395,15 @@ async function renderReferencePrices(root) {
 
   // ══ ค่าตั้งต้นที่ระบบใช้คำนวณ ══
   if (C.varieties && C.varieties.length) {
-    var vCard = plot("ค่าตั้งต้น " + C.asOfShort);
+    // ราคาอ้างอิงเป็นข้อมูลสำรอง ราคาสดอยู่การ์ดบนแล้ว จึงยุบไว้
+    var vCard = plot(null);
+    vCard.appendChild(fold(null, "ราคาอ้างอิง " + C.asOfShort, null, function (vb) {
       C.varieties.forEach(function (v) {
-      vCard.appendChild(PriceUI.row("grain", v.thai,
-        "ผลผลิตเฉลี่ย " + v.yieldPerRai + " กก./ไร่",
-        PriceUI.baht2(v.price), "บาท/กก."));
-    });
+        vb.appendChild(PriceUI.row("grain", v.thai,
+          "ผลผลิตเฉลี่ย " + v.yieldPerRai + " กก./ไร่",
+          PriceUI.baht2(v.price), "บาท/กก."));
+      });
+    }, false));
     pgrid.appendChild(vCard);
   }
 
@@ -7335,7 +7412,7 @@ async function renderReferencePrices(root) {
   // ไม่เติมตัวเลขลงช่องให้อัตโนมัติโดยตั้งใจ
   // ถ้า AI อ่านผิดแล้วระบบเติมลงช่องเลย ผู้ใช้จะไม่มีทางรู้ว่าผิด
   // แสดงพร้อมแหล่งอ้างอิงให้อ่านเองแล้วกรอกเอง ปลอดภัยกว่า
-  var askCard = plot("ค้นราคาจากเว็บด้วย AI");
+  var askCard = plot(null);
   var askBtn = el("button", "act act-line act-sm", "ค้นราคาข้าวและปุ๋ยล่าสุด");
   var askOut = el("div");
   askCard.appendChild(askBtn);
@@ -7389,110 +7466,6 @@ async function renderReferencePrices(root) {
 //
 // ของหลายอย่างที่ต้องซื้อจริง เช่นเมล็ดพันธุ์ ปูน ยา ไม่มีแหล่งราคากลางที่อัปเดตทัน
 // แทนที่จะเดาให้ เปิดช่องให้จดเองแล้วเก็บไว้เทียบครั้งหน้าและเทียบระหว่างร้าน
-function renderMyPrices(root) {
-  root.appendChild(bund("ราคาที่จดเอง"));
-
-  var myKey = "smartrice-shop:" + (Session.user ? Session.user.username : "guest");
-  var myList = [];
-  try { myList = JSON.parse(localStorage.getItem(myKey) || "[]"); } catch (e) { myList = []; }
-
-  var myCard = plot(null, "เก็บไว้ในเครื่องนี้เท่านั้น");
-  var myHost = el("div");
-  myCard.appendChild(myHost);
-
-  function saveMy() {
-    try { localStorage.setItem(myKey, JSON.stringify(myList)); } catch (e) { /* พื้นที่เต็ม */ }
-  }
-
-  function paintMy() {
-    myHost.innerHTML = "";
-    if (!myList.length) {
-      myHost.appendChild(el("div", "read-foot",
-        "ยังไม่มีรายการ"));
-      return;
-    }
-    myList.forEach(function (item, i) {
-      var row = PriceUI.row(item.kind || "seed", item.name,
-        [item.shop ? "ร้าน " + item.shop : "", item.date || ""].filter(Boolean).join(" · "),
-        PriceUI.baht(item.price), item.unit || "บาท");
-      var del = el("button", "act act-line act-sm", "ลบ");
-      del.style.flex = "none";
-      del.onclick = function () { myList.splice(i, 1); saveMy(); paintMy(); };
-      row.appendChild(del);
-      myHost.appendChild(row);
-    });
-  }
-
-  var addRow = el("div");
-  addRow.style.cssText = "display:flex;gap:11px;align-items:flex-end;flex-wrap:wrap;margin-top:15px";
-
-  function mkField(label, ph, wide) {
-    var f = el("div", "inp");
-    f.style.cssText = "flex:" + (wide ? "2" : "1") + ";min-width:120px";
-    f.appendChild(el("label", "", label));
-    var i = el("input");
-    i.placeholder = ph || "";
-    f.appendChild(i);
-    return { box: f, input: i };
-  }
-
-  var nameF = mkField("ชื่อของ", "เช่น เมล็ดปอเทือง", true);
-  var priceF = mkField("ราคา", "0");
-  priceF.input.className = "num-in";
-  priceF.input.inputMode = "decimal";
-  var unitF = mkField("หน่วย", "บาท/กก.");
-  var shopF = mkField("ร้าน", "ไม่ใส่ก็ได้");
-
-  addRow.appendChild(nameF.box);
-  addRow.appendChild(priceF.box);
-  addRow.appendChild(unitF.box);
-  addRow.appendChild(shopF.box);
-  myCard.appendChild(addRow);
-
-  var addMsg = el("div");
-  myCard.appendChild(addMsg);
-
-  var addBtn = el("button", "act act-go act-wide", "เพิ่มลงรายการ");
-  addBtn.style.marginTop = "13px";
-  addBtn.onclick = function () {
-    addMsg.innerHTML = "";
-    var nm = nameF.input.value.trim();
-    var pr = parseFloat(priceF.input.value);
-
-    if (!nm) {
-      addMsg.appendChild(el("div", "flash flash-warn", "ใส่ชื่อของก่อน"));
-      return;
-    }
-    if (!isFinite(pr) || pr <= 0) {
-      addMsg.appendChild(el("div", "flash flash-warn", "ใส่ราคาเป็นตัวเลขมากกว่า 0"));
-      return;
-    }
-
-    // เดาชนิดไอคอนจากชื่อ เดาผิดก็ไม่เสียหายเพราะเป็นแค่ของประกอบ ไม่ใช่ข้อมูล
-    var kind = "seed";
-    if (/ปุ๋ย|ยูเรีย|\d+-\d+-\d+/.test(nm)) kind = "bag";
-    else if (/ปูน|โดโลไมท|ยิปซัม|มาร์ล/.test(nm)) kind = "lime";
-    else if (/ข้าว|เปลือก/.test(nm)) kind = "grain";
-    else if (/รถ|จ้าง|ค่าแรง|เครื่อง|ไถ|สูบ/.test(nm)) kind = "tool";
-
-    myList.unshift({
-      name: nm, price: pr,
-      unit: unitF.input.value.trim() || "บาท",
-      shop: shopF.input.value.trim(),
-      date: todayStamp(), kind: kind
-    });
-    saveMy();
-    paintMy();
-
-    nameF.input.value = "";
-    priceF.input.value = "";
-    shopF.input.value = "";
-  };
-  myCard.appendChild(addBtn);
-
-  paintMy();
-  root.appendChild(myCard);
-}
 
 
 // ─── แท็บต้นทุน ─────────────────────────
@@ -7996,18 +7969,11 @@ views.cost = async function (root) {
     if (!good) {
       var fix = el("div", "flash flash-bad");
       fix.appendChild(el("div", "verify-ask", "ขาดทุน · 3 ทางออก"));
-      var ul = el("ul");
-      ul.style.cssText = "margin:8px 0 0;padding-left:19px;font-size:.86rem";
-      [
-        "ลดค่าปุ๋ย ใช้ปุ๋ยอินทรีย์และใส่ตามผลตรวจดิน",
-        "เพิ่มผลผลิต เตรียมดินให้ดีขึ้นและตรวจโรคเร็ว",
-        "ชะลอการขาย · สินเชื่อชะลอการขาย ธ.ก.ส."
-      ].forEach(function (x) {
-        var li = el("li", "", x);
-        li.style.marginBottom = "5px";
-        ul.appendChild(li);
-      });
-      fix.appendChild(ul);
+      fix.appendChild(keyPoints([
+        "ลดค่าปุ๋ย · ใช้ปุ๋ยอินทรีย์และใส่ตามผลตรวจดิน",
+        "เพิ่มผลผลิต · เตรียมดินให้ดีขึ้นและตรวจโรคเร็ว",
+        "ชะลอการขาย · สินเชื่อชะลอการขายของ ธ.ก.ส."
+      ]));
       outHost.appendChild(fix);
     }
 
@@ -8065,7 +8031,6 @@ views.cost = async function (root) {
   // ══════════════════════════════════════════════
   // ส่วนที่ 4 · สมุดราคาส่วนตัว
   // ══════════════════════════════════════════════
-  renderMyPrices(root);
 };
 
 views.ledger = async function (root) {
@@ -8415,7 +8380,6 @@ views.weather = async function (root) {
   onPageTimer(paintLive, 60 * 60 * 1000);
 
   // ── สรุปย้อนหลังจาก Open-Meteo ──
-  root.appendChild(bund("ย้อนหลัง 7 วัน"));
   var s = w.summary;
   var stats = el("div", "row-3");
   var cards = [
@@ -8429,9 +8393,13 @@ views.weather = async function (root) {
     p.appendChild(readOut(c[0], c[1], c[2]));
     stats.appendChild(p);
   });
-  root.appendChild(stats);
-
-
+  // สถิติย้อนหลังใช้ดูแนวโน้ม ไม่ใช่ตัวเลขที่ใช้ตัดสินใจวันนี้
+  // ของที่ใช้ตัดสินใจคือฝนวันนี้กับพรุ่งนี้ซึ่งอยู่การ์ดบนสุดไปแล้ว จึงยุบอันนี้ไว้
+  var backCard = plot(null);
+  backCard.appendChild(fold(null, "ย้อนหลัง 7 วัน", null, function (bb) {
+    bb.appendChild(stats);
+  }, false));
+  root.appendChild(backCard);
 
   // ความเสี่ยงรายโรค
   root.appendChild(bund("ความเสี่ยงโรค"));
@@ -8442,7 +8410,10 @@ views.weather = async function (root) {
     return { rule: r, score: score, band: riskBand(score) };
   }).sort(function (a, b) { return b.score - a.score; });
 
-  ranked.forEach(function (r) {
+  var hot = ranked.filter(function (r) { return r.band.key !== "ok"; });
+  var calm = ranked.filter(function (r) { return r.band.key === "ok"; });
+
+  function riskRow(r) {
     var row = el("div");
     row.style.cssText = "padding:14px 0;border-bottom:1px solid var(--rule-soft)";
 
@@ -8478,8 +8449,20 @@ views.weather = async function (root) {
         row.appendChild(tip);
       }
     }
-    riskCard.appendChild(row);
-  });
+    return row;
+  }
+
+  if (hot.length) {
+    hot.forEach(function (r) { riskCard.appendChild(riskRow(r)); });
+  } else {
+    riskCard.appendChild(el("div", "flash flash-ok", "อากาศช่วงนี้ยังไม่เสี่ยงโรคไหน"));
+  }
+
+  if (calm.length) {
+    riskCard.appendChild(fold(null, "อีก " + calm.length + " โรคที่ยังเสี่ยงต่ำ", null, function (cb) {
+      calm.forEach(function (r) { cb.appendChild(riskRow(r)); });
+    }, false));
+  }
 
   riskCard.appendChild(more("คะแนนนี้บอกอะไรได้ บอกอะไรไม่ได้",
     "คะแนนนี้คิดจากฟ้าฝนอย่างเดียว ใช้เตรียมตัวล่วงหน้าได้ แต่ไม่ได้แปลว่าโรคจะระบาดแน่ " +
@@ -9951,4 +9934,3 @@ function startApp() {
 </script>
 </body>
 </html>
-  
