@@ -1537,6 +1537,34 @@
               color: var(--paddy); line-height: 1.45; }
   .kpt-rest { font-size: .84rem; color: var(--ink-soft); line-height: 1.55; margin-top: 3px; }
 
+  /* ── ที่นา: ชื่อ + จำนวนไร่ ── */
+  .plotrow { display: flex; align-items: center; gap: 9px; padding: 10px 0;
+             border-bottom: 1px solid var(--rule-soft); flex-wrap: wrap; }
+  .plotrow:last-of-type { border-bottom: 0; }
+  .plotrow-name { flex: 1 1 84px; min-width: 0; font-size: .95rem; font-weight: 600;
+                  padding: 8px 10px; border: 1px solid var(--rule);
+                  border-radius: var(--r-sm); background: var(--paper); color: var(--ink); }
+  .plotrow .num-in { max-width: 64px; flex: 0 0 64px; }
+  .plotrow .act-sm { padding-left: 11px; padding-right: 11px; }
+  .plotrow.on .plotrow-name { border-color: var(--blade); }
+  .plotrow-del { color: var(--ink-faint); margin-left: auto; }
+  .plotrow-del.danger { color: var(--rust); border-color: var(--rust); }
+
+  /* ── วิธีทำนา: ปุ่มเลือกเรียงแถวเดียว เลื่อนข้างได้บนมือถือ ── */
+  .mchips { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ── อากาศ: สิ่งที่ต้องทำ ── */
+  .wx-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .wx-tag { font-size: .74rem; padding: 3px 9px; border-radius: 999px;
+            background: var(--mist); color: var(--ink-soft); }
+  .wx-adv { padding: 12px 14px; border-radius: var(--r-sm); margin-top: 9px;
+            border-left: 3px solid var(--rule); background: var(--mist); }
+  .wx-adv-head { font-weight: 700; font-size: .95rem; margin-bottom: 4px; }
+  .wx-adv-body { font-size: .87rem; color: var(--ink-soft); line-height: 1.55; }
+  .wx-bad  { border-left-color: var(--rust); }
+  .wx-warn { border-left-color: var(--grain); }
+  .wx-ok   { border-left-color: var(--blade); }
+  .wx-wait { border-left-color: var(--water); }
 </style>
 </head>
 <body>
@@ -1594,16 +1622,16 @@ SmartRice AI
      ถ้า index.html เป็นเวอร์ชันใหม่แต่ care-guide.js ยังเป็นตัวเก่าที่ค้างอยู่
      หน้าคำแนะนำจะพังทันที เพราะโครงสร้างข้อมูลของสองไฟล์ไม่ตรงกัน
      อาการที่เห็นคือหน้าเปล่าหรือขึ้น [object Object] โดยไม่มีอะไรบอกสาเหตุ -->
-<script src="disease-guide.js?v=30"></script>
-<script src="soil-guide.js?v=30"></script>
-<script src="fertilizer-guide.js?v=30"></script>
-<script src="cost-guide.js?v=30"></script>
-<script src="care-guide.js?v=30"></script>
-<script src="planting-guide.js?v=30"></script>
-<script src="pest-guide.js?v=30"></script>
-<script src="variety-guide.js?v=30"></script>
-<script src="media.js?v=30"></script>
-  <script src="pest-page.js?v=30"></script>
+<script src="disease-guide.js?v=31"></script>
+<script src="soil-guide.js?v=31"></script>
+<script src="fertilizer-guide.js?v=31"></script>
+<script src="cost-guide.js?v=31"></script>
+<script src="care-guide.js?v=31"></script>
+<script src="planting-guide.js?v=31"></script>
+<script src="pest-guide.js?v=31"></script>
+<script src="variety-guide.js?v=31"></script>
+<script src="media.js?v=31"></script>
+  <script src="pest-page.js?v=31"></script>
 <script>
 (function () {
 "use strict";
@@ -1682,14 +1710,14 @@ function th(l) {
 // ข้อมูลผู้ใช้กับผู้ดูแลระบบย้ายออกจากเมนูไปอยู่ที่ชื่อผู้ใช้มุมขวาบน
 // เพราะเป็นงานตั้งค่าที่ทำครั้งเดียวจบ ไม่ควรกินที่ในเมนูหลักตลอดเวลา
 var PAGES = [
-  { id: "field", label: "แปลงนา", kicker: "ก่อนปลูก",
-    parts: ["season", "soil", "fert"],
-    jump: ["ฤดูนี้", "ดิน", "ปุ๋ย"],
+  { id: "field", label: "ข้อมูลการเกษตร", kicker: "แปลงนา",
+    parts: ["plots", "season", "method", "weather"],
+    jump: ["ที่นา", "พันธุ์ข้าว", "วิธีทำนา", "อากาศ"],
     icon: "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z" },
 
   { id: "grow", label: "ระหว่างปลูก", kicker: "ดูแลรายวัน",
-    parts: ["overview", "consult", "diagnose", "weather"],
-    jump: ["สรุป", "ระยะข้าว", "โรคและแมลง", "อากาศ"],
+    parts: ["overview", "consult", "diagnose", "soil", "fert"],
+    jump: ["สรุป", "ระยะข้าว", "โรคและแมลง", "ดิน", "ปุ๋ย"],
     icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
 
   { id: "harvest", label: "เก็บเกี่ยว", kicker: "ปิดฤดู",
@@ -3331,6 +3359,32 @@ var Plots = {
     this._save(arr);
   },
 
+  // ── จำนวนไร่ ──
+  //
+  // เก็บไว้เป็นข้อมูลของแปลง ไม่เอาไปคูณกับต้นทุน
+  // ต้นทุนทั้งระบบคิดเป็น "บาทต่อไร่" ตลอด ซึ่งเป็นหน่วยที่ชาวนาใช้คุยกันจริง
+  // และเทียบข้ามแปลงข้ามปีได้ทันทีโดยไม่ต้องหารกลับ
+  // ตัวเลขไร่มีไว้ให้ดูภาพรวมว่าทำอยู่ทั้งหมดกี่ไร่ กับใช้คำนวณเมล็ดพันธุ์ที่ต้องเตรียม
+  setRai: function (id, rai) {
+    var arr = this.list();
+    arr.forEach(function (p) {
+      if (p.id !== id) return;
+      if (rai === null) delete p.rai; else p.rai = rai;
+    });
+    this._save(arr);
+  },
+
+  raiOf: function (id) {
+    var p = this.list().filter(function (x) { return x.id === (id || this.activeId()); }, this)[0];
+    return (p && typeof p.rai === "number" && p.rai > 0) ? p.rai : null;
+  },
+
+  totalRai: function () {
+    return this.list().reduce(function (a, p) {
+      return a + ((typeof p.rai === "number" && p.rai > 0) ? p.rai : 0);
+    }, 0);
+  },
+
   // ลบแปลงพร้อมข้อมูลของแปลงนั้นในเครื่อง
   // บันทึกที่อยู่บนเซิร์ฟเวอร์ไม่ลบ เพราะเป็นประวัติที่ผู้ใช้อาจอยากดูย้อนหลัง
   remove: function (id) {
@@ -3383,14 +3437,6 @@ function plotBar() {
     };
     row.appendChild(b);
   });
-
-  var add = el("button", "plotchip plotchip-add", "+ เพิ่มแปลง");
-  add.onclick = function () {
-    var p = Plots.add();
-    Plots.setActive(p.id);
-    open(here);
-  };
-  row.appendChild(add);
 
   box.appendChild(row);
   return box;
@@ -3545,6 +3591,57 @@ function fieldMethod() {
     var k = plotKey("soil");
     return (JSON.parse(localStorage.getItem(k) || "{}")).method || null;
   } catch (e) { return null; }
+}
+
+// ═══ วิธีทำนา ═══
+//
+// เดิมเป็นแค่ปุ่มเลือกแถวหนึ่งที่ซ่อนอยู่ในหน้าดิน ทั้งที่มันเป็นการตัดสินใจ
+// ที่กำหนดเกือบทุกอย่างของฤดูนั้น — ค่าแรง เมล็ดพันธุ์ที่ต้องซื้อ วิธีคุมหญ้า
+// และความทนน้ำในช่วง 2 สัปดาห์แรก จึงยกขึ้นมาเป็นส่วนของตัวเองในแท็บแรก
+//
+// โครงเดียวกับ HARVEST_WAYS โดยตั้งใจ: เลือกวิธี → ค่ากลางไหลลงช่องต้นทุนเอง
+// ผู้ใช้ไม่ต้องกรอกซ้ำสองที่ และตัวเลขที่ใช้คำนวณกำไรตรงกับวิธีที่เลือกจริง
+//
+// sowCost เป็น "ค่ากลางที่แก้ได้" ไม่ใช่ราคาที่รับประกัน — ค่าแรงต่างกันมากตามพื้นที่
+// ค่าตั้งต้น 150 ของนาหว่านมาจากตาราง COST_GUIDE ที่อ้างสำนักงานเศรษฐกิจการเกษตร
+// ที่เหลือไล่ขึ้นตามแรงงานที่ใช้จริง
+var RICE_METHODS = [
+  { key: "transplant", thai: "นาดำ", sowWord: "วันปักดำ", sowCost: 1200,
+    seed: "80-90 กก./ไร่ ในแปลงกล้า ได้กล้าพอปักดำ 15-20 ไร่",
+    good: "คุมหญ้าง่ายที่สุด ต้นแข็งแรง ล้มยาก",
+    bad:  "ค่าแรงสูงสุด และหาคนดำยากขึ้นทุกปี" },
+  { key: "wet", thai: "นาหว่านน้ำตม", sowWord: "วันหว่าน", sowCost: 150,
+    seed: "7-20 กก./ไร่",
+    good: "เร็วและถูกที่สุด ใช้กันมากที่สุดในนาชลประทาน",
+    bad:  "หญ้าขึ้นแข่งง่าย ต้องปรับพื้นให้เรียบจริงถึงจะคุมน้ำได้" },
+  { key: "dry", thai: "นาหว่านข้าวแห้ง", sowWord: "วันหว่าน", sowCost: 150,
+    seed: "10-15 กก./ไร่",
+    good: "ไม่ต้องรอน้ำ ใช้ในนาน้ำฝนที่ฝนยังไม่มา",
+    bad:  "งอกไม่สม่ำเสมอถ้าฝนทิ้งช่วง และหญ้ามากที่สุดในทุกวิธี" },
+  { key: "throw", thai: "นาโยน", sowWord: "วันโยน", sowCost: 600,
+    seed: "3-5 กก./ไร่ ในถาดหลุม",
+    good: "ใช้เมล็ดน้อยที่สุด ต้นตั้งตัวเร็วกว่าหว่าน",
+    bad:  "ต้องเตรียมกล้าถาดล่วงหน้าราว 15 วัน" },
+  { key: "drill", thai: "นาหยอด", sowWord: "วันหยอด", sowCost: 250,
+    seed: "6-10 กก./ไร่",
+    good: "เมล็ดลงเป็นแถว เข้าไปกำจัดหญ้าและใส่ปุ๋ยตรงแถวได้",
+    bad:  "ต้องมีเครื่องหยอด และดินต้องร่วนพอให้เครื่องเดิน" }
+];
+
+// วิธีที่เลือกไว้ของแปลงนี้ ถ้ายังไม่เคยเลือกใช้นาหว่านน้ำตมซึ่งใช้กันมากที่สุด
+function riceMethodOf() {
+  var k = fieldMethod();
+  return RICE_METHODS.filter(function (m) { return m.key === k; })[0] || RICE_METHODS[1];
+}
+
+// เขียนวิธีทำนาลงที่เดียวกับที่ fieldMethod() อ่าน
+// ห้ามมีที่เก็บที่สอง ไม่งั้นหน้าที่อ่านคนละที่จะแสดงวิธีคนละอย่างในเวลาเดียวกัน
+function setFieldMethod(k) {
+  var key = plotKey("soil");
+  var st = {};
+  try { st = JSON.parse(localStorage.getItem(key) || "{}"); } catch (e) { st = {}; }
+  st.method = k;
+  try { localStorage.setItem(key, JSON.stringify(st)); } catch (e) { /* พื้นที่เต็ม */ }
 }
 
 // แปลงวันเป็นข้อความไทย ใช้ตอนที่ยังไม่มีปฏิทินเต็มให้เรียก
@@ -3889,7 +3986,9 @@ function stateBlock(mark, lead, note) {
 // บอกแค่ว่าตัวเลขในหน้านี้อ้างจากที่ไหน บรรทัดเดียว ไม่มีคำอธิบายวิธีใช้
 var PAGE_CITE = {
   overview: ["บันทึกของคุณเอง", "Open-Meteo"],
+  plots:    [],
   season:   ["กรมการข้าว"],
+  method:   ["กรมการข้าว", "สำนักงานเศรษฐกิจการเกษตร"],
   soil:     ["กรมพัฒนาที่ดิน", "กรมการข้าว"],
   cycle:    ["กรมการข้าว", "กรมพัฒนาที่ดิน"],
   fert:     ["กรมการข้าว", "กรมพัฒนาที่ดิน", "สำนักงานเศรษฐกิจการเกษตร"],
@@ -5474,10 +5573,182 @@ views.cycle = function (root) {
 // แต่สองค่านี้ตัดทิ้งไม่ได้ เพราะปฏิทินปุ๋ย ระยะข้าว และวันเก็บเกี่ยวทั้งเว็บคำนวณจากมัน
 //
 // เหลือแค่สองช่องกับปุ่มเดียว ไม่มีคำอธิบาย เป็นแบบฟอร์มที่ทุกคนเคยเห็นมาก่อน
+// ═══════════════════════════════════════════════════
+// ที่นา — ชื่อแปลงกับจำนวนไร่ เพิ่มได้ไม่จำกัด
+// ═══════════════════════════════════════════════════
+//
+// แถบสลับแปลงด้านบนยังทำหน้าที่เดิมคือ "สลับ" ส่วนหน้านี้คือที่ "จัดการ"
+// แยกกันเพราะสองอย่างนี้ทำคนละจังหวะ: สลับทุกวัน จัดการปีละไม่กี่ครั้ง
+// ถ้ายัดปุ่มลบไว้ในแถบสลับ วันหนึ่งจะมีคนกดพลาดแล้วข้อมูลทั้งแปลงหาย
+
+views.plots = function (root) {
+  root.appendChild(bund("ที่นา"));
+
+  var card = plot(null);
+  var listHost = el("div");
+  card.appendChild(listHost);
+
+  function paint() {
+    listHost.innerHTML = "";
+    var arr = Plots.list();
+    var activeId = Plots.activeId();
+
+    arr.forEach(function (p) {
+      var row = el("div", "plotrow" + (p.id === activeId ? " on" : ""));
+
+      var nameIn = el("input", "plotrow-name");
+      nameIn.value = p.name;
+      nameIn.setAttribute("aria-label", "ชื่อที่นา");
+      nameIn.onchange = function () {
+        var v = nameIn.value.trim();
+        if (v) { Plots.rename(p.id, v); paintTotal(); }
+        else nameIn.value = p.name;
+      };
+      row.appendChild(nameIn);
+
+      var raiIn = el("input", "num-in");
+      raiIn.inputMode = "decimal";
+      raiIn.placeholder = "–";
+      raiIn.setAttribute("aria-label", "จำนวนไร่ของ " + p.name);
+      var r = Plots.raiOf(p.id);
+      if (r !== null) raiIn.value = String(r);
+      raiIn.oninput = function () {
+        var raw = raiIn.value.trim();
+        var v = parseFloat(raw);
+        Plots.setRai(p.id, (raw === "" || isNaN(v) || v <= 0) ? null : v);
+        paintTotal();
+      };
+      row.appendChild(raiIn);
+      row.appendChild(el("span", "cfield-unit", "ไร่"));
+
+      // เปิดแปลงนี้ = ทุกแท็บสลับไปดูข้อมูลของแปลงนี้
+      var use = el("button", "act act-sm " + (p.id === activeId ? "act-go" : "act-line"),
+                   p.id === activeId ? "ดูอยู่" : "เปิด");
+      use.disabled = (p.id === activeId);
+      use.onclick = function () { Plots.setActive(p.id); open(here); };
+      row.appendChild(use);
+
+      // ลบได้เฉพาะตอนมีมากกว่าหนึ่งแปลง ระบบต้องมีอย่างน้อยหนึ่งแปลงเสมอ
+      // ไม่งั้นทุกหน้าต้องเขียนกรณีพิเศษว่าจะแสดงอะไรตอนไม่มีแปลงเลย
+      if (arr.length > 1) {
+        var del = el("button", "act act-line act-sm plotrow-del", "ลบ");
+        del.onclick = function () {
+          del.textContent = "กดอีกครั้ง";
+          del.classList.add("danger");
+          del.onclick = function () { Plots.remove(p.id); open(here); };
+        };
+        row.appendChild(del);
+      }
+
+      listHost.appendChild(row);
+    });
+
+    var add = el("button", "act act-line act-sm", "+ เพิ่มที่นา");
+    add.style.marginTop = "10px";
+    add.onclick = function () {
+      var p = Plots.add();
+      Plots.setActive(p.id);
+      open(here);
+    };
+    listHost.appendChild(add);
+  }
+
+  var totalBox = el("div");
+  card.appendChild(totalBox);
+
+  function paintTotal() {
+    totalBox.innerHTML = "";
+    var n = Plots.list().length;
+    var rai = Plots.totalRai();
+    totalBox.appendChild(readOut("ทำนาทั้งหมด",
+      rai > 0 ? trimNum(rai) + " ไร่" : n + " ที่นา",
+      rai > 0 ? "จาก " + n + " ที่นา" : "ใส่จำนวนไร่แล้วจะรวมยอดให้"));
+  }
+
+  paint();
+  paintTotal();
+  root.appendChild(card);
+
+  // ตัวเลขไร่ไม่ได้เอาไปคูณต้นทุน ต้องบอกให้ชัด ไม่งั้นผู้ใช้จะรอดูยอดรวมที่ไม่มีวันมา
+  card.appendChild(more("จำนวนไร่เอาไปใช้ทำอะไร",
+    "ใช้บอกภาพรวมว่าทำนาอยู่ทั้งหมดกี่ไร่ และคำนวณว่าต้องเตรียมเมล็ดพันธุ์กี่กิโลในส่วนวิธีทำนา " +
+    "ส่วนต้นทุนทุกช่องในเว็บนี้คิดเป็นบาทต่อไร่ตลอด ไม่คูณกลับเป็นยอดทั้งแปลง " +
+    "เพราะบาทต่อไร่คือหน่วยที่เทียบข้ามแปลงและข้ามปีได้ทันทีโดยไม่ต้องหาร"));
+};
+
+// ตัดศูนย์ท้ายทศนิยมทิ้ง 12.0 -> 12 แต่ 12.5 ยังเป็น 12.5
+function trimNum(n) {
+  return (Math.round(n * 100) / 100).toString();
+}
+
+// ═══════════════════════════════════════════════════
+// วิธีทำนา
+// ═══════════════════════════════════════════════════
+//
+// เลือกวิธี → ค่าจ้างต่อไร่ไหลลงช่องต้นทุนเอง และคำว่า "วันหว่าน" ในส่วนพันธุ์ข้าว
+// เปลี่ยนตามเป็น "วันปักดำ" หรือ "วันโยน" ให้ตรงกับสิ่งที่ผู้ใช้ทำจริง
+
+views.method = function (root) {
+  root.appendChild(bund("วิธีทำนา"));
+
+  var card = plot(null);
+  var chips = el("div", "mchips");
+  card.appendChild(chips);
+
+  var detail = el("div");
+  card.appendChild(detail);
+
+  var costHost = el("div");
+
+  function paint() {
+    var cur = riceMethodOf();
+
+    chips.innerHTML = "";
+    RICE_METHODS.forEach(function (m) {
+      var on = (m.key === cur.key);
+      var b = el("button", "act act-sm " + (on ? "act-go" : "act-line"), m.thai);
+      b.onclick = function () {
+        setFieldMethod(m.key);
+        paint();
+        // ช่องต้นทุนต้องวาดใหม่ ค่ากลางของมันเพิ่งเปลี่ยนไปตามวิธีที่กด
+        costHost.innerHTML = "";
+        costHost.appendChild(costFields(["sow"], "ค่าจ้างหว่านหรือปักดำ"));
+      };
+      chips.appendChild(b);
+    });
+
+    detail.innerHTML = "";
+    var g = el("div", "row-2");
+    g.style.marginTop = "14px";
+    g.appendChild(readOut("ข้อดี", cur.good, null, true));
+    g.appendChild(readOut("ข้อควรระวัง", cur.bad, null, true));
+    detail.appendChild(g);
+
+    // เมล็ดพันธุ์ที่ต้องเตรียม = อัตราต่อไร่ x ไร่ที่กรอกไว้
+    // นี่คือประโยชน์จริงข้อแรกของการกรอกจำนวนไร่
+    var rai = Plots.raiOf(Plots.activeId());
+    var seedFoot = null;
+    if (rai !== null) {
+      var m = /(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/.exec(cur.seed);
+      if (m) {
+        seedFoot = "แปลงนี้ " + trimNum(rai) + " ไร่ ต้องเตรียมราว " +
+                   trimNum(parseFloat(m[1]) * rai) + "-" + trimNum(parseFloat(m[2]) * rai) + " กก.";
+      }
+    }
+    detail.appendChild(readOut("อัตราเมล็ดพันธุ์", cur.seed, seedFoot));
+  }
+
+  paint();
+  root.appendChild(card);
+
+  costHost.appendChild(costFields(["sow"], "ค่าจ้างหว่านหรือปักดำ"));
+  root.appendChild(costHost);
+};
+
 views.season = function (root) {
   if (!window.VARIETY_GUIDE) return;
 
-  root.appendChild(bund("ฤดูนี้"));
+  root.appendChild(bund("พันธุ์ข้าว"));
   var card = plot(null);
 
   var row = el("div");
@@ -5520,7 +5791,8 @@ views.season = function (root) {
 
   // ── วันหว่าน ──
   var dBox = el("div");
-  dBox.appendChild(el("div", "read-foot", "วันหว่าน"));
+  // คนทำนาดำไม่ได้ "หว่าน" คำที่ไม่ตรงกับสิ่งที่เขาทำจริงทำให้ลังเลว่าจะกรอกวันไหน
+  dBox.appendChild(el("div", "read-foot", riceMethodOf().sowWord));
   var dIn = el("input");
   dIn.type = "date";
   dIn.style.cssText = "padding:9px 12px;border:1px solid var(--rule);border-radius:var(--r-sm)";
@@ -5603,12 +5875,23 @@ views.soil = async function (root) {
   var saved = {};
   try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { saved = {}; }
   var pick = {
-    method: G.methods[saved.method] ? saved.method : "wet",
-    soil:   G.soils[saved.soil]     ? saved.soil   : "clay"
+    soil: G.soils[saved.soil] ? saved.soil : "clay"
   };
+  // เขียนเฉพาะชนิดดิน คงค่าอื่นในคีย์เดียวกันไว้ (โดยเฉพาะ method ที่หน้านี้ไม่ได้เป็นเจ้าของ)
   function remember() {
-    try { localStorage.setItem(KEY, JSON.stringify(pick)); } catch (e) { /* พื้นที่เต็ม */ }
+    var st = {};
+    try { st = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { st = {}; }
+    st.soil = pick.soil;
+    try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* พื้นที่เต็ม */ }
   }
+
+  // วิธีทำนาที่เลือกไว้ที่แท็บแรก ใช้เลือกชุดขั้นตอนเตรียมดินที่จะแสดง
+  // ฐานความรู้ยังไม่มีชุดของนาหยอด จึงยืมของนาหว่านข้าวแห้งซึ่งใกล้เคียงที่สุด
+  // (หยอดเป็นแถวบนดินแห้งเหมือนกัน ต่างกันที่เครื่องมือ) และบอกผู้ใช้ตรงๆ ว่ายืมมา
+  var METHOD_STEPS = { drill: "dry" };
+  var mKey = fieldMethod() || "wet";
+  var stepKey = G.methods[mKey] ? mKey : (METHOD_STEPS[mKey] || "wet");
+  var borrowed = (stepKey !== mKey);
 
   // ══════════════════════════════════════════════
   // ส่วนที่ 1 · ช่องกรอกทั้งหมดรวมอยู่บนสุดการ์ดเดียว
@@ -5638,10 +5921,6 @@ views.soil = async function (root) {
     box.appendChild(row);
     return box;
   }
-
-  form.appendChild(pickerBox("วิธีทำนา", G.methods,
-    function () { return pick.method; },
-    function (k) { pick.method = k; remember(); paintResults(); }));
 
   var soilBox = pickerBox("ชนิดดินในแปลง", G.soils,
     function () { return pick.soil; },
@@ -5831,7 +6110,7 @@ views.soil = async function (root) {
   function paintResults() {
     resultHost.innerHTML = "";
     var cur = activePh();
-    var m = G.methods[pick.method], sl = G.soils[pick.soil];
+    var m = G.methods[stepKey], sl = G.soils[pick.soil];
 
     // ── สภาพดินจากค่า pH ──
     resultHost.appendChild(bund("ผลตรวจดิน"));
@@ -5971,12 +6250,16 @@ views.soil = async function (root) {
     }
 
     // ── ขั้นตอนเตรียมดินตามวิธีที่เลือก ──
-    resultHost.appendChild(bund("ขั้นตอนเตรียมดิน · " + m.thai));
+    resultHost.appendChild(bund("ขั้นตอนเตรียมดิน · " + riceMethodOf().thai));
     var stepBox = plot(null);
+    if (borrowed) {
+      stepBox.appendChild(el("div", "flash flash-warn",
+        "ยังไม่มีขั้นตอนเฉพาะของ" + riceMethodOf().thai + " แสดงของ" + m.thai + "ซึ่งใกล้เคียงที่สุดแทน"));
+    }
     stepBox.appendChild(more("วิธีนี้ต่างจากวิธีอื่นยังไง", m.note));
     m.steps.forEach(function (st, i) {
       // คีย์รูปผูกกับวิธีทำนาด้วย เพราะขั้นตอนของนาหว่านน้ำตมกับนาหว่านแห้งคนละภาพกัน
-      var picKey = "prep-" + pick.method + "-" + (i + 1);
+      var picKey = "prep-" + stepKey + "-" + (i + 1);
       stepBox.appendChild(fold(i + 1, st.title, st.when, function (body) {
         mediaInto(body, picKey);
         body.appendChild(el("p", "", st.detail));
@@ -5987,11 +6270,13 @@ views.soil = async function (root) {
 
     // ค่าใช้จ่ายของช่วงเตรียมดิน กรอกตอนที่เพิ่งจ่ายเสร็จ ซึ่งเป็นตอนที่ยังจำเลขได้แม่น
     resultHost.appendChild(bund("ค่าใช้จ่าย"));
-    resultHost.appendChild(costFields(["till", "puddle", "seed", "sow"],
+    // ค่าจ้างหว่าน/ปักดำ ไม่อยู่ตรงนี้แล้ว ย้ายไปอยู่กับส่วนวิธีทำนาที่แท็บแรก
+    // เพราะค่ากลางของมันเปลี่ยนตามวิธีที่เลือก ต้องอยู่ติดกับปุ่มที่เปลี่ยนมัน
+    resultHost.appendChild(costFields(["till", "puddle", "seed"],
       "กรอกที่จ่ายจริง · ยอดไปรวมที่แท็บเก็บเกี่ยว"));
 
     // ── การเตรียมต้นกล้า เฉพาะนาดำ ──
-    if (G.nursery && G.nursery.forMethod === pick.method) {
+    if (G.nursery && G.nursery.forMethod === mKey) {
       var N = G.nursery;
       resultHost.appendChild(bund(N.title));
       var nBox = plot(null);
@@ -7521,6 +7806,12 @@ function harvestPerRai(st) {
   return harvestWayOf(st).perRai;
 }
 
+// ค่าจ้างหว่านหรือปักดำต่อไร่ที่ใช้จริง คู่กับ harvestPerRai
+function sowPerRai() {
+  var v = CostStore.typed("sow");
+  return v !== null ? v : riceMethodOf().sowCost;
+}
+
 // ═══════════════════════════════════════════════════
 // ต้นทุน: กรอกตรงที่จ่าย รวมยอดที่แท็บสุดท้าย
 // ═══════════════════════════════════════════════════
@@ -7541,13 +7832,13 @@ function harvestPerRai(st) {
 
 // รายการต้นทุนอยู่แท็บไหน — ใช้ทั้งตอนวางช่องกรอกและตอนบอกว่า "แก้ได้ที่ไหน"
 var COST_HOME = {
-  till:    { page: "field",   where: "แปลงนา · เตรียมดิน" },
-  puddle:  { page: "field",   where: "แปลงนา · เตรียมดิน" },
-  seed:    { page: "field",   where: "แปลงนา · เตรียมดิน" },
-  sow:     { page: "field",   where: "แปลงนา · เตรียมดิน" },
-  fert:    { page: "field",   where: "แปลงนา · ปุ๋ย" },
+  till:    { page: "grow",    where: "ระหว่างปลูก · ดิน" },
+  puddle:  { page: "grow",    where: "ระหว่างปลูก · ดิน" },
+  seed:    { page: "grow",    where: "ระหว่างปลูก · ดิน" },
+  sow:     { page: "field",   where: "ข้อมูลการเกษตร · วิธีทำนา" },
+  fert:    { page: "grow",    where: "ระหว่างปลูก · ปุ๋ย" },
   pest:    { page: "grow",    where: "ระหว่างปลูก · โรคและแมลง" },
-  water:   { page: "grow",    where: "ระหว่างปลูก · อากาศ" },
+  water:   { page: "field",   where: "ข้อมูลการเกษตร · อากาศ" },
   harvest: { page: "harvest", where: "เก็บเกี่ยว · วิธีเกี่ยว" },
   haul:    { page: "harvest", where: "เก็บเกี่ยว · วิธีเกี่ยว" }
 };
@@ -7581,10 +7872,7 @@ var CostStore = {
   // ค่าที่ใช้คำนวณจริง — ของผู้ใช้ก่อน ถ้าไม่มีใช้ค่ากลางจากฐานข้อมูล
   effective: function (key) {
     var typed = this.typed(key);
-    if (typed !== null) return typed;
-    if (key === "harvest") return harvestWayOf(this.read()).perRai;
-    var it = costItemOf(key);
-    return it ? it.perRai : 0;
+    return typed !== null ? typed : costDefault(key);
   },
 
   total: function () {
@@ -7594,6 +7882,19 @@ var CostStore = {
     return C.costItems.reduce(function (a, it) { return a + self.effective(it.key); }, 0);
   }
 };
+
+// ค่ากลางของรายการหนึ่งเมื่อผู้ใช้ยังไม่กรอก — จุดเดียวในระบบที่ตอบคำถามนี้
+//
+// สองรายการที่ค่าตั้งต้นไม่คงที่:
+//   harvest ขึ้นกับว่าจ้างรถเกี่ยวหรือจ้างคน
+//   sow     ขึ้นกับวิธีทำนา (นาดำแพงกว่านาหว่านเกือบสิบเท่า)
+// ทั้งช่องกรอกและตัวคำนวณกำไรต้องเรียกฟังก์ชันนี้เท่านั้น
+function costDefault(key) {
+  if (key === "harvest") return harvestWayOf(CostStore.read()).perRai;
+  if (key === "sow") return riceMethodOf().sowCost;
+  var it = costItemOf(key);
+  return it ? it.perRai : 0;
+}
 
 function costItemOf(key) {
   var C = window.COST_GUIDE;
@@ -7634,13 +7935,13 @@ function costFields(keys, title) {
     // ถ้าใส่เป็น value ผู้ใช้จะเห็นเลขเต็มช่องแล้วเข้าใจว่า "กรอกแล้ว"
     // ทั้งที่เป็นค่ากลางของประเทศ ไม่ใช่ของแปลงเขา แล้วก็ปล่อยผ่านไปทั้งฤดู
     // placeholder บอกว่าถ้าไม่กรอกจะใช้เลขนี้ โดยยังเห็นชัดว่าช่องยังว่างอยู่
-    inp.placeholder = String(it.perRai);
+    inp.placeholder = String(costDefault(key));
     var typed = CostStore.typed(key);
     if (typed !== null) inp.value = String(typed);
 
     function paintHint() {
       var t = CostStore.typed(key);
-      hint.textContent = (t === null) ? "ค่ากลาง " + it.perRai : "ของคุณ";
+      hint.textContent = (t === null) ? "ค่ากลาง " + costDefault(key) : "ของคุณ";
       hint.className = "cfield-hint" + (t === null ? "" : " on");
     }
     paintHint();
@@ -8214,6 +8515,102 @@ function openLens(src, log) {
 }
 
 
+// ═══ อ่านอากาศให้เข้ากับแปลงนี้ ═══
+//
+// ตัวเลขฝนกับแดดอย่างเดียวไม่บอกว่าต้องทำอะไร ฝน 40 มม. เป็นเรื่องดีกับข้าวระยะแตกกอ
+// แต่เป็นเรื่องร้ายกับนาหว่านที่เพิ่งหว่านไป 3 วัน และร้ายกว่านั้นกับแปลงที่รอรถเกี่ยวอยู่
+//
+// ส่วนนี้จึงเอาสามอย่างที่ผู้ใช้กรอกไว้ในแท็บเดียวกัน — พันธุ์ · วันเริ่ม · วิธีทำนา —
+// มาคูณกับพยากรณ์ แล้วบอกเป็นสิ่งที่ต้องทำ ไม่ใช่ตัวเลขให้ตีความเอง
+//
+// คืนอาร์เรย์ที่เรียงตามความเร่งด่วน ไม่เกิน 3 ข้อโดยตั้งใจ
+// รายการยาวเท่ากับไม่มีรายการ เพราะไม่มีใครอ่านข้อที่ 7
+function weatherAdvice(w) {
+  var out = [];
+  var s = w.summary || {};
+  var d = w.days || [];
+  var today = d[w.todayIndex] || {};
+  var tmr = d[w.todayIndex + 1] || {};
+  var rainSoon = Math.max(today.rain || 0, tmr.rain || 0);
+  var rain7 = s.rain7 || 0;
+  var sun = s.sunHours;
+
+  var cal = fieldCalendar();
+  var m = riceMethodOf();
+  var direct = (m.key === "wet" || m.key === "dry" || m.key === "drill");
+
+  if (!cal) {
+    return [{ level: "wait", head: "ยังวิเคราะห์ให้ไม่ได้",
+              body: "กรอกพันธุ์ข้าวกับ" + m.sowWord + "ในส่วนพันธุ์ข้าวด้านบนก่อน " +
+                    "แล้วส่วนนี้จะบอกได้ว่าฝนที่กำลังจะมามีผลกับข้าวของคุณยังไง" }];
+  }
+
+  var st = (typeof window.stageWindows === "function") ? window.stageWindows(cal, m.key) : null;
+  var age = st ? st.age : null;
+  var stage = st ? st.current : null;
+  var dayTo = function (dt) { return Math.round((dt - new Date()) / 86400000); };
+
+  // 1. เมล็ดยังไม่ยึดดิน — ช่วงที่ฝนหนักทำลายทั้งแปลงได้ในคืนเดียว
+  if (direct && age !== null && age >= 0 && age <= 10 && rainSoon >= 35) {
+    out.push({ level: "bad", head: "ฝนหนักช่วงเมล็ดยังไม่ยึดดิน",
+      body: m.thai + " อายุ " + age + " วัน ฝนถึง " + rainSoon.toFixed(0) +
+            " มม. เมล็ดจะลอยและถูกน้ำพัดรวมมุม ระบายน้ำออกให้เหลือแค่ผิวดินชุ่มก่อนฝนมา" });
+  }
+  if (!direct && age !== null && age >= 0 && age <= 10 && rainSoon >= 60) {
+    out.push({ level: "warn", head: "ฝนหนักช่วงกล้าตั้งตัว",
+      body: m.thai + "ทนกว่านาหว่านเพราะกล้าโตมาแล้ว แต่ถ้าน้ำท่วมยอดเกิน 2 วันกล้าจะตาย คุมระดับน้ำไว้" });
+  }
+
+  // 2. ใกล้วันใส่ปุ๋ยครั้งที่ 2 แล้วฝนกำลังจะมา — ปุ๋ยไหลทิ้งคือเงินที่หายไปตรงๆ
+  var toFert2 = dayTo(cal.fert2);
+  if (toFert2 >= -3 && toFert2 <= 7 && rainSoon >= 35) {
+    out.push({ level: "warn", head: "เลื่อนใส่ปุ๋ยครั้งที่ 2 ไปก่อน",
+      body: "ถึงกำหนดใน " + (toFert2 <= 0 ? "วันนี้" : toFert2 + " วัน") +
+            " แต่ฝน " + rainSoon.toFixed(0) + " มม. กำลังมา ใส่ตอนนี้ปุ๋ยไหลออกไปกับน้ำ รอฟ้าเปิดแล้วค่อยใส่" });
+  }
+
+  // 3. ตั้งท้องถึงออกดอก คือช่วงที่ขาดน้ำแล้วผลผลิตหายมากที่สุด
+  if ((stage === "booting") && rain7 <= 5) {
+    out.push({ level: "warn", head: "ฝนทิ้งช่วงตอนข้าวตั้งท้อง",
+      body: "7 วันได้ฝนแค่ " + rain7 + " มม. ระยะนี้ขาดน้ำแล้วเมล็ดลีบ สูบน้ำเข้าให้ขังราว 5 ซม." });
+  }
+
+  // 4. ออกดอกเจอฝน — ทางเข้าของเมล็ดด่างและช่อรวงไหม้
+  var toBloom = dayTo(cal.bloom);
+  if (toBloom >= -10 && toBloom <= 10 && rainSoon >= 35) {
+    out.push({ level: "warn", head: "ฝนตกช่วงข้าวออกดอก",
+      body: "ช่วงนี้ฝนกับความชื้นทำให้เกิดเมล็ดด่างและช่อรวงไหม้ ซึ่งถูกหักราคาที่โรงสีโดยตรง สำรวจรวงหลังฝนหยุด" });
+  }
+
+  // 5. ใกล้เกี่ยว — รถเกี่ยวเข้าแปลงแฉะไม่ได้ ต้องเริ่มระบายน้ำก่อนล่วงหน้า
+  var toHarvest = dayTo(cal.harvest);
+  var way = harvestWayOf(CostStore.read());
+  if (toHarvest >= 0 && toHarvest <= 20) {
+    if (way.key === "combine" && (rain7 >= 20 || rainSoon >= 10)) {
+      out.push({ level: "bad", head: "รถเกี่ยวเข้าแปลงแฉะไม่ได้",
+        body: "เหลืออีก " + toHarvest + " วัน และยังมีฝน รถเกี่ยวนวดต้องการแปลงแห้ง " +
+              "ระบายน้ำออกตั้งแต่ตอนนี้ ปกติต้องใช้เวลา 7-10 วัน" });
+    } else if (toHarvest <= 10 && rainSoon >= 35) {
+      out.push({ level: "warn", head: "ฝนหนักช่วงใกล้เกี่ยว",
+        body: "ข้าวสุกเจอฝนแล้วล้มและงอกคารวง เหลืออีก " + toHarvest + " วัน เตรียมจุดตากไว้ล่วงหน้า" });
+    }
+  }
+
+  // 6. ชื้นจัดแดดน้อยต่อเนื่อง = เงื่อนไขของเชื้อรา ใช้ได้กับทุกระยะที่มีใบ
+  if (out.length < 3 && stage && rain7 >= 40 && sun != null && sun <= 4) {
+    out.push({ level: "warn", head: "อากาศเข้าทางเชื้อรา",
+      body: "ฝนสะสม " + rain7 + " มม. แดดแค่ " + sun + " ชม./วัน ใบแห้งไม่ทัน " +
+            "งดปุ๋ยตัวเร่งใบเขียวไว้ก่อน แล้วเดินดูโคนกอกับกาบใบ" });
+  }
+
+  if (!out.length) {
+    out.push({ level: "ok", head: "อากาศช่วงนี้ยังไม่มีอะไรต้องรีบ",
+      body: (stage ? "ข้าวอายุ " + age + " วัน " : "") + "ฝน 7 วัน " + rain7 +
+            " มม. ยังอยู่ในเกณฑ์ที่จัดการได้ตามปกติ" });
+  }
+  return out.slice(0, 3);
+}
+
 views.weather = async function (root) {
   root.appendChild(pageHead("weather"));
   root.appendChild(bund("สภาพอากาศ"));
@@ -8263,6 +8660,32 @@ views.weather = async function (root) {
   }
 
   host.innerHTML = "";
+
+  // ── สิ่งที่ต้องทำ มาก่อนตัวเลข ──
+  //
+  // ของเดิมขึ้นตัวเลขฝนกับแดดก่อน แล้วปล่อยให้ผู้ใช้แปลเอง
+  // ซึ่งเป็นงานที่ต้องรู้ทั้งระยะข้าวและวิธีทำนาถึงจะแปลถูก — เรารู้ทั้งสองอย่างอยู่แล้ว
+  (function () {
+    var card = plot(null);
+    var m = riceMethodOf();
+    var st2 = fieldCalendar() && typeof window.stageWindows === "function"
+      ? window.stageWindows(fieldCalendar(), m.key) : null;
+
+    var tags = el("div", "wx-tags");
+    tags.appendChild(el("span", "wx-tag", m.thai));
+    if (st2 && st2.age >= 0) tags.appendChild(el("span", "wx-tag", "อายุ " + st2.age + " วัน"));
+    var rai = Plots.raiOf(Plots.activeId());
+    if (rai !== null) tags.appendChild(el("span", "wx-tag", trimNum(rai) + " ไร่"));
+    card.appendChild(tags);
+
+    weatherAdvice(w).forEach(function (a) {
+      var box = el("div", "wx-adv wx-" + a.level);
+      box.appendChild(el("div", "wx-adv-head", a.head));
+      box.appendChild(el("div", "wx-adv-body", a.body));
+      card.appendChild(box);
+    });
+    host.appendChild(card);
+  })();
 
   // ── ฝนและแสงแดด วันนี้กับพรุ่งนี้ ──
   // สองค่านี้คือสิ่งที่เกษตรกรใช้ตัดสินใจจริงในแต่ละวัน
