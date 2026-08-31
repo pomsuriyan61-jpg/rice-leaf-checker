@@ -328,7 +328,9 @@ window.buildPestPage = function (root, ui) {
       }
       table.appendChild(row);
     });
-    tri.appendChild(table);
+    tri.appendChild(fold(null, "เห็นอาการแบบไหน กดดูตาราง " + P.triage.length + " แบบ", null, function (tb) {
+      tb.appendChild(table);
+    }, false));
 
     tri.appendChild(el("div", "flash flash-bad", "AI ดูออกแค่โรค ไม่รู้จักแมลง"));
     root.appendChild(tri);
@@ -590,14 +592,15 @@ window.buildPestPage = function (root, ui) {
 
     const list = el("div");
     list.hidden = true;
-    const ul = el("ul");
-    ul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
-    P.principles.forEach((x) => {
-      const li = el("li", "", x);
-      li.style.marginBottom = "7px";
-      ul.appendChild(li);
-    });
-    list.appendChild(ul);
+    // ใช้ตัวจัดรายการแบบกวาดตาอ่านของหน้าหลัก ถ้าเวอร์ชันไฟล์ไม่ตรงกันค่อยถอยไปใช้ bullet เดิม
+    if (typeof ui.keyPoints === "function") {
+      list.appendChild(ui.keyPoints(P.principles));
+    } else {
+      const ul = el("ul");
+      ul.style.cssText = "margin:0;padding-left:19px;font-size:.88rem";
+      P.principles.forEach((x) => { ul.appendChild(el("li", "", x)); });
+      list.appendChild(ul);
+    }
 
     list.appendChild(more("ที่มาและข้อจำกัดของข้อมูลนี้",
       "ข้อมูลการทำลาย วิธีจัดการ เกณฑ์ตัดสินใจ และสารเคมี อ้างอิงเอกสารความรู้ " +
