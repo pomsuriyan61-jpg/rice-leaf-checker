@@ -1733,9 +1733,11 @@ var PAGES = [
     jump: ["ชนิดดิน", "ค่า pH", "เตรียมแปลง", "ต้นทุน"],
     icon: "M3 17h18M5 17l2-6h10l2 6M9 11V6h6v5M12 3v3" },
 
+  // แท็บ 3 · ระหว่างปลูก — งานที่ทำซ้ำได้ทั้งฤดูตั้งแต่ข้าวลงแปลงจนก่อนเกี่ยว
+  // สามส่วน: ดินขยับไปทางไหนแล้ว / ใบผิดปกติคือโรคอะไร / ต้องใส่ปุ๋ยอะไรตอนไหน
   { id: "grow", label: "ระหว่างปลูก", short: "ระหว่างปลูก", kicker: "ดูแลรายวัน",
-    parts: ["overview", "consult", "diagnose", "fert"],
-    jump: ["สรุป", "ระยะข้าว", "โรคและแมลง", "ปุ๋ย"],
+    parts: ["phgrow", "diagnose", "fert"],
+    jump: ["ค่า pH", "โรคจากภาพ", "ปุ๋ย"],
     icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
 
   { id: "harvest", label: "เก็บเกี่ยว", kicker: "ปิดฤดู",
@@ -4012,6 +4014,7 @@ var PAGE_CITE = {
   phlog:    ["กรมพัฒนาที่ดิน"],
   prepguide:["กรมพัฒนาที่ดิน", "กรมการข้าว"],
   prepcost: ["สำนักงานเศรษฐกิจการเกษตร"],
+  phgrow:   ["กรมพัฒนาที่ดิน", "กรมการข้าว"],
   cycle:    ["กรมการข้าว", "กรมพัฒนาที่ดิน"],
   fert:     ["กรมการข้าว", "กรมพัฒนาที่ดิน", "สำนักงานเศรษฐกิจการเกษตร"],
   diagnose: ["กรมการข้าว"],
@@ -4570,6 +4573,11 @@ function buildVerifyPanel(saved, res) {
 // ─── หน้าต่างๆ ─────────────────────────────────
 var views = {};
 
+// ── ไม่อยู่ในเมนูแล้ว (แก้ 2026-08) ──
+//
+// ถูกถอดออกจากแท็บระหว่างปลูก ซึ่งตอนนี้เหลือสามส่วนคือ ค่า pH · โรคจากภาพ · ปุ๋ย
+// โค้ดยังอยู่ครบและใช้ได้ทันที ถ้าจะเอากลับให้เติมชื่อส่วนลงใน parts ของแท็บใน PAGES
+// พร้อมเติมชื่อย่อใน jump ให้ตรงตำแหน่งกัน เท่านี้ก็กลับมาแสดงเหมือนเดิม
 views.overview = async function (root) {
   root.appendChild(pageHead("overview"));
   var logs = plotLogs(await Store.list());
@@ -5968,26 +5976,50 @@ var PhLog = {
   remove: function (id) {
     this.write(this.read().filter(function (r) { return r.id !== id; }));
   },
-  // เลขจุดถัดไปที่ควรเสนอให้ตอนเพิ่มค่าใหม่
+  // ── ป้ายระยะของแต่ละรายการ ──
+  //
+  // สมุดเล่มเดียวกันทั้งฤดู แต่ติดป้ายว่าค่านั้นวัดตอนเตรียมดินหรือตอนข้าวขึ้นแล้ว
+  // เพราะสองช่วงนี้ตีความคนละแบบ: ตอนเตรียมดินยังไถปูนกลบได้ ตอนข้าวขึ้นแล้วทำไม่ได้
+  // และเพราะการเทียบ "ก่อนปลูก vs ระหว่างปลูก" ของจุดเดิม คือสิ่งที่บอกได้ว่าที่ทำไปได้ผลไหม
+  //
+  // บันทึกเก่าที่ยังไม่มีป้ายถือเป็นของช่วงเตรียมดิน เพราะตอนนั้นระบบมีแต่แท็บนั้นที่กรอกได้
+  stageOf: function (r) { return r.stage === "grow" ? "grow" : "prep"; },
+  ofStage: function (stage) {
+    var self = this;
+    if (!stage) return this.read();
+    return this.read().filter(function (r) { return self.stageOf(r) === stage; });
+  },
+
+  // เลขจุดทั้งหมดที่เคยวัด ไม่แยกระยะ
+  // เพราะ "จุดที่ 1" ต้องหมายถึงมุมเดิมของแปลงเสมอ ไม่งั้นเทียบข้ามระยะไม่ได้เลย
+  spots: function () {
+    var seen = {};
+    this.read().forEach(function (r) { seen[r.spot] = 1; });
+    return Object.keys(seen).map(Number).sort(function (a, b) { return a - b; });
+  },
+  // เลขจุดถัดไปที่ควรเสนอให้ตอนเพิ่มค่าใหม่ นับข้ามระยะด้วยเหตุผลเดียวกัน
   nextSpot: function () {
     var max = 0;
     this.read().forEach(function (r) { if (r.spot > max) max = r.spot; });
     return max + 1;
   },
-  // ค่าล่าสุดของแต่ละจุด — ชุดนี้คือ "สภาพดินวันนี้" ที่ใช้ตั้งคำแนะนำ
+  // ค่าล่าสุดของแต่ละจุดในระยะที่ขอ — ชุดนี้คือ "สภาพดินวันนี้" ที่ใช้ตั้งคำแนะนำ
   // ค่าที่วัดไว้เมื่อสามเดือนก่อนไม่ควรมีน้ำหนักเท่าค่าที่เพิ่งวัดเมื่อวาน
-  latest: function () {
+  latest: function (stage) {
     var by = {};
-    this.read().forEach(function (r) {
+    this.ofStage(stage).forEach(function (r) {
       var cur = by[r.spot];
       if (!cur || r.date > cur.date || (r.date === cur.date && (r.at || 0) >= (cur.at || 0))) by[r.spot] = r;
     });
     return Object.keys(by).map(function (k) { return by[k]; })
       .sort(function (a, b) { return a.spot - b.spot; });
   },
+  latestOfSpot: function (spot, stage) {
+    return this.latest(stage).filter(function (r) { return r.spot === spot; })[0] || null;
+  },
   // ประวัติของจุดหนึ่ง เรียงเก่าไปใหม่ ใช้ดูว่าที่แก้ไปได้ผลไหม
-  history: function (spot) {
-    return this.read().filter(function (r) { return r.spot === spot; })
+  history: function (spot, stage) {
+    return this.ofStage(stage).filter(function (r) { return r.spot === spot; })
       .sort(function (a, b) {
         if (a.date !== b.date) return a.date < b.date ? -1 : 1;
         return (a.at || 0) - (b.at || 0);
@@ -6085,26 +6117,52 @@ views.soiltype = function (root) {
 };
 
 // ═══════════════════════════════════════════════════
-// ส่วนที่ 2 · ค่า pH รายจุด เติมได้ตลอดฤดู
+// ส่วนค่า pH · ใช้ร่วมกันสองแท็บ
 // ═══════════════════════════════════════════════════
-views.phlog = function (root) {
+//
+// แท็บระยะเตรียมดินกับแท็บระหว่างปลูกใช้สมุด pH เล่มเดียวกัน
+// ต่างกันแค่ป้ายระยะที่ติดกับแต่ละรายการ และมุมที่ใช้อ่านค่า
+//
+// เขียนเป็นตัวสร้างตัวเดียวแล้วให้สองแท็บเรียกด้วยพารามิเตอร์ต่างกัน
+// ถ้าแยกเขียนสองชุด วันหนึ่งจะมีแท็บที่แก้บั๊กแล้วอีกแท็บไม่ได้แก้ ซึ่งหาสาเหตุยากมาก
+//
+// opts.stage    ระยะของค่าที่ส่วนนี้เป็นเจ้าของ ("prep" หรือ "grow")
+// opts.title    หัวข้อของส่วน
+// opts.baseline จริง = เทียบกับค่าตอนเตรียมดินของจุดเดียวกัน (ใช้เฉพาะแท็บระหว่างปลูก)
+// opts.trend    จริง = วาดกราฟแนวโน้มเมื่อมีค่าตั้งแต่ 2 ครั้งขึ้นไป
+function buildPhSection(root, opts) {
   var G = window.SOIL_GUIDE;
   if (!G) return;
 
-  root.appendChild(bund("ค่า pH ของดิน"));
+  var stage = opts.stage;
+  var isGrow = (stage === "grow");
+  var chart = null;                       // กราฟตัวเก่าต้องทำลายก่อนวาดใหม่ ไม่งั้นซ้อนกันจนเครื่องอืด
 
-  // ── ผลอ่านจากค่าล่าสุดของทุกจุด ──
+  root.appendChild(bund(opts.title));
+
+  // ── ผลอ่านจากค่าล่าสุดของทุกจุดในระยะนี้ ──
   var readCard = plot(null);
   root.appendChild(readCard);
 
-  // ── จุดวัดทั้งหมด พร้อมประวัติของแต่ละจุด ──
+  // ── เทียบกับตอนเตรียมดิน / กราฟแนวโน้ม / รายการจุด ──
+  var extraHost = el("div");
+  root.appendChild(extraHost);
+
   var listHost = el("div");
   root.appendChild(listHost);
 
   // ── เพิ่มค่าใหม่ ──
   root.appendChild(bund("เพิ่มค่าที่วัดได้"));
-  var addCard = plot(null, "วัดจุดใหม่หรือวัดซ้ำจุดเดิมก็ได้ เติมได้เรื่อยๆ ตลอดฤดู");
+  var addCard = plot(null, opts.addNote);
   root.appendChild(addCard);
+
+  // ปุ่มเลือกจุดที่เคยวัดไว้แล้ว
+  //
+  // เลขจุดต้องหมายถึงมุมเดิมของแปลงเสมอ ถ้าปล่อยให้พิมพ์เลขเองอย่างเดียว
+  // คนจะตั้งเลขใหม่ทุกครั้งที่วัด แล้วจะไม่มีวันเทียบได้ว่ามุมเดิมดีขึ้นหรือแย่ลง
+  var spotChips = el("div");
+  spotChips.style.cssText = "display:flex;gap:7px;flex-wrap:wrap;margin-bottom:11px";
+  addCard.appendChild(spotChips);
 
   var grid = el("div", "inputs");
 
@@ -6152,11 +6210,32 @@ views.phlog = function (root) {
   addCard.appendChild(msg);
 
   function resetForm() {
-    spotIn.value = String(PhLog.nextSpot());
+    var known = PhLog.spots();
+    // ระหว่างปลูกให้เสนอจุดเดิมก่อน เพราะเป้าหมายคือวัดซ้ำที่เดิมเพื่อดูความเปลี่ยนแปลง
+    // ตอนเตรียมดินให้เสนอจุดใหม่ เพราะยังอยู่ในช่วงสำรวจว่าแปลงนี้ต่างกันตรงไหนบ้าง
+    spotIn.value = String(isGrow && known.length ? known[0] : PhLog.nextSpot());
     phIn.value = "";
     noteIn.value = "";
     dateIn.value = isoToday();
+    paintChips();
   }
+
+  function paintChips() {
+    spotChips.innerHTML = "";
+    var known = PhLog.spots();
+    if (!known.length) return;
+    spotChips.appendChild(el("span", "read-foot", "จุดที่เคยวัด"));
+    known.forEach(function (n) {
+      var on = (String(n) === spotIn.value);
+      var b = el("button", "act act-sm " + (on ? "act-go" : "act-line"), String(n));
+      b.onclick = function () { spotIn.value = String(n); paintChips(); };
+      spotChips.appendChild(b);
+    });
+    var nb = el("button", "act act-sm act-line", "+ จุดใหม่");
+    nb.onclick = function () { spotIn.value = String(PhLog.nextSpot()); paintChips(); };
+    spotChips.appendChild(nb);
+  }
+  spotIn.oninput = paintChips;
 
   addBtn.onclick = async function () {
     msg.innerHTML = "";
@@ -6175,7 +6254,8 @@ views.phlog = function (root) {
       spot: spot,
       ph: ph,
       date: dateIn.value || isoToday(),
-      note: noteIn.value.trim() || ""
+      note: noteIn.value.trim() || "",
+      stage: stage
     });
     resetForm();
     paintAll();
@@ -6183,8 +6263,8 @@ views.phlog = function (root) {
 
     msg.appendChild(el("div", "flash flash-ok", "เก็บไว้ในเครื่องแล้ว"));
 
-    // ส่งขึ้นระบบด้วย เพื่อให้กราฟแนวโน้มกับหน้าประวัติเห็นค่านี้
-    // ล้มเหลวก็ไม่เป็นไร ค่าที่เก็บในเครื่องคือตัวจริงของแท็บนี้อยู่แล้ว
+    // ส่งขึ้นระบบด้วย เพื่อให้หน้าประวัติเห็นค่านี้
+    // ล้มเหลวก็ไม่เป็นไร ค่าที่เก็บในเครื่องคือตัวจริงของส่วนนี้อยู่แล้ว
     addBtn.disabled = true;
     try {
       await Store.add({
@@ -6192,22 +6272,21 @@ views.phlog = function (root) {
         owner: Store.profile().name || "ไม่ระบุ",
         gps: "",
         ph: ph,
-        disease: "วัด pH ดิน จุดที่ " + spot,
+        disease: "วัด pH ดิน" + (isGrow ? " ระหว่างปลูก" : "") + " จุดที่ " + spot,
         score: null
       });
     } catch (err) { /* เก็บในเครื่องไว้แล้ว ไม่ต้องรบกวนผู้ใช้ */ }
     addBtn.disabled = false;
   };
 
-  // ── วาดสองส่วนบนใหม่ทุกครั้งที่ข้อมูลเปลี่ยน ──
+  // ── วาดทุกส่วนที่เป็นผลลัพธ์ใหม่ ──
   function paintAll() {
-    var pts = PhLog.latest();
+    var pts = PhLog.latest(stage);
 
-    // ผลอ่าน
+    // ── การ์ดผลอ่าน ──
     readCard.innerHTML = "";
     if (!pts.length) {
-      readCard.appendChild(stateBlock("◇", "ยังไม่มีค่า pH",
-        "เพิ่มค่าที่วัดได้ด้านล่าง วัดกี่จุดก็ได้"));
+      readCard.appendChild(stateBlock("◇", opts.emptyLead, opts.emptyNote));
     } else {
       readCard.appendChild(picPhScale(pts.map(function (r) { return { n: r.spot, ph: r.ph }; })));
 
@@ -6245,16 +6324,25 @@ views.phlog = function (root) {
         "ระบบจึงเก็บทุกจุดไว้ตามจริง แล้วตั้งคำแนะนำจากจุดที่ห่างจากช่วงที่ข้าวชอบมากที่สุด " +
         "พร้อมบอกว่ามาจากจุดไหน จะได้รู้ว่าต้องไปแก้ตรงมุมไหนของแปลง"));
 
-      // ค่าล่าสุดเก่าเกิน 4 เดือนอาจไม่ตรงกับสภาพวันนี้แล้ว
+      // ค่าล่าสุดเก่าเกินไป — เกณฑ์ต่างกันตามระยะ
+      // ตอนเตรียมดินค่าอยู่ได้เป็นเดือน แต่ระหว่างปลูกดินขยับเร็วจากการขังน้ำและใส่ปุ๋ย
       var newest = pts.map(function (r) { return r.date; }).sort().pop();
       var age = (Date.now() - new Date(newest + "T00:00:00").getTime()) / 86400000;
-      if (age > 120) {
+      if (age > opts.staleDays) {
         readCard.appendChild(el("div", "flash flash-warn",
-          "ค่าล่าสุดเก่ากว่า 4 เดือน ควรวัดใหม่แล้วเติมเข้ามา"));
+          "ค่าล่าสุดเก่ากว่า " + opts.staleWord + " ควรวัดใหม่แล้วเติมเข้ามา"));
       }
     }
 
-    // รายการจุด
+    // ── ส่วนเสริมของแท็บระหว่างปลูก ──
+    extraHost.innerHTML = "";
+    if (chart) { try { chart.destroy(); } catch (e) {} chart = null; }
+
+    if (opts.baseline) paintBaseline(pts);
+    if (opts.trend) paintTrend();
+    if (isGrow) paintGrowAdvice(pts);
+
+    // ── รายการจุด ──
     listHost.innerHTML = "";
     if (!pts.length) return;
 
@@ -6262,7 +6350,7 @@ views.phlog = function (root) {
     var listCard = plot(null, "กดที่จุดเพื่อดูค่าที่เคยวัดไว้ทั้งหมดของจุดนั้น");
 
     pts.forEach(function (r) {
-      var hist = PhLog.history(r.spot);
+      var hist = PhLog.history(r.spot, stage);
       var band = window.readSoilPh(r.ph);
       var sub = "ล่าสุด " + phDateText(r.date) + " · " + band.title +
                 (hist.length > 1 ? " · วัดมาแล้ว " + hist.length + " ครั้ง" : "");
@@ -6308,11 +6396,183 @@ views.phlog = function (root) {
     listHost.appendChild(listCard);
   }
 
+  // ── เทียบกับค่าตอนเตรียมดินของจุดเดียวกัน ──
+  //
+  // นี่คือเหตุผลหลักที่แยกป้ายระยะไว้ตั้งแต่แรก
+  // คำถามที่ชาวนาอยากรู้จริงคือ "ที่ใส่ปูนไปตอนเตรียมดินนั้นได้ผลไหม"
+  // ซึ่งตอบได้ก็ต่อเมื่อรู้ว่าค่าไหนวัดก่อนปลูกและค่าไหนวัดหลังปลูก ที่จุดเดียวกัน
+  function paintBaseline(pts) {
+    var prepPts = PhLog.latest("prep");
+    if (!prepPts.length) return;
+
+    extraHost.appendChild(bund("เทียบกับตอนเตรียมดิน"));
+    var card = plot(null, "จุดเดียวกัน ก่อนปลูก เทียบกับ ระหว่างปลูก");
+
+    var any = false;
+    prepPts.forEach(function (before) {
+      var after = PhLog.latestOfSpot(before.spot, "grow");
+      var line = el("div", "phhist");
+      line.appendChild(el("div", "phhist-date", "จุดที่ " + before.spot));
+
+      if (!after) {
+        var v0 = el("div", "phhist-val num", before.ph.toFixed(1));
+        v0.style.color = "var(--ink-faint)";
+        line.appendChild(v0);
+        line.appendChild(el("div", "phhist-note", "ยังไม่ได้วัดซ้ำในระยะนี้"));
+      } else {
+        any = true;
+        var v = el("div", "phhist-val num", before.ph.toFixed(1) + " → " + after.ph.toFixed(1));
+        v.style.cssText = "flex:0 0 auto;font-weight:600";
+        var better = phOffIdeal(after.ph) < phOffIdeal(before.ph);
+        var same = Math.abs(after.ph - before.ph) < 0.3;
+        v.style.color = same ? "var(--ink-soft)" : (better ? "var(--blade)" : "var(--rust)");
+        line.appendChild(v);
+        line.appendChild(el("div", "phhist-note", same
+          ? "ยังเท่าเดิม"
+          : (better ? "เข้าใกล้ช่วงที่ข้าวชอบขึ้น" : "ห่างจากช่วงที่ข้าวชอบมากขึ้น")));
+      }
+      card.appendChild(line);
+    });
+
+    if (!any) {
+      card.appendChild(el("div", "read-foot",
+        "วัดซ้ำที่จุดเดิมสักครั้งในระยะนี้ แล้วระบบจะบอกได้ว่าดินขยับไปทางไหน"));
+    }
+    extraHost.appendChild(card);
+  }
+
+  // ── กราฟแนวโน้มของระยะนี้ ──
+  // เส้นหนึ่งเส้นต่อหนึ่งจุด ไม่รวมเป็นเส้นเดียว ด้วยเหตุผลเดียวกับที่ไม่เฉลี่ยค่า
+  function paintTrend() {
+    var recs = PhLog.ofStage(stage);
+    if (recs.length < 2 || typeof Chart === "undefined") return;
+
+    var dates = {};
+    recs.forEach(function (r) { dates[r.date] = 1; });
+    var labels = Object.keys(dates).sort();
+    if (labels.length < 2) return;
+
+    var colors = ["#2E8B57", "#C0492F", "#2E7D95", "#D9A22B", "#6B4E9B"];
+    var sets = PhLog.spots().map(function (spot, i) {
+      var byDate = {};
+      PhLog.history(spot, stage).forEach(function (r) { byDate[r.date] = r.ph; });
+      var data = labels.map(function (d) { return byDate[d] === undefined ? null : byDate[d]; });
+      if (data.every(function (v) { return v === null; })) return null;
+      return {
+        label: "จุดที่ " + spot,
+        data: data,
+        borderColor: colors[i % colors.length],
+        backgroundColor: colors[i % colors.length],
+        tension: .3, pointRadius: 3, borderWidth: 2, spanGaps: true, fill: false
+      };
+    }).filter(Boolean);
+    if (!sets.length) return;
+
+    extraHost.appendChild(bund("แนวโน้มระหว่างปลูก"));
+    var card = plot(null, "แถบเขียวคือช่วงที่ข้าวชอบ 5.5 ถึง 6.5");
+    var cv = el("canvas");
+    cv.height = 210;
+    card.appendChild(cv);
+    extraHost.appendChild(card);
+
+    // แถบช่วงที่ข้าวชอบ วาดเองด้วยปลั๊กอินสั้นๆ ไม่ต้องโหลดไลบรารีเพิ่ม
+    // ถ้าไม่มีแถบนี้ คนอ่านต้องจำเองว่า 5.5-6.5 คือช่วงไหน ซึ่งเป็นงานที่กราฟควรทำให้
+    var idealBand = {
+      id: "idealBand",
+      beforeDatasetsDraw: function (c) {
+        var y = c.scales.y, a = c.chartArea;
+        if (!y || !a) return;
+        var top = y.getPixelForValue(6.5), bot = y.getPixelForValue(5.5);
+        var ctx = c.ctx;
+        ctx.save();
+        ctx.fillStyle = "rgba(46,139,87,.10)";
+        ctx.fillRect(a.left, Math.max(a.top, top), a.right - a.left,
+                     Math.min(a.bottom, bot) - Math.max(a.top, top));
+        ctx.restore();
+      }
+    };
+
+    // สีตัวหนังสือของกราฟอ่านจากตัวแปรธีมของเว็บ ไม่ใช่ฝังสีตายตัว
+    // ไม่งั้นพอสลับเป็นธีมมืด ตัวเลขแกนจะเป็นสีเทาเข้มบนพื้นเข้มจนอ่านไม่ออก
+    var axisInk = getComputedStyle(document.body).getPropertyValue("--ink-soft").trim() || "#7C9385";
+
+    chart = new Chart(cv, {
+      type: "line",
+      plugins: [idealBand],
+      data: { labels: labels.map(phDateText), datasets: sets },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: sets.length > 1,
+                             labels: { boxWidth: 12, color: axisInk, font: { size: 11 } } } },
+        scales: {
+          y: { suggestedMin: 4, suggestedMax: 8,
+               grid: { color: "rgba(125,150,133,.22)" },
+               ticks: { color: axisInk, font: { family: "IBM Plex Mono" } } },
+          x: { grid: { display: false },
+               ticks: { color: axisInk, font: { family: "IBM Plex Mono", size: 10 } } }
+        }
+      }
+    });
+  }
+
+  // ── สิ่งที่ยังทำได้ตอนข้าวขึ้นแล้ว ──
+  //
+  // ตอนเตรียมดินยังไถปูนกลบได้ แต่พอข้าวขึ้นแล้วทำไม่ได้ ต้องไม่แนะนำวิธีของอีกระยะข้ามมา
+  // เพราะการหว่านปูนลงแปลงที่ข้าวกำลังโตทำให้ดินเป็นด่างเฉพาะจุดและข้าวตรงนั้นเสียหาย
+  function paintGrowAdvice(pts) {
+    if (!pts.length) return;
+    var worst = phWorstOf(pts);
+    var band = window.readSoilPh(worst.ph);
+    if (band.key === "ok") return;
+
+    var card = plot(null);
+    card.appendChild(el("div", "rx-sect", "ระหว่างปลูกทำอะไรได้บ้าง"));
+    card.appendChild(el("div", "flash flash-warn",
+      "การใส่ปูนหรือยิปซัมเป็นงานของช่วงเตรียมดิน ต้องไถกลบถึงจะได้ผล " +
+      "ตอนข้าวขึ้นแล้วหว่านลงไปจะทำให้ดินเป็นด่างเฉพาะจุดและข้าวตรงนั้นเสียหาย"));
+    card.appendChild(keyPoints([
+      "จัดการน้ำก่อน · ดินเปรี้ยวให้รักษาระดับน้ำขังไว้ อย่าปล่อยแห้งสลับขังถี่ๆ",
+      "ปรับที่ปุ๋ยแทน · ค่า pH นอกช่วงทำให้ข้าวดูดปุ๋ยได้น้อยลง ดูส่วนปุ๋ยด้านล่างของแท็บนี้",
+      "จดไว้ก่อน · ค่าที่ได้ตอนนี้คือข้อมูลตั้งต้นของการเตรียมดินฤดูหน้า",
+      "ถามเจ้าหน้าที่ · หมอดินอาสาประจำตำบลหรือสถานีพัฒนาที่ดินจังหวัด ตรวจดินให้ฟรี"
+    ]));
+    extraHost.appendChild(card);
+  }
+
   resetForm();
   paintAll();
 
   // ถ้าแปลงถูกสลับหรือส่วนอื่นแก้ข้อมูล ให้ส่วนนี้วาดใหม่ด้วย
   PrepBus.on(root, paintAll);
+}
+
+// ค่า pH ของแท็บระยะเตรียมดิน — ค่าที่วัดก่อนข้าวลงแปลง
+views.phlog = function (root) {
+  buildPhSection(root, {
+    stage: "prep",
+    title: "ค่า pH ของดิน",
+    addNote: "วัดจุดใหม่หรือวัดซ้ำจุดเดิมก็ได้ เติมได้เรื่อยๆ ตลอดช่วงเตรียมแปลง",
+    emptyLead: "ยังไม่มีค่า pH",
+    emptyNote: "เพิ่มค่าที่วัดได้ด้านล่าง วัดกี่จุดก็ได้",
+    staleDays: 120,
+    staleWord: "4 เดือน"
+  });
+};
+
+// ค่า pH ของแท็บระหว่างปลูก — ค่าที่วัดตอนข้าวขึ้นแล้ว
+// ดินขยับได้ทั้งฤดูจากการขังน้ำและการใส่ปุ๋ย ค่าตอนเตรียมดินจึงใช้แทนกันไม่ได้
+views.phgrow = function (root) {
+  buildPhSection(root, {
+    stage: "grow",
+    title: "ค่า pH ระหว่างปลูก",
+    addNote: "วัดซ้ำที่จุดเดิมจะเทียบกับตอนเตรียมดินได้ · เติมได้เรื่อยๆ ตลอดฤดู",
+    emptyLead: "ยังไม่มีค่า pH ของระยะนี้",
+    emptyNote: "วัดซ้ำที่จุดเดิมแล้วเติมด้านล่าง จะได้รู้ว่าดินขยับไปทางไหนหลังปลูก",
+    staleDays: 45,
+    staleWord: "45 วัน",
+    baseline: true,
+    trend: true
+  });
 };
 
 // ═══════════════════════════════════════════════════
@@ -9196,6 +9456,11 @@ views.weather = async function (root) {
 // เหตุผลที่เอาการ์ดขึ้นก่อน: คำถาม 80% ของเกษตรกรคือ "ตอนนี้ควรทำอะไร"
 // ซึ่งตอบได้จากอายุข้าวอย่างเดียว ไม่ต้องใช้ AI เลย
 // การให้พิมพ์ถามทุกครั้งจึงเป็นภาระเกินจำเป็นและเปลืองโควตาที่มีจำกัด
+// ── ไม่อยู่ในเมนูแล้ว (แก้ 2026-08) ──
+//
+// ถูกถอดออกจากแท็บระหว่างปลูก ซึ่งตอนนี้เหลือสามส่วนคือ ค่า pH · โรคจากภาพ · ปุ๋ย
+// โค้ดยังอยู่ครบและใช้ได้ทันที ถ้าจะเอากลับให้เติมชื่อส่วนลงใน parts ของแท็บใน PAGES
+// พร้อมเติมชื่อย่อใน jump ให้ตรงตำแหน่งกัน เท่านี้ก็กลับมาแสดงเหมือนเดิม
 views.consult = async function (root) {
   root.appendChild(pageHead("consult"));
   var C = window.CARE_GUIDE;
@@ -10092,7 +10357,7 @@ views.admin = async function (root) {
 };
 
 // ─── ตัวสลับหน้า ────────────────────────────────
-var here = "overview";
+var here = "grow";
 
 // เมนูบางหน้าแสดงเฉพาะผู้ดูแลระบบ
 // นี่เป็นแค่การซ่อนเมนู ตัวกันจริงอยู่ที่ Worker ซึ่งตรวจสิทธิ์ทุกคำขอ
