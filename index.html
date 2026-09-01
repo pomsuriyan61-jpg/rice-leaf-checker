@@ -2117,6 +2117,31 @@
   }
   .field.enter > * { animation: riseIn .38s cubic-bezier(.2,.8,.3,1) both; }
 
+  /* ── ช่องรูปที่สลับระหว่างรูปถ่ายจริงกับรูปวาดได้ ──
+     สองแบบนี้มีสัดส่วนไม่เท่ากันโดยธรรมชาติ ถ้าไม่บังคับกรอบให้เท่ากัน
+     แถวที่มีรูปถ่ายบางช่องและรูปวาดบางช่องจะสูงไม่เท่ากันจนดูเหมือนจัดหน้าพลาด */
+  .handrow > *, .leafrow .leafcol { display: flex; flex-direction: column; }
+  .handrow .mv-shot, .leafrow .mv-shot { margin: 0; }
+  .handrow .mv-shot > img { aspect-ratio: 4 / 3; border-radius: 14px; object-fit: cover; }
+  .leafrow .mv-shot > img { aspect-ratio: 1 / 1; border-radius: 14px; object-fit: cover; }
+  .handrow .mv-cap, .leafrow .mv-cap { text-align: center; font-size: .8rem; margin-top: 4px; }
+  .leafrow .leafcol { flex: 0 1 170px; }
+  .leafrow { gap: 20px; }
+
+  /* ── ห่วงโซ่มูลค่า ──
+     ชิปเรียงต่อกันพร้อมลูกศร ขั้นสุดท้ายเน้นสีทองเพราะเป็นปลายทางที่กลายเป็นเงิน
+     จอแคบให้ตัดบรรทัดเองได้ ไม่บังคับเลื่อนแนวนอน เพราะข้อความสั้นพอที่จะขึ้นบรรทัดใหม่ */
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 4px; }
+  .chain-node {
+    padding: 7px 14px; border-radius: var(--r-pill); font-size: .85rem; font-weight: 500;
+    background: var(--tint-ok); color: var(--paddy); box-shadow: inset 0 0 0 1px var(--leaf-pale);
+  }
+  .chain-node.last {
+    background: linear-gradient(135deg, var(--gold-soft), #FBEBC4);
+    color: #7A5410; box-shadow: inset 0 0 0 1px var(--gold);
+  }
+  .chain-arrow { color: var(--ink-faint); font-size: 1.05rem; line-height: 1; }
+
   /* ── ปิดทุกการเคลื่อนไหวถ้าเครื่องตั้งค่าไว้ ── */
   @media (prefers-reduced-motion: reduce) {
     .intake-art svg, .sweep-dot, .gate-art .sway, .gate-art .scan { animation: none !important; }
@@ -5515,8 +5540,19 @@ function renderPestSection(root, part) {
 
 function mediaGet(key) {
   var m = window.MEDIA && window.MEDIA[key];
-  if (!m) return null;
-  var has = m.img || m.yt || m.mp4 || (m.more && m.more.length);
+  var has = m && (m.img || m.yt || m.mp4 || (m.more && m.more.length));
+
+  // ── รายชื่อรูปที่ยังขาด ──
+  //
+  // ทุกจุดที่เว็บอยากใช้รูปถ่ายจริงจะขอผ่านฟังก์ชันนี้ ถ้ายังไม่มีไฟล์ก็ถอยไปใช้รูปวาดแทน
+  // ซึ่งแปลว่าคนทำเว็บจะไม่มีทางรู้เลยว่ามีจุดไหนรอรูปอยู่บ้าง เพราะหน้าเว็บดูปกติดี
+  //
+  // เก็บคีย์ที่ขอแล้วไม่เจอไว้ตรงนี้ เปิด Console แล้วพิมพ์ MEDIA_MISSING
+  // จะได้รายชื่อคีย์ทั้งหมดที่ต้องเตรียมรูป ตรงกับที่ต้องไปเติมใน media.js พอดี
+  if (!has && key) {
+    window.MEDIA_MISSING = window.MEDIA_MISSING || [];
+    if (window.MEDIA_MISSING.indexOf(key) === -1) window.MEDIA_MISSING.push(key);
+  }
   return has ? m : null;
 }
 
@@ -5622,6 +5658,28 @@ function media(key) {
 
 // ใส่สื่อลงในกล่องถ้ามี คืนค่าว่าใส่ไปหรือเปล่า
 // ใช้ตัวนี้แทนการเขียน if ซ้ำๆ ทุกจุดที่มีช่องใส่รูป
+// รูปถ่ายจริงก่อน ถ้าไม่มีหรือโหลดไม่ขึ้นค่อยใช้รูปวาด
+//
+// ทำไมต้องดักตอนโหลดไม่ขึ้นด้วย: mediaImg ถูกออกแบบให้ลบตัวเองทิ้งเมื่อไฟล์รูปหาย
+// ซึ่งถูกแล้วสำหรับรูปประกอบทั่วไป แต่กับรูปที่เป็นเนื้อหาหลักอย่างรูปเทียบชนิดดิน
+// การหายไปเฉยๆ จะเหลือช่องว่างที่ดูเหมือนเว็บพัง ทั้งที่แค่พิมพ์ชื่อไฟล์ผิด
+// จุดพวกนี้จึงต้องกลับไปใช้รูปวาดแทนเสมอ
+function photoOrDraw(key, draw) {
+  var node = media(key);
+  if (!node) return draw();
+
+  var box = el("div");
+  box.appendChild(node);
+  var im = node.querySelector && node.querySelector("img");
+  if (im) {
+    im.addEventListener("error", function () {
+      box.innerHTML = "";
+      box.appendChild(draw());
+    });
+  }
+  return box;
+}
+
 function mediaInto(host, key) {
   var node = media(key);
   if (!node || !host) return false;
@@ -5939,7 +5997,10 @@ function picLeafCompare() {
   [["pest", "แมลง", "ใบแหว่ง เนื้อใบหาย"],
    ["disease", "โรค", "ใบครบ มีแค่แผลสี"]].forEach(function (r) {
     var col = el("div", "leafcol");
-    col.appendChild(picLeaf(r[0]));
+    // รูปถ่ายจริงชนะรูปวาดเสมอถ้ามี — กฎเดียวกับที่ใช้กับรูปชนิดดิน
+    // เรื่องเนื้อใบแหว่งกับแผลบนใบ ต้องเห็นของจริงถึงเทียบกับใบในมือได้
+    // ใส่รูปที่คีย์ leaf-pest และ leaf-disease ในไฟล์ media.js
+    col.appendChild(photoOrDraw("leaf-" + r[0], function () { return picLeaf(r[0]); }));
     col.appendChild(el("div", "leafcol-name", r[1]));
     col.appendChild(el("div", "pic-cap", r[2]));
     row.appendChild(col);
@@ -6029,10 +6090,42 @@ var CYCLE_USES = [
   {
     from: "รำข้าว", icon: "manure",
     to: [
-      { what: "อาหารสัตว์",   how: "ใช้เลี้ยงหมู ไก่ เป็ด ปลา แล้วได้มูลสัตว์กลับมาเป็นวัตถุดิบปุ๋ยหมัก" },
+      { what: "อาหารสัตว์",   how: "เป็นแหล่งโปรตีน พลังงาน และแร่ธาตุ ใช้ได้ทั้งหมู ไก่ เป็ด ปลา และเหมาะกับสัตว์เคี้ยวเอื้องเป็นพิเศษ แล้วได้มูลสัตว์กลับมาเป็นวัตถุดิบปุ๋ยหมัก" },
+      { what: "หมักยีสต์เพิ่มโปรตีน", how: "หมักรำร่วมกับยีสต์ ได้อาหารสัตว์ที่โปรตีนสูงขึ้นและย่อยได้ดีขึ้น ดูวิธีและตัวเลขที่ปุ่มด้านล่าง" },
       { what: "แปรรูปขาย",    how: "น้ำมันรำข้าวและรำสกัดขายได้ราคาสูงกว่าขายรำดิบมาก" },
       { what: "หัวเชื้อจุลินทรีย์", how: "ใช้เป็นอาหารเลี้ยงจุลินทรีย์ในน้ำหมักชีวภาพ" }
-    ]
+    ],
+
+    // ── เรื่องที่ลงลึกกว่ารายการทั่วไป ──
+    //
+    // รำข้าวเป็นของเหลือชิ้นเดียวในสี่อย่างที่ "แปรรูปแล้วมูลค่าเพิ่มขึ้นชัดเจน"
+    // ด้วยวิธีที่ทำเองได้ในระดับฟาร์ม ไม่ต้องใช้โรงงาน จึงคุ้มที่จะกางรายละเอียดให้ครบ
+    // ส่วนอย่างอื่นบอกแค่ว่าเอาไปทำอะไรได้ก็พอ เพราะวิธีทำไม่ซับซ้อนเท่านี้
+    deep: {
+      title: "หมักรำข้าวด้วยยีสต์ · เพิ่มโปรตีนให้อาหารสัตว์",
+      sub: "ของเหลือสองอย่างมาเจอกันแล้วได้ของที่ดีกว่าเดิมทั้งคู่",
+      intro: "รำข้าวดิบมีพลังงานสูงแต่โปรตีนไม่มากพอสำหรับสัตว์ที่กำลังโต " +
+             "การหมักด้วยยีสต์ช่วยแก้ตรงจุดนั้น เพราะตัวยีสต์เองเป็นเซลล์ที่มีโปรตีนสูง " +
+             "เมื่อยีสต์เติบโตในกองหมักจึงกลายเป็นโปรตีนที่เพิ่มเข้ามาในรำโดยตรง",
+      how: [
+        "ยีสต์ที่ใช้ · ยีสต์จากโรงงานผลิตเบียร์เป็นผลพลอยได้ที่มีโปรตีนสูง ปกติเป็นของเหลือของโรงงาน จึงหาได้ในราคาถูก",
+        "อัตราส่วน · ใช้ยีสต์ 30% ผสมกับรำละเอียด",
+        "ระยะเวลา · หมักไว้ 4 สัปดาห์",
+        "สิ่งที่ได้ · โปรตีนเพิ่มขึ้น เยื่อใยส่วนที่ย่อยยากลดลง และสัตว์ย่อยเนื้ออาหารได้มากขึ้น"
+      ],
+      numbers: [
+        ["สัดส่วนยีสต์", "30%", "ของส่วนผสม"],
+        ["ระยะเวลาหมัก", "4 สัปดาห์", "ก่อนนำไปใช้"],
+        ["โปรตีนที่ได้", "23.06%", "ของรำละเอียดหลังหมัก"],
+        ["ย่อยได้", "73.85%", "ของวัตถุแห้ง"]
+      ],
+      chain: ["รำข้าว", "หมักด้วยยีสต์", "อาหารสัตว์คุณภาพดี", "ลดของเหลือทิ้ง", "สร้างมูลค่า"],
+      note: "เยื่อใยส่วนที่ย่อยยาก (NDF) คือส่วนของผนังเซลล์พืชที่สัตว์ย่อยได้ช้า " +
+            "ยิ่งค่านี้ต่ำ สัตว์ยิ่งเอาพลังงานจากอาหารไปใช้ได้มากในเวลาเท่ากัน\n\n" +
+            "ตัวเลขทั้งหมดเป็นผลจากการทดลองที่เงื่อนไขหนึ่ง ไม่ใช่ค่าที่ได้เท่ากันทุกครั้ง " +
+            "ค่าจริงเปลี่ยนตามคุณภาพรำ ชนิดและความสดของยีสต์ อุณหภูมิ และความชื้นระหว่างหมัก " +
+            "ถ้าจะทำขายควรส่งตัวอย่างตรวจวิเคราะห์ก่อนใช้เป็นตัวเลขอ้างอิง"
+    }
   }
 ];
 
@@ -6179,6 +6272,35 @@ views.byproduct = function (root) {
       });
       tb.appendChild(tab);
     }, false));
+
+    // ของเหลือบางอย่างมีวิธีแปรรูปที่ลงรายละเอียดได้จริงในระดับฟาร์ม
+    // ส่วนนี้จึงยาวกว่ารายการทั่วไป และยุบไว้ก่อนเพื่อไม่ให้บังของอื่นในหน้า
+    if (c.deep) {
+      var D = c.deep;
+      box.appendChild(fold(null, D.title, D.sub, function (tb) {
+        tb.appendChild(el("p", "", D.intro));
+
+        tb.appendChild(el("div", "rx-sect", "ทำยังไง"));
+        tb.appendChild(keyPoints(D.how));
+
+        tb.appendChild(el("div", "rx-sect", "ตัวเลขจากการทดลอง"));
+        var cells = el("div", "cellrow");
+        D.numbers.forEach(function (n) { cells.appendChild(readOut(n[0], n[1], n[2])); });
+        tb.appendChild(cells);
+
+        // ห่วงโซ่มูลค่า อ่านจากซ้ายไปขวาว่าของเหลือกลายเป็นเงินได้ยังไง
+        // เป็นภาพเดียวที่สรุปทั้งเรื่องได้โดยไม่ต้องอ่านย่อหน้าไหนซ้ำ
+        tb.appendChild(el("div", "rx-sect", "จากของเหลือเป็นมูลค่า"));
+        var chain = el("div", "chain");
+        D.chain.forEach(function (t, i) {
+          if (i) chain.appendChild(el("span", "chain-arrow", "›"));
+          chain.appendChild(el("span", "chain-node" + (i === D.chain.length - 1 ? " last" : ""), t));
+        });
+        tb.appendChild(chain);
+
+        tb.appendChild(more("ตัวเลขนี้เชื่อได้แค่ไหน", D.note));
+      }, false));
+    }
 
     if (c.warn) box.appendChild(more("ข้อควรระวัง", c.warn));
     root.appendChild(box);
@@ -6893,8 +7015,8 @@ views.soiltype = function (root) {
   // และเรื่องสัมผัสอย่าง "กำแล้วร่วน" กับ "กำแล้วเป็นก้อน" อธิบายด้วยคำได้ยากมาก
   var handTest = el("div", "handrow");
   Object.keys(G.soils).forEach(function (k) {
-    var real = media("soil-" + k);          // รูปถ่ายจริงชนะรูปวาดเสมอถ้ามี
-    handTest.appendChild(real || picSoilHand(k));
+    // รูปถ่ายจริงชนะรูปวาดเสมอถ้ามี ใส่ที่คีย์ soil-clay / soil-loam / soil-sand ใน media.js
+    handTest.appendChild(photoOrDraw("soil-" + k, function () { return picSoilHand(k); }));
   });
   card.appendChild(handTest);
 
