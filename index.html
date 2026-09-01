@@ -321,6 +321,15 @@
   .csum-where { font-size: .72rem; color: var(--ink-faint); display: block; margin-top: 1px; }
   .csum-val { font-family: var(--f-data); white-space: nowrap; }
   .csum-val.soft { color: var(--ink-faint); }
+  /* แถวต้นทุนกดได้ พาไปยังแท็บที่กรอกรายการนั้น */
+  .csum-hit { width: 100%; border: 0; background: none; cursor: pointer; text-align: left;
+              font-family: var(--f-body); color: inherit; }
+  .csum-hit:hover .csum-name { color: var(--paddy); }
+  .csum-hit:hover .csum-where { color: var(--blade); }
+  /* ยอดย่อยของแต่ละระยะ */
+  .csum-sub { display: flex; justify-content: space-between; align-items: baseline;
+              gap: 10px; padding: 8px 0 12px; font-size: .84rem; color: var(--ink-soft); }
+  .csum-sub .num { font-weight: 600; color: var(--ink); }
 
   /* ── วิธีเก็บเกี่ยว: เลือกได้ทีละทาง กางรายละเอียดเฉพาะทางที่เลือก ──
      ทั้งสองทางต้องเห็นราคาพร้อมกันตั้งแต่แรก เพราะราคาคือสิ่งที่ใช้ตัดสินใจ
@@ -1740,9 +1749,11 @@ var PAGES = [
     jump: ["ค่า pH", "โรคจากภาพ", "ปุ๋ย"],
     icon: "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z" },
 
-  { id: "harvest", label: "เก็บเกี่ยว", kicker: "ปิดฤดู",
-    parts: ["harvest", "cost", "ledger", "cycle"],
-    jump: ["วิธีเกี่ยว", "กำไร", "ประวัติ", "หมุนเวียน"],
+  // แท็บ 4 · เก็บเกี่ยว — ปิดฤดูแล้วนับเงิน
+  // ค่าจ้างเกี่ยว → ผลผลิตที่คาดกับที่ได้จริง → ต้นทุนรวมจากทุกแท็บ → กำไร
+  { id: "harvest", label: "เก็บเกี่ยว", short: "เก็บเกี่ยว", kicker: "ปิดฤดู",
+    parts: ["harvest", "yield", "costsum", "profit"],
+    jump: ["ค่าเกี่ยว", "ผลผลิต", "ต้นทุน", "กำไร"],
     icon: "M4 19c6-1 10-5 16-14M8 19h11M6 15c3-1 6-3 9-7" },
 
   { id: "ask", label: "ถาม AI", kicker: "ผู้ช่วย",
@@ -4015,6 +4026,9 @@ var PAGE_CITE = {
   prepguide:["กรมพัฒนาที่ดิน", "กรมการข้าว"],
   prepcost: ["สำนักงานเศรษฐกิจการเกษตร"],
   phgrow:   ["กรมพัฒนาที่ดิน", "กรมการข้าว"],
+  yield:    ["สำนักงานเศรษฐกิจการเกษตร"],
+  costsum:  ["สำนักงานเศรษฐกิจการเกษตร"],
+  profit:   ["สำนักงานเศรษฐกิจการเกษตร", "กรมการค้าภายใน"],
   cycle:    ["กรมการข้าว", "กรมพัฒนาที่ดิน"],
   fert:     ["กรมการข้าว", "กรมพัฒนาที่ดิน", "สำนักงานเศรษฐกิจการเกษตร"],
   diagnose: ["กรมการข้าว"],
@@ -5478,6 +5492,11 @@ function recipeTable(t) {
   return tab;
 }
 
+// ── ไม่อยู่ในเมนูแล้ว (แก้ 2026-08) ──
+//
+// ถูกถอดออกจากแท็บเก็บเกี่ยว ซึ่งตอนนี้เหลือสี่ส่วนคือ ค่าเกี่ยว · ผลผลิต · ต้นทุน · กำไร
+// โค้ดยังอยู่ครบและใช้ได้ทันที ถ้าจะเอากลับให้เติมชื่อส่วนลงใน parts ของแท็บใน PAGES
+// พร้อมเติมชื่อย่อใน jump ให้ตรงตำแหน่งกัน เท่านี้ก็กลับมาแสดงเหมือนเดิม
 views.cycle = function (root) {
   root.appendChild(bund("ของเหลือจากนา ใช้ต่อได้"));
 
@@ -5903,12 +5922,14 @@ views.season = function (root) {
 //   3 เตรียมแปลง  — ต้องทำอะไรบ้าง ตามดินและวิธีทำนาของแปลงนี้
 //   4 ต้นทุน      — จ่ายอะไรไปเท่าไหร่ ยอดไหลไปโผล่หน้าต้นทุนเอง
 
-// ── ตัวส่งสัญญาณระหว่างสี่ส่วน ──
+// ── ตัวส่งสัญญาณระหว่างส่วนต่างๆ ในแท็บเดียวกัน ──
 //
-// สี่ส่วนอยู่คนละกล่องและวาดพร้อมกัน ส่วนข้อแนะนำต้องวาดใหม่เมื่อชนิดดินหรือ pH เปลี่ยน
+// ทุกส่วนของแท็บอยู่คนละกล่องและวาดพร้อมกัน บางส่วนต้องวาดใหม่เมื่อส่วนอื่นเปลี่ยนค่า
+// เช่นข้อแนะนำเตรียมแปลงเมื่อชนิดดินเปลี่ยน หรือกำไรเมื่อผลผลิตเปลี่ยน
+//
 // เก็บผู้ฟังคู่กับกล่องของมันไว้ พอเปลี่ยนแท็บกล่องหลุดออกจากหน้า ผู้ฟังนั้นก็ถูกทิ้งเอง
 // ไม่ต้องมีขั้นตอน "ถอดผู้ฟังตอนปิดหน้า" ซึ่งเป็นจุดที่ลืมกันบ่อยที่สุดและทำให้หน้าค้าง
-var PrepBus = {
+var PageBus = {
   subs: [],
   on: function (node, fn) { this.subs.push({ node: node, fn: fn }); },
   emit: function () {
@@ -6098,7 +6119,7 @@ views.soiltype = function (root) {
       b.onclick = function () {
         setSoilType(k);
         paint();
-        PrepBus.emit();                     // ข้อแนะนำด้านล่างต้องเปลี่ยนตามทันที
+        PageBus.emit();                     // ข้อแนะนำด้านล่างต้องเปลี่ยนตามทันที
       };
       chips.appendChild(b);
     });
@@ -6259,7 +6280,7 @@ function buildPhSection(root, opts) {
     });
     resetForm();
     paintAll();
-    PrepBus.emit();
+    PageBus.emit();
 
     msg.appendChild(el("div", "flash flash-ok", "เก็บไว้ในเครื่องแล้ว"));
 
@@ -6384,7 +6405,7 @@ function buildPhSection(root, opts) {
           x.onclick = function () {
             PhLog.remove(h.id);
             paintAll();
-            PrepBus.emit();
+            PageBus.emit();
           };
           line.appendChild(x);
 
@@ -6543,7 +6564,7 @@ function buildPhSection(root, opts) {
   paintAll();
 
   // ถ้าแปลงถูกสลับหรือส่วนอื่นแก้ข้อมูล ให้ส่วนนี้วาดใหม่ด้วย
-  PrepBus.on(root, paintAll);
+  PageBus.on(root, paintAll);
 }
 
 // ค่า pH ของแท็บระยะเตรียมดิน — ค่าที่วัดก่อนข้าวลงแปลง
@@ -6723,7 +6744,7 @@ views.prepguide = function (root) {
   }
 
   paint();
-  PrepBus.on(root, paint);     // ชนิดดินหรือ pH เปลี่ยน ข้อแนะนำต้องเปลี่ยนตาม
+  PageBus.on(root, paint);     // ชนิดดินหรือ pH เปลี่ยน ข้อแนะนำต้องเปลี่ยนตาม
 };
 
 // ═══════════════════════════════════════════════════
@@ -8263,7 +8284,10 @@ var HARVEST_WAYS = [
 // สองส่วนนี้อยู่คนละกล่องบนหน้าเดียวกัน และวาดพร้อมกันแบบขนาน
 // จึงต้องมีทางให้ส่วนบนสั่งส่วนล่างคำนวณใหม่เมื่อผู้ใช้เปลี่ยนค่า
 // ใช้ตัวแปรตัวเดียวแทนระบบ event เพราะมีผู้ฟังแค่รายเดียวและอยู่หน้าเดียวกันเสมอ
-var costRepaint = null;
+// ช่องกรอกต้นทุนที่กระจายอยู่ทุกแท็บเรียกตัวนี้เมื่อค่าเปลี่ยน
+// ส่งต่อให้ PageBus ที่เดียว ส่วนไหนของหน้าที่สนใจก็ไปสมัครฟังเอง
+// เดิมเป็นตัวแปรที่ให้หน้าใดหน้าหนึ่งมาเซ็ตทับ ซึ่งพอหน้านั้นถูกปิดไปแล้วจะชี้ไปที่กล่องที่หลุดจากหน้าไปแล้ว
+var costRepaint = function () { PageBus.emit(); };
 
 // วิธีเก็บเกี่ยวที่เลือกไว้ของสถานะชุดนี้ ถ้าไม่เคยเลือกให้เป็นรถเกี่ยวซึ่งใช้กันมากที่สุด
 function harvestWayOf(st) {
@@ -8578,185 +8602,379 @@ views.harvest = function (root) {
 // จำนวนเงินแบบไม่มีทศนิยม ใช้ร่วมกันหลายที่
 function money0(n) { return Math.round(n).toLocaleString("th-TH"); }
 
-views.cost = async function (root) {
-  root.appendChild(pageHead("cost"));
-  ensurePrepCostItems();
+// ═══════════════════════════════════════════════════
+// แท็บ 4 · เก็บเกี่ยว — ส่วนที่ 2, 3, 4
+// ═══════════════════════════════════════════════════
+//
+// สามส่วนนี้เคยเป็นหน้าเดียวยาวๆ ชื่อ "กำไร" ซึ่งรวมช่องกรอก ตารางต้นทุน และผลลัพธ์ไว้ด้วยกัน
+// แยกออกเป็นสามกล่องตามคำถามที่ต่างกันจริง
+//   ผลผลิต — ได้ข้าวเท่าไหร่ ขายได้ราคาเท่าไหร่ (คาดไว้ กับ ที่ได้จริง)
+//   ต้นทุน — จ่ายอะไรไปบ้างทั้งฤดู ดึงมาจากทุกแท็บที่ผ่านมา ไม่ต้องกรอกซ้ำ
+//   กำไร   — เหลือเท่าไหร่ และต้องขายราคาเท่าไหร่ถึงจะไม่ขาดทุน
+//
+// ── ทำไมต้องแยก "คาดว่าจะได้" กับ "ได้จริง" ──
+//
+// ของเดิมมีช่องเดียวคือ "ผลผลิตที่คาดว่าจะได้" ซึ่งใช้วางแผนได้ แต่พอเกี่ยวเสร็จจริง
+// ผู้ใช้ต้องทับตัวเลขเดิมทิ้ง แล้วก็ไม่เหลือหลักฐานว่าที่คาดไว้ตอนต้นฤดูห่างจากของจริงแค่ไหน
+// ซึ่งเป็นตัวเลขที่มีค่าที่สุดสำหรับการวางแผนฤดูหน้า เก็บสองช่องแยกกันจึงตอบได้ทั้งสองคำถาม
+
+// สถานะของแท็บนี้ทั้งหมดอยู่ในคีย์เดียวกับที่ช่องกรอกต้นทุนทุกแท็บเขียนลงไป
+// ห้ามมีที่เก็บซ้อนกันสองที่ ไม่งั้นยอดรวมจะไม่ตรงกับที่ผู้ใช้เห็นตอนกรอก
+var CostState = {
+  read: function () {
+    try { return JSON.parse(localStorage.getItem(plotKey("cost")) || "{}"); }
+    catch (e) { return {}; }
+  },
+  write: function (patch) {
+    var st = this.read();
+    Object.keys(patch).forEach(function (k) { st[k] = patch[k]; });
+    try { localStorage.setItem(plotKey("cost"), JSON.stringify(st)); } catch (e) { /* พื้นที่เต็ม */ }
+    return st;
+  },
+  num: function (key) {
+    var v = this.read()[key];
+    return (typeof v === "number" && !isNaN(v)) ? v : null;
+  },
+  setNum: function (key, v) {
+    var patch = {};
+    patch[key] = (v === null || isNaN(v)) ? null : v;
+    this.write(patch);
+  },
+  varietyKey: function () {
+    var C = window.COST_GUIDE;
+    var k = this.read().variety;
+    var hit = C.varieties.filter(function (v) { return v.key === k; })[0];
+    return (hit || C.varieties[0]).key;
+  },
+  variety: function () {
+    var C = window.COST_GUIDE;
+    var k = this.varietyKey();
+    return C.varieties.filter(function (v) { return v.key === k; })[0];
+  },
+
+  // ค่าที่ใช้คำนวณจริง — ของที่ได้จริงมาก่อนเสมอ ถ้ายังไม่มีค่อยใช้ที่คาดไว้
+  // และถ้าไม่ได้กรอกทั้งคู่ ค่อยใช้ค่ากลางของพันธุ์นั้นจากฐานราคา
+  planYield: function () { var v = this.num("yieldPerRai"); return v === null ? this.variety().yieldPerRai : v; },
+  planPrice: function () { var v = this.num("price");       return v === null ? this.variety().price : v; },
+  realYield: function () { return this.num("actualYield"); },
+  realPrice: function () { return this.num("actualPrice"); },
+  useYield:  function () { var v = this.realYield(); return v === null ? this.planYield() : v; },
+  usePrice:  function () { var v = this.realPrice(); return v === null ? this.planPrice() : v; },
+  isReal:    function () { return this.realYield() !== null && this.realPrice() !== null; }
+};
+
+// ── ช่องกรอกตัวเลขแบบมีค่าตั้งต้นใน placeholder ──
+// เหตุผลเดียวกับช่องต้นทุน: ค่าตั้งต้นห้ามอยู่ใน value ไม่งั้นผู้ใช้จะคิดว่ากรอกแล้ว
+function numField(label, key, placeholder, unit, onChange) {
+  var f = el("div", "inp");
+  f.appendChild(el("label", "", label));
+  var wrap = el("div");
+  wrap.style.cssText = "display:flex;align-items:center;gap:8px";
+  var inp = el("input");
+  inp.className = "num-in";
+  inp.inputMode = "decimal";
+  inp.style.flex = "1";
+  if (placeholder !== null && placeholder !== undefined) inp.placeholder = String(placeholder);
+  var cur = CostState.num(key);
+  if (cur !== null) inp.value = String(cur);
+  inp.oninput = function () {
+    var raw = inp.value.trim();
+    var v = parseFloat(raw);
+    CostState.setNum(key, (raw === "" || isNaN(v) || v < 0) ? null : v);
+    if (onChange) onChange();
+  };
+  wrap.appendChild(inp);
+  if (unit) wrap.appendChild(el("span", "cfield-unit", unit));
+  f.appendChild(wrap);
+  return f;
+}
+
+// ═══════════════════════════════════════════════════
+// ส่วนที่ 2 · ผลผลิต — ที่คาดไว้ กับ ที่ได้จริง
+// ═══════════════════════════════════════════════════
+views.yield = function (root) {
   var C = window.COST_GUIDE;
   if (!C) {
     root.appendChild(stateBlock("!", "ไม่พบไฟล์ฐานข้อมูลราคา", "ลองรีเฟรชหน้าอีกที"));
     return;
   }
 
-  // ══════════════════════════════════════════════
-  // ส่วนที่ 1 · ฐานข้อมูลราคา ดูได้ทันทีไม่ต้องกรอกอะไรก่อน
-  // ══════════════════════════════════════════════
-  await renderReferencePrices(root);
+  root.appendChild(bund("ผลผลิตและราคา"));
 
-  // ══════════════════════════════════════════════
-  // ส่วนที่ 2 · ช่องกรอก
-  // ══════════════════════════════════════════════
-  var KEY = plotKey("cost");
-  var st = { rai: 10, soil: "clay", variety: "avg", items: {}, yieldPerRai: null, price: null };
-  try {
-    var old = JSON.parse(localStorage.getItem(KEY) || "{}");
-    Object.keys(old).forEach(function (k) { st[k] = old[k]; });
-  } catch (e) { /* อ่านไม่ได้ก็ใช้ค่าเริ่มต้น */ }
-  function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* พื้นที่เต็ม */ }
-  }
-
-  function varOf() {
-    return C.varieties.filter(function (v) { return v.key === st.variety; })[0] || C.varieties[0];
-  }
-  function money(n) { return Math.round(n).toLocaleString("th-TH"); }
-
-  root.appendChild(bund("ข้อมูลแปลง"));
-  var inCard = plot(null);
-  var outHost = el("div");
-
-  var grid = el("div", "inputs");
-
-  // คิดต่อ 1 ไร่ทั้งหมด ไม่มีช่องขนาดแปลงแล้ว
-  var rai = 1;
-
-  var f2 = el("div", "inp");
-  f2.appendChild(el("label", "", "ชนิดข้าวที่จะขาย"));
+  // ── ชนิดข้าวที่จะขาย ──
+  // เปลี่ยนชนิดแล้วค่าตั้งต้นของผลผลิตและราคาเปลี่ยนตาม จึงต้องอยู่เหนือช่องทั้งสอง
+  var pickCard = plot(null);
+  var f1 = el("div", "inp");
+  f1.appendChild(el("label", "", "ชนิดข้าวที่จะขาย"));
   var vSel = el("select");
   C.varieties.forEach(function (v) {
-    var o = el("option", "", v.thai + " (" + v.price + " บาท/กก.)");
+    var o = el("option", "", v.thai + " (ค่ากลาง " + v.price + " บาท/กก.)");
     o.value = v.key;
-    if (v.key === st.variety) o.selected = true;
+    if (v.key === CostState.varietyKey()) o.selected = true;
     vSel.appendChild(o);
   });
-  f2.appendChild(vSel);
-  grid.appendChild(f2);
+  f1.appendChild(vSel);
+  pickCard.appendChild(f1);
+  root.appendChild(pickCard);
 
-  var f3 = el("div", "inp");
-  f3.appendChild(el("label", "", "ชนิดดิน"));
-  var sSel = el("select");
-  Object.keys(C.soilNotes).forEach(function (k) {
-    var o = el("option", "", C.soilNotes[k].thai);
-    o.value = k;
-    if (k === st.soil) o.selected = true;
-    sSel.appendChild(o);
-  });
-  f3.appendChild(sSel);
-  grid.appendChild(f3);
+  // ── ที่คาดว่าจะได้ ──
+  var planCard = plot(null, "กรอกตอนต้นฤดู ใช้วางแผนว่าจะลงทุนได้แค่ไหน");
+  planCard.appendChild(el("div", "rx-sect", "ที่คาดว่าจะได้"));
+  var planGrid = el("div", "inputs");
+  planCard.appendChild(planGrid);
+  root.appendChild(planCard);
 
-  var f4 = el("div", "inp");
-  f4.appendChild(el("label", "", "ผลผลิตที่คาดว่าจะได้ (กก./ไร่)"));
-  var yIn = el("input");
-  yIn.className = "num-in";
-  yIn.inputMode = "decimal";
-  f4.appendChild(yIn);
-  grid.appendChild(f4);
+  // ── ที่ได้จริง ──
+  var realCard = plot(null, "กรอกหลังเกี่ยวและขายเสร็จ · ยังไม่มีก็เว้นไว้ได้");
+  realCard.appendChild(el("div", "rx-sect", "ที่ได้จริง"));
+  var realGrid = el("div", "inputs");
+  realCard.appendChild(realGrid);
+  var cmpHost = el("div");
+  realCard.appendChild(cmpHost);
+  root.appendChild(realCard);
 
-  var f5 = el("div", "inp");
-  f5.appendChild(el("label", "", "ราคาที่คาดว่าจะขายได้ (บาท/กก.)"));
-  var pIn = el("input");
-  pIn.className = "num-in";
-  pIn.inputMode = "decimal";
-  f5.appendChild(pIn);
-  grid.appendChild(f5);
+  function paintFields() {
+    var v = CostState.variety();
 
-  inCard.appendChild(grid);
-  root.appendChild(inCard);
+    planGrid.innerHTML = "";
+    planGrid.appendChild(numField("ผลผลิตที่คาดว่าจะได้", "yieldPerRai", v.yieldPerRai, "กก./ไร่", changed));
+    planGrid.appendChild(numField("ราคาที่คาดว่าจะขายได้", "price", v.price, "บาท/กก.", changed));
 
-  // ── รายการต้นทุนต่อไร่ ──
-  // ── สรุปต้นทุน อ่านอย่างเดียว ──
+    realGrid.innerHTML = "";
+    realGrid.appendChild(numField("ผลผลิตที่ได้จริง", "actualYield", "—", "กก./ไร่", changed));
+    realGrid.appendChild(numField("ราคาที่ขายได้จริง", "actualPrice", "—", "บาท/กก.", changed));
+  }
+
+  // ── เทียบของจริงกับที่คาดไว้ ──
   //
-  // ช่องกรอกทั้งหมดย้ายไปอยู่ในแท็บที่เกิดค่าใช้จ่ายจริงแล้ว
-  // ที่นี่จึงเป็นที่ "รวมยอด" ไม่ใช่ที่กรอก และต้องบอกให้ชัดว่าแต่ละรายการกรอกได้ที่ไหน
-  // ไม่งั้นคนที่เห็นตัวเลขผิดตรงนี้จะไม่รู้ว่าต้องไปแก้ที่ไหน แล้วก็ปล่อยผิดไว้ทั้งฤดู
-  root.appendChild(bund("ต้นทุนต่อไร่"));
-  var costCard = plot(null, "รวมจากที่กรอกไว้ในแต่ละแท็บ");
-  var totalTag = el("div", "costsum");
-  var costRows = el("div");
-  costCard.appendChild(costRows);
+  // ตัวเลขนี้คือบทเรียนของฤดูนี้ที่เอาไปใช้ฤดูหน้าได้ตรงๆ
+  // คนที่คาดผลผลิตสูงเกินจริงทุกปีจะวางแผนเงินผิดทุกปี ถ้าไม่มีใครเอาสองตัวเลขมาวางคู่กันให้ดู
+  function paintCompare() {
+    cmpHost.innerHTML = "";
+    var ry = CostState.realYield(), rp = CostState.realPrice();
+    if (ry === null && rp === null) return;
 
-  function paintCostRows() {
-    costRows.innerHTML = "";
-    var untouched = 0;
+    var rows = [];
+    if (ry !== null) rows.push(["ผลผลิต", CostState.planYield(), ry, "กก./ไร่", true]);
+    if (rp !== null) rows.push(["ราคาขาย", CostState.planPrice(), rp, "บาท/กก.", true]);
 
-    C.costItems.forEach(function (it) {
-      var typed = CostStore.typed(it.key);
-      var home = COST_HOME[it.key];
-
-      var row = el("div", "csum-row");
-      var nm = el("div", "csum-name");
-      nm.appendChild(document.createTextNode(it.name));
-      if (home) nm.appendChild(el("span", "csum-where", home.where));
-      row.appendChild(nm);
-
-      // ค่าที่ยังไม่ได้กรอกแสดงจางกว่า เพื่อให้กวาดตาเห็นทันทีว่าเหลืออะไรที่ยังไม่ใช่ของจริง
-      var val = el("div", "csum-val" + (typed === null ? " soft" : ""),
-        money(CostStore.effective(it.key)));
-      row.appendChild(val);
-      costRows.appendChild(row);
-
-      if (typed === null) untouched++;
+    var box = el("div");
+    box.style.marginTop = "13px";
+    box.appendChild(el("div", "rx-sect", "เทียบกับที่คาดไว้"));
+    rows.forEach(function (r) {
+      var name = r[0], plan = r[1], real = r[2], unit = r[3], moreIsBetter = r[4];
+      var diff = real - plan;
+      var pct = plan ? (diff / plan) * 100 : 0;
+      var line = el("div", "phhist");
+      line.appendChild(el("div", "phhist-date", name));
+      var v = el("div", "phhist-val num", trimNum(plan) + " → " + trimNum(real));
+      v.style.cssText = "flex:0 0 auto;font-weight:600";
+      var same = Math.abs(pct) < 2;
+      v.style.color = same ? "var(--ink-soft)"
+                    : ((diff > 0) === moreIsBetter ? "var(--blade)" : "var(--rust)");
+      line.appendChild(v);
+      line.appendChild(el("div", "phhist-note", same
+        ? "ใกล้เคียงที่คาดไว้ · " + unit
+        : (diff > 0 ? "สูงกว่าที่คาด " : "ต่ำกว่าที่คาด ") +
+          trimNum(Math.abs(diff)) + " " + unit + " (" + Math.abs(pct).toFixed(0) + "%)"));
+      box.appendChild(line);
     });
 
+    if (!CostState.isReal()) {
+      box.appendChild(el("div", "read-foot",
+        "กรอกให้ครบทั้งผลผลิตและราคาที่ขายได้ แล้วส่วนกำไรจะคิดจากของจริงให้เอง"));
+    }
+    cmpHost.appendChild(box);
+  }
+
+  function changed() {
+    paintCompare();
+    PageBus.emit();          // ส่วนกำไรด้านล่างต้องคิดใหม่ทันที
+  }
+
+  vSel.onchange = function () {
+    // เปลี่ยนชนิดข้าวแล้วล้างค่าที่คาดไว้ กลับไปใช้ค่าตั้งต้นของชนิดใหม่
+    // ไม่งั้นราคาข้าวเจ้าจะติดมากับหอมมะลิโดยผู้ใช้ไม่รู้ตัว
+    // ส่วนของที่ได้จริงไม่ล้าง เพราะเป็นสิ่งที่เกิดขึ้นแล้ว ไม่ใช่ค่าประมาณของพันธุ์
+    CostState.write({ variety: vSel.value, yieldPerRai: null, price: null });
+    paintFields();
+    changed();
+  };
+
+  paintFields();
+  paintCompare();
+  PageBus.on(root, function () { paintCompare(); });
+};
+
+// ═══════════════════════════════════════════════════
+// ส่วนที่ 3 · ต้นทุนที่จ่ายไปแล้ว ดึงจากทุกแท็บ
+// ═══════════════════════════════════════════════════
+//
+// ที่นี่เป็นที่ "รวมยอด" ไม่ใช่ที่กรอก
+// ช่องกรอกอยู่ในแท็บที่เกิดค่าใช้จ่ายนั้นจริง เพราะคนกรอกตอนที่เพิ่งจ่ายเสร็จ
+// ซึ่งเป็นตอนเดียวที่ยังจำตัวเลขได้แม่น
+//
+// แต่ต้องบอกให้ชัดว่าแต่ละรายการแก้ได้ที่ไหน และกดแล้วพาไปที่นั่นได้เลย
+// ไม่งั้นคนที่เห็นตัวเลขผิดตรงนี้จะไม่รู้ว่าต้องไปแก้ที่ไหน แล้วก็ปล่อยผิดไว้ทั้งฤดู
+views.costsum = function (root) {
+  var C = window.COST_GUIDE;
+  if (!C) return;
+  ensurePrepCostItems();
+
+  root.appendChild(bund("ต้นทุนที่จ่ายไปแล้ว"));
+  var card = plot(null, "รวมจากที่กรอกไว้ในแต่ละแท็บ · กดที่รายการเพื่อไปแก้");
+  var rowsHost = el("div");
+  card.appendChild(rowsHost);
+  var totalTag = el("div", "costsum");
+  card.appendChild(totalTag);
+  root.appendChild(card);
+
+  // จัดกลุ่มตามระยะที่จ่ายเงินจริง เรียงตามเวลาในฤดู
+  // ยอดย่อยของแต่ละระยะบอกได้ทันทีว่าฤดูนี้เงินหมดไปกับช่วงไหนมากที่สุด
+  var GROUPS = [
+    { page: "prep",    title: "ระยะเตรียมดิน" },
+    { page: "grow",    title: "ระหว่างปลูก" },
+    { page: "field",   title: "ข้อมูลการเกษตร" },
+    { page: "harvest", title: "เก็บเกี่ยว" }
+  ];
+
+  function paint() {
+    rowsHost.innerHTML = "";
+    var untouched = 0, grand = 0;
+
+    GROUPS.forEach(function (g) {
+      var items = C.costItems.filter(function (it) {
+        var home = COST_HOME[it.key];
+        return home && home.page === g.page;
+      });
+      if (!items.length) return;
+
+      var sub = 0;
+      rowsHost.appendChild(el("div", "rx-sect", g.title));
+      items.forEach(function (it) {
+        var typed = CostStore.typed(it.key);
+        var value = CostStore.effective(it.key);
+        sub += value;
+        if (typed === null) untouched++;
+
+        var row = el("button", "csum-row csum-hit");
+        var nm = el("div", "csum-name");
+        nm.appendChild(document.createTextNode(it.name));
+        nm.appendChild(el("span", "csum-where", typed === null ? "ยังไม่ได้กรอก · ใช้ค่ากลาง" : "กรอกเองแล้ว"));
+        row.appendChild(nm);
+        // ค่าที่ยังไม่ได้กรอกแสดงจางกว่า ให้กวาดตาเห็นทันทีว่าเหลืออะไรที่ยังไม่ใช่ของจริง
+        row.appendChild(el("div", "csum-val" + (typed === null ? " soft" : ""), money0(value)));
+        row.onclick = function () { open(COST_HOME[it.key].page); };
+        rowsHost.appendChild(row);
+      });
+
+      var subLine = el("div", "csum-sub");
+      subLine.appendChild(el("div", "", "รวม" + g.title));
+      subLine.appendChild(el("div", "num", money0(sub) + " บาท/ไร่"));
+      rowsHost.appendChild(subLine);
+      grand += sub;
+    });
+
+    // รายการที่ไม่มีบ้านในแท็บไหนเลย ต้องไม่หายไปจากยอดรวมเงียบๆ
+    var orphans = C.costItems.filter(function (it) { return !COST_HOME[it.key]; });
+    if (orphans.length) {
+      rowsHost.appendChild(el("div", "rx-sect", "อื่นๆ"));
+      orphans.forEach(function (it) {
+        var row = el("div", "csum-row");
+        row.appendChild(el("div", "csum-name", it.name));
+        row.appendChild(el("div", "csum-val", money0(CostStore.effective(it.key))));
+        rowsHost.appendChild(row);
+        grand += CostStore.effective(it.key);
+      });
+    }
+
+    totalTag.textContent = "รวมต้นทุน " + money0(grand) + " บาทต่อไร่";
     if (untouched) {
-      costRows.appendChild(el("div", "read-foot",
-        "เลขสีจาง " + untouched + " รายการยังเป็นค่ากลาง"));
+      rowsHost.appendChild(el("div", "read-foot",
+        "เลขสีจาง " + untouched + " รายการยังเป็นค่ากลางของประเทศ ไม่ใช่ของแปลงนี้"));
     }
   }
 
-  costCard.appendChild(totalTag);
-  root.appendChild(costCard);
+  paint();
+  PageBus.on(root, paint);
+};
 
-  // ══════════════════════════════════════════════
-  // ส่วนที่ 3 · สรุป
-  // ══════════════════════════════════════════════
-  root.appendChild(bund("สรุป"));
-  root.appendChild(outHost);
+// ═══════════════════════════════════════════════════
+// ส่วนที่ 4 · กำไร
+// ═══════════════════════════════════════════════════
+views.profit = async function (root) {
+  var C = window.COST_GUIDE;
+  if (!C) return;
 
-  function syncDefaults() {
-    var v = varOf();
-    yIn.value = String(st.yieldPerRai == null ? v.yieldPerRai : st.yieldPerRai);
-    pIn.value = String(st.price == null ? v.price : st.price);
-  }
+  root.appendChild(bund("กำไร"));
+  var host = el("div");
+  root.appendChild(host);
 
-  function recalc() {
-    outHost.innerHTML = "";
+  function paint() {
+    host.innerHTML = "";
 
-    var yPer = parseFloat(yIn.value);
-    var price = parseFloat(pIn.value);
-
-    paintCostRows();
-    var perRai = CostStore.total();
-    totalTag.textContent = "รวมต้นทุน " + money(perRai) + " บาทต่อไร่";
+    var real = CostState.isReal();
+    var yPer = CostState.useYield();
+    var price = CostState.usePrice();
+    var cost = CostStore.total();
 
     if (!yPer || yPer <= 0 || !price || price <= 0) {
-      outHost.appendChild(stateBlock("◇", "กรอกผลผลิตและราคาก่อน", null));
+      host.appendChild(stateBlock("◇", "กรอกผลผลิตและราคาก่อน", "ที่ส่วนผลผลิตด้านบน"));
       return;
     }
 
-    var cost = perRai * rai;
-    var kg = yPer * rai;
-    var revenue = kg * price;
+    var revenue = yPer * price;
     var profit = revenue - cost;
-    // จุดคุ้มทุนคือตัวเลขที่มีประโยชน์ที่สุดของทั้งหน้า
-    // เพราะเป็นราคาที่เอาไปเทียบกับที่โรงสีเสนอได้ทันทีว่าควรขายหรือรอ
-    var breakEven = cost / kg;
     var good = profit >= 0;
+    // จุดคุ้มทุนคือตัวเลขที่มีประโยชน์ที่สุดของทั้งแท็บ
+    // เพราะเอาไปเทียบกับราคาที่โรงสีเสนอได้ทันทีว่าควรขายหรือรอ
+    var breakEven = cost / yPer;
 
     var sum = plot(null);
+    var badge = el("div", real ? "tag-yes" : "tag-wait", real ? "คิดจากของจริง" : "คิดจากที่คาดไว้");
+    badge.style.cssText = "display:inline-block;margin-bottom:9px";
+    sum.appendChild(badge);
+
     var hero = el("div", "hero");
     hero.appendChild(el("div", "read-label", good ? "กำไรต่อไร่" : "ขาดทุนต่อไร่"));
-    var big = el("div", "num hero-val", (good ? "" : "-") + money(Math.abs(profit)) + " บาท");
+    var big = el("div", "num hero-val", (good ? "" : "-") + money0(Math.abs(profit)) + " บาท");
     big.style.color = good ? "var(--blade)" : "var(--rust)";
     hero.appendChild(big);
     hero.appendChild(el("div", "read-foot", "มีกี่ไร่คูณเอาเอง"));
     sum.appendChild(hero);
 
     var cells = el("div", "cellrow");
-    cells.appendChild(readOut("ต้นทุน", money(cost) + " บาท/ไร่", null));
-    cells.appendChild(readOut("ผลผลิต", money(kg) + " กก./ไร่", null));
-    cells.appendChild(readOut("รายได้", money(revenue) + " บาท/ไร่", "ที่ราคา " + price + " บาท/กก."));
+    cells.appendChild(readOut("ต้นทุน", money0(cost) + " บาท/ไร่", "จากทุกแท็บรวมกัน"));
+    cells.appendChild(readOut("ผลผลิต", money0(yPer) + " กก./ไร่", real ? "ที่ได้จริง" : "ที่คาดไว้"));
+    cells.appendChild(readOut("รายได้", money0(revenue) + " บาท/ไร่", "ที่ราคา " + trimNum(price) + " บาท/กก."));
     sum.appendChild(cells);
-    outHost.appendChild(sum);
+    host.appendChild(sum);
+
+    // ── เทียบกำไรที่คาดไว้กับที่ได้จริง ──
+    // ต้องมีครบทั้งสองชุดถึงจะเทียบได้ ไม่งั้นเป็นการเทียบตัวเลขเดียวกับตัวมันเอง
+    if (real) {
+      var planRevenue = CostState.planYield() * CostState.planPrice();
+      var planProfit = planRevenue - cost;
+      var gap = profit - planProfit;
+      var cmp = plot(null);
+      cmp.style.marginTop = "13px";
+      cmp.appendChild(el("div", "rx-sect", "เทียบกับที่คาดไว้ตอนต้นฤดู"));
+      var line = el("div", "phhist");
+      line.appendChild(el("div", "phhist-date", "กำไร/ไร่"));
+      var v = el("div", "phhist-val num",
+        (planProfit < 0 ? "-" : "") + money0(Math.abs(planProfit)) + " → " +
+        (profit < 0 ? "-" : "") + money0(Math.abs(profit)));
+      v.style.cssText = "flex:0 0 auto;font-weight:600";
+      v.style.color = Math.abs(gap) < 1 ? "var(--ink-soft)" : (gap > 0 ? "var(--blade)" : "var(--rust)");
+      line.appendChild(v);
+      line.appendChild(el("div", "phhist-note", Math.abs(gap) < 1
+        ? "ตรงตามที่คาด"
+        : (gap > 0 ? "ดีกว่าที่คาด " : "แย่กว่าที่คาด ") + money0(Math.abs(gap)) + " บาท/ไร่"));
+      cmp.appendChild(line);
+      cmp.appendChild(el("div", "read-foot",
+        "ตัวเลขนี้คือบทเรียนของฤดูนี้ เอาไปตั้งเป้าฤดูหน้าให้ใกล้ความจริงขึ้น"));
+      host.appendChild(cmp);
+    }
 
     // ── จุดคุ้มทุน ──
     var be = plot(null);
@@ -8765,12 +8983,11 @@ views.cost = async function (root) {
     var beBig = el("div", "num be-val", breakEven.toFixed(2) + " บาท/กก.");
     beBig.style.color = price >= breakEven ? "var(--blade)" : "var(--rust)";
     be.appendChild(beBig);
-
     var diff = price - breakEven;
     be.appendChild(el("div", "read-foot", price >= breakEven
       ? "สูงกว่าจุดคุ้มทุน " + diff.toFixed(2) + " บาท/กก."
       : "ต่ำกว่าจุดคุ้มทุน " + Math.abs(diff).toFixed(2) + " บาท/กก."));
-    outHost.appendChild(be);
+    host.appendChild(be);
 
     // ── ทางออกเมื่อขาดทุน เรียงตามที่ทำได้จริงเร็วที่สุดก่อน ──
     if (!good) {
@@ -8781,65 +8998,42 @@ views.cost = async function (root) {
         "เพิ่มผลผลิต · เตรียมดินให้ดีขึ้นและตรวจโรคเร็ว",
         "ชะลอการขาย · สินเชื่อชะลอการขายของ ธ.ก.ส."
       ]));
-      outHost.appendChild(fix);
+      host.appendChild(fix);
     }
 
     // ── ข้อสังเกตตามชนิดดิน ──
-    var sn = C.soilNotes[st.soil];
+    //
+    // ชนิดดินอ่านจากแท็บระยะเตรียมดิน ไม่ให้กรอกซ้ำที่นี่
+    // ถ้าคีย์ของสองไฟล์ไม่ตรงกัน (ฐานราคาไม่รู้จักดินชนิดนั้น) ให้ข้ามไปเงียบๆ
+    // ดีกว่าแสดงข้อสังเกตของดินผิดชนิดซึ่งพาไปปรับต้นทุนผิดทาง
+    var sKey = (typeof soilTypeOf === "function") ? soilTypeOf() : null;
+    var sn = sKey ? C.soilNotes[sKey] : null;
     if (sn) {
       var sc = plot(null);
       sc.style.marginTop = "13px";
       sc.appendChild(el("div", "rx-sect", "ข้อสังเกตสำหรับ" + sn.thai));
+      sc.appendChild(el("div", "read-foot", "ชนิดดินมาจากแท็บ " + pageName("prep")));
       sc.appendChild(el("div", "flash flash-warn", sn.adjust));
       sc.appendChild(more("ทำไม", sn.say));
-      outHost.appendChild(sc);
+      host.appendChild(sc);
     }
   }
 
-  yIn.oninput = function () {
-    var v = parseFloat(yIn.value);
-    st.yieldPerRai = isNaN(v) ? null : v;
-    save();
-    recalc();
-  };
-  pIn.oninput = function () {
-    var v = parseFloat(pIn.value);
-    st.price = isNaN(v) ? null : v;
-    save();
-    recalc();
-  };
-  vSel.onchange = function () {
-    st.variety = vSel.value;
-    // เปลี่ยนชนิดข้าวแล้วรีเซ็ตผลผลิตกับราคากลับเป็นค่าตั้งต้นของชนิดนั้น
-    // ไม่งั้นราคาข้าวเจ้าจะติดมากับหอมมะลิโดยผู้ใช้ไม่รู้ตัว
-    st.yieldPerRai = null;
-    st.price = null;
-    save();
-    syncDefaults();
-    recalc();
-  };
-  sSel.onchange = function () { st.soil = sSel.value; save(); recalc(); };
+  paint();
+  PageBus.on(root, paint);
 
-  syncDefaults();
-  recalc();
-
-  // ให้ส่วนวิธีเก็บเกี่ยวด้านบนสั่งคำนวณใหม่ได้เมื่อผู้ใช้เปลี่ยนวิธีหรือแก้ค่าจ้าง
-  // ต้องอ่านค่าจาก localStorage ใหม่ทุกครั้ง ไม่ใช้ st ที่ค้างอยู่ในหน่วยความจำ
-  // เพราะสองส่วนนี้เขียนคีย์เดียวกันคนละเวลา ถ้าใช้ของเก่าจะได้ยอดที่ไม่ตรงกับที่เห็นด้านบน
-  costRepaint = function () {
-    try {
-      var fresh = JSON.parse(localStorage.getItem(KEY) || "{}");
-      st.items = fresh.items || {};
-      st.harvestWay = fresh.harvestWay;
-    } catch (e) { /* อ่านไม่ได้ก็ใช้ค่าที่มีอยู่ */ }
-    recalc();
-  };
-
-  // ══════════════════════════════════════════════
-  // ส่วนที่ 4 · สมุดราคาส่วนตัว
-  // ══════════════════════════════════════════════
+  // ── ราคาอ้างอิง ──
+  //
+  // อยู่ท้ายส่วนกำไรเพราะเป็นของที่ต้องใช้ตอนกรอก "ราคาที่ขายได้จริง"
+  // คนที่กำลังตัดสินใจว่าจะขายวันนี้หรือรอ ต้องเห็นราคารับซื้อล่าสุดในหน้าเดียวกับจุดคุ้มทุน
+  await renderReferencePrices(root);
 };
 
+// ── ไม่อยู่ในเมนูแล้ว (แก้ 2026-08) ──
+//
+// ถูกถอดออกจากแท็บเก็บเกี่ยว ซึ่งตอนนี้เหลือสี่ส่วนคือ ค่าเกี่ยว · ผลผลิต · ต้นทุน · กำไร
+// โค้ดยังอยู่ครบและใช้ได้ทันที ถ้าจะเอากลับให้เติมชื่อส่วนลงใน parts ของแท็บใน PAGES
+// พร้อมเติมชื่อย่อใน jump ให้ตรงตำแหน่งกัน เท่านี้ก็กลับมาแสดงเหมือนเดิม
 views.ledger = async function (root) {
   root.appendChild(pageHead("ledger"));
   var logs = plotLogs(await Store.list());
@@ -10844,9 +11038,21 @@ document.getElementById("signOut").onclick = async function () {
   showAuthScreen(null);
 };
 
+// ช่องค้นหาบนหัวเว็บใช้กรองตารางประวัติบันทึกอย่างเดียว
+// ถ้าประวัติไม่ได้อยู่ในเมนู ช่องนี้จะพิมพ์แล้วไม่มีอะไรเกิดขึ้น ซึ่งดูเหมือนเว็บพัง
+// เช็คจาก PAGES ตรงๆ จะได้กลับมาเองอัตโนมัติถ้าวันหนึ่งเอาประวัติกลับเข้าเมนู
+function syncSeekVisibility() {
+  var used = PAGES.some(function (p) {
+    return !p.hidden && (p.parts || []).indexOf("ledger") !== -1;
+  });
+  var box = document.querySelector(".seek");
+  if (box) box.style.display = used ? "" : "none";
+}
+
 function startApp() {
   paintWho();
   markBrain();
+  syncSeekVisibility();
   ensurePrepCostItems();   // เติมรายการต้นทุนที่ฐานราคายังไม่มี ก่อนหน้าไหนจะอ่านมันไปคำนวณ
   open("grow");
 }
