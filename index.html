@@ -2147,6 +2147,174 @@
     .intake-art svg, .sweep-dot, .gate-art .sway, .gate-art .scan { animation: none !important; }
     .plot:hover, .act:hover, .stage-tab:hover, .jump-b:hover, .plotchip:hover { transform: none !important; }
   }
+
+  /* ══════════════════════════════════════════════════════════
+     ไมด์แมพ · โครงของทุกแท็บ
+     ══════════════════════════════════════════════════════════
+
+     ทุกแท็บอ่านเป็นแผนผังความคิดชุดเดียวกัน
+       แกนกลาง — ชื่อแท็บ บอกว่ากำลังอยู่เรื่องอะไร
+       สาขา    — ส่วนต่างๆ ของแท็บ มีเลขกำกับและสีประจำสาขา
+       ใบ      — การ์ดเนื้อหาเดิมทุกใบ แขวนอยู่กับสาขาของมัน
+
+     ── ทำไมเส้นเชื่อมวาดด้วย CSS ล้วน ไม่ใช่ SVG ──
+     เส้นของไมด์แมพต้องยาวเท่ากับความสูงจริงของเนื้อหา ซึ่งเปลี่ยนตลอดเวลา
+     ทั้งตอนกางรายการพับ ตอนพิมพ์ในช่องกรอก และตอนหมุนจอ
+     ถ้าวาดด้วย SVG ต้องวัดความสูงด้วย JS แล้ววาดใหม่ทุกครั้งที่มีอะไรขยับ
+     ซึ่งพลาดง่ายและกินแรงเครื่อง เส้นที่เป็นขอบของกล่องยืดตามเนื้อหาเองอยู่แล้ว
+
+     ── ของเดิมไม่ถูกแตะ ──
+     เนื้อหาข้างในใบยังเป็นการ์ดชุดเดิมทุกใบ ช่องกรอกจึงยังพิมพ์ได้
+     ปุ่มยังกดได้ และส่วนที่วาดตัวเองใหม่ก็ยังทำงานเหมือนเดิมทั้งหมด */
+
+  /* สีประจำสาขา วนห้าสีตามลำดับของส่วนในแท็บ
+     ทุกสีผ่านเกณฑ์คอนทราสต์กับพื้นขาวเมื่อใช้เป็นสีตัวหนังสือ */
+  .mind-branch { --bc: #2F8F52; --bt: #E9F5E2; --bd: #1D5B34; --bl: #C7E3B8; }
+  .mind-branch[data-hue="1"] { --bc: #C98A15; --bt: #FBF1DA; --bd: #7A5410; --bl: #EBD7A4; }
+  .mind-branch[data-hue="2"] { --bc: #2A7FA8; --bt: #E3F0F7; --bd: #1B5875; --bl: #B7D9E9; }
+  .mind-branch[data-hue="3"] { --bc: #C4547A; --bt: #FBE8EE; --bd: #8A3654; --bl: #EEC2D2; }
+  .mind-branch[data-hue="4"] { --bc: #7B5FC4; --bt: #EEEAFA; --bd: #513A8C; --bl: #CFC4EE; }
+
+  .mind { position: relative; }
+
+  /* ── แกนกลาง ── */
+  .mind-root {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 20px; border-radius: 24px;
+    background: linear-gradient(140deg, #FFFFFF, var(--canopy));
+    border: 1px solid var(--rule);
+    box-shadow: var(--lift);
+    margin-bottom: 20px;
+  }
+  .mind-root-ico {
+    width: 46px; height: 46px; flex: none; border-radius: 16px;
+    display: grid; place-items: center; color: #FFFFFF;
+    background: linear-gradient(135deg, var(--paddy), #1E7A50);
+    box-shadow: 0 8px 18px -10px rgba(15,74,50,.9);
+  }
+  .mind-root-ico svg { width: 24px; height: 24px; }
+  .mind-root-text { min-width: 0; }
+  .mind-root-kicker { font-size: .74rem; font-weight: 600; color: var(--blade); }
+  .mind-root-name {
+    font-family: var(--f-display); font-weight: 500; font-size: 1.24rem;
+    color: var(--paddy); line-height: 1.3;
+  }
+  .mind-root-foot { font-size: .75rem; color: var(--ink-faint); margin-top: 2px; }
+
+  /* ── สาขา ──
+     รางแนวตั้งเป็นขอบของแต่ละสาขาเอง สาขาที่เรียงต่อกันจึงต่อเป็นเส้นเดียว
+     สาขาแรกเริ่มที่ข้อศอก สาขาสุดท้ายจบที่ข้อศอก ไม่มีเส้นโผล่เกินหัวหรือท้าย */
+  .mind-tree { position: relative; }
+  .mind-branch { position: relative; padding: 0 0 26px 34px; }
+  .mind-branch::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 2px; background: var(--rule);
+  }
+  .mind-branch:first-child::before { top: 26px; }
+  .mind-branch:last-child::before  { bottom: auto; height: 26px; }
+  .mind-branch:last-child { padding-bottom: 0; }
+  /* ข้อศอกโค้งสีประจำสาขา วิ่งจากรางเข้าหัวสาขา */
+  .mind-branch::after {
+    content: ""; position: absolute; left: 0; top: 6px; width: 26px; height: 20px;
+    border-left: 2px solid var(--bc); border-bottom: 2px solid var(--bc);
+    border-bottom-left-radius: 14px;
+  }
+
+  .mind-branch-head {
+    display: inline-flex; align-items: center; gap: 11px;
+    padding: 7px 20px 7px 7px; border-radius: 999px;
+    background: var(--bt); box-shadow: inset 0 0 0 1.5px var(--bl);
+  }
+  .mind-no {
+    width: 30px; height: 30px; flex: none; border-radius: 50%;
+    display: grid; place-items: center; background: var(--bc); color: #FFFFFF;
+    font-family: var(--f-data); font-weight: 600; font-size: .88rem;
+  }
+  .mind-branch-name {
+    font-family: var(--f-display); font-weight: 500; font-size: 1.04rem;
+    color: var(--bd); line-height: 1.3;
+  }
+
+  /* ── ใบ ──
+     รางย่อยอยู่ตรงกลางวงกลมเลขสาขาพอดี สายตาจึงไล่จากเลขลงมาหาใบได้ตรงๆ */
+  .mind-leaves { position: relative; padding-left: 22px; margin-top: 4px; }
+  .mind-leaves::before {
+    content: ""; position: absolute; left: 22px; top: -6px;
+    width: 2px; height: 32px; background: var(--bl);
+  }
+  .mind-leaf { position: relative; padding: 14px 0 0 24px; }
+  .mind-leaf::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 2px; background: var(--bl);
+  }
+  .mind-leaf:first-child::before { top: 20px; }
+  .mind-leaf:last-child::before  { bottom: auto; height: 20px; }
+  .mind-leaf::after {
+    content: ""; position: absolute; left: 0; top: 6px; width: 18px; height: 14px;
+    border-left: 2px solid var(--bl); border-bottom: 2px solid var(--bl);
+    border-bottom-left-radius: 10px;
+  }
+  /* หัวข้อคั่นที่เป็นตัวเริ่มใบ ไม่ต้องเว้นบนอีก เพราะกล่องใบเว้นให้แล้ว */
+  .mind-leaf > .bund:first-child { margin-top: 0; }
+  .mind-leaf > .bund { margin-bottom: 11px; }
+
+  /* ── จอกว้าง: แกนกลางอยู่ซ้าย ติดหนึบไว้ให้รู้ตลอดว่าอยู่แท็บไหน ── */
+  @media (min-width: 1040px) {
+    .mind {
+      display: grid; grid-template-columns: 252px minmax(0, 1fr);
+      gap: 32px; align-items: start;
+    }
+    .mind-root {
+      position: sticky; top: 96px; margin-bottom: 0;
+      flex-direction: column; align-items: flex-start; text-align: left;
+      padding: 22px;
+    }
+    .mind-root-ico { width: 52px; height: 52px; }
+    .mind-root-ico svg { width: 27px; height: 27px; }
+    .mind-root-name { font-size: 1.32rem; margin-top: 4px; }
+    /* เส้นจากแกนกลางเข้าหารางของสาขา วิ่งข้ามช่องว่างระหว่างสองคอลัมน์ */
+    .mind-tree::before {
+      content: ""; position: absolute; left: -32px; top: 26px;
+      width: 32px; height: 2px; background: var(--rule);
+    }
+  }
+
+  /* ── จอแคบ: พับเป็นแนวตั้ง ──
+     แกนกลางขึ้นไปอยู่บนสุดเต็มความกว้าง สาขาเรียงลงมาเป็นแถวเดียว
+     ระยะเยื้องลดลงเพื่อไม่ให้เนื้อหาถูกบีบจนอ่านยาก */
+  @media (max-width: 560px) {
+    /* ระยะเยื้องรวมของสามชั้นต้องไม่เกินราว 45px บนจอ 390px
+       ไม่งั้นการ์ดเนื้อหาจะถูกบีบจนตัวเลขและปุ่มขึ้นบรรทัดใหม่โดยไม่จำเป็น */
+    .mind-branch { padding-left: 18px; padding-bottom: 18px; }
+    .mind-branch::after { width: 15px; height: 18px; }
+    .mind-leaves { padding-left: 13px; }
+    .mind-leaves::before { left: 13px; }
+    .mind-leaf { padding-left: 13px; padding-top: 12px; }
+    .mind-leaf::after { width: 10px; }
+    .mind-branch-head { padding-right: 15px; gap: 9px; }
+    .mind-branch-name { font-size: .96rem; }
+    .mind-root { padding: 14px 16px; gap: 11px; }
+    .mind-root-ico { width: 40px; height: 40px; border-radius: 13px; }
+    .mind-root-name { font-size: 1.1rem; }
+  }
+
+  /* ── สาขาไล่กันขึ้นมาตอนเปิดหน้า ──
+     ของเดิมไล่ที่ลูกโดยตรงของพื้นที่เนื้อหา ซึ่งตอนนี้เหลือกล่องไมด์แมพกล่องเดียว
+     จึงย้ายมาไล่ที่สาขาแทน เพื่อให้สายตายังไล่จากบนลงล่างตามลำดับเหมือนเดิม */
+  .field.enter .mind-root { animation: riseIn .38s cubic-bezier(.2,.8,.3,1) both; }
+  .field.enter .mind-branch { animation: riseIn .42s cubic-bezier(.2,.8,.3,1) both; }
+  .field.enter .mind-branch:nth-child(1) { animation-delay: 60ms; }
+  .field.enter .mind-branch:nth-child(2) { animation-delay: 120ms; }
+  .field.enter .mind-branch:nth-child(3) { animation-delay: 180ms; }
+  .field.enter .mind-branch:nth-child(4) { animation-delay: 240ms; }
+  .field.enter .mind-branch:nth-child(n+5) { animation-delay: 300ms; }
+  @media (prefers-reduced-motion: reduce) {
+    .field.enter .mind-root, .field.enter .mind-branch { animation: none !important; }
+  }
+
+  /* เลื่อนไปหาสาขาแล้วต้องไม่ถูกแถบหัวเว็บบัง */
+  .mind-branch { scroll-margin-top: 96px; }
+  .slot:target { scroll-margin-top: 96px; }
 </style>
 </head>
 <body>
@@ -6083,9 +6251,40 @@ var CYCLE_USES = [
       { what: "ผสมดินให้ร่วน", how: "แกลบดิบผสมดินเหนียวช่วยให้ระบายน้ำและไถง่ายขึ้นในปีถัดไป" },
       { what: "ถ่านชีวภาพ",    how: "เผาแบบอับอากาศได้ถ่านแกลบ ใส่ดินแล้วอยู่ได้นานหลายปี ช่วยอุ้มน้ำและอาหาร" },
       { what: "รองพื้นคอกสัตว์", how: "รองคอกแล้วเก็บเป็นมูลสัตว์ผสมแกลบ ใช้เป็นวัตถุดิบปุ๋ยหมักได้เลย" },
-      { what: "วัสดุเพาะกล้า",   how: "ขี้เถ้าแกลบผสมดินและปุ๋ยหมักเป็นวัสดุเพาะกล้าที่เบาและระบายน้ำดี" }
+      { what: "วัสดุเพาะกล้า",   how: "ขี้เถ้าแกลบผสมดินและปุ๋ยหมักเป็นวัสดุเพาะกล้าที่เบาและระบายน้ำดี" },
+      { what: "เพาะเห็ด",        how: "ใช้เป็นวัสดุเพาะเห็ด ทั้งผสมในก้อนเชื้อและใช้รองกองเพาะ" },
+      { what: "เชื้อเพลิงและพลังงาน", how: "เผาในเตาหรือหม้อไอน้ำที่ควบคุมอากาศได้ ใช้เป็นเชื้อเพลิงแทนฟืนหรือป้อนโรงไฟฟ้าชีวมวล" },
+      { what: "แปรรูปขาย",       how: "อัดเป็นแท่งเชื้อเพลิง ทำถ่านแกลบ หรือขายเป็นวัตถุดิบให้โรงงาน ได้ราคาดีกว่าทิ้งเปล่า" }
     ],
-    warn: "ถ่านชีวภาพต้องเผาแบบควบคุมอากาศ ไม่ใช่กองเผากลางแจ้ง ซึ่งได้แค่ขี้เถ้าและควัน"
+    warn: "ถ่านชีวภาพต้องเผาแบบควบคุมอากาศ ไม่ใช่กองเผากลางแจ้ง ซึ่งได้แค่ขี้เถ้าและควัน",
+
+    // ── การเผาแกลบ ──
+    //
+    // แกลบต่างจากฟางตรงที่มันไม่ได้อยู่ในแปลง แต่กองอยู่ที่โรงสีหรือท้ายบ้าน
+    // และกองเร็วมากจนคนมักเผาทิ้งเพราะ "ไม่รู้จะเอาไปไหน" ไม่ใช่เพราะไม่มีประโยชน์
+    // ส่วนนี้จึงเรียงให้เห็นว่าที่เผาไปนั้นเสียอะไรบ้าง แล้วชี้ทางที่เอาไปใช้ได้จริง
+    deep: {
+      title: "เผาแกลบทิ้ง เสียอะไรบ้าง",
+      sub: "แกลบเป็นของที่ขายได้ ไม่ใช่ขยะที่ต้องกำจัด",
+      intro: "แกลบกองเร็วกว่าของเหลืออย่างอื่นเพราะออกมาพร้อมกันทีเดียวตอนสี " +
+             "คนส่วนใหญ่จึงเผาทิ้งเพราะไม่รู้จะเอาไปไหน ไม่ใช่เพราะมันไม่มีประโยชน์ " +
+             "แต่แกลบเป็นของเหลือชิ้นที่มีปลายทางให้ไปมากที่สุดในบรรดาของเหลือจากนาทั้งหมด",
+      howLabel: "ห้าอย่างที่เสียไปกับกองไฟ",
+      how: [
+        "สิ่งแวดล้อม · เกิดควันและฝุ่นละออง เพิ่มมลพิษทางอากาศ กระทบชุมชนรอบข้างและสิ่งแวดล้อมโดยรวม",
+        "ทรัพยากร · แกลบเป็นวัสดุเหลือใช้ที่นำไปใช้ประโยชน์ได้ การเผาทำให้เสียโอกาสในการนำไปเพิ่มมูลค่า",
+        "ผลต่อดิน · เสียอินทรียวัตถุและธาตุอาหารบางส่วนไป และไม่เหลือแกลบให้เอากลับมาปรับปรุงดินได้โดยตรง",
+        "ประโยชน์ที่หายไป · ใช้ปรับปรุงดิน เป็นวัสดุเพาะปลูกหรือเพาะเห็ด เป็นเชื้อเพลิงและผลิตพลังงาน หรือแปรรูปเป็นผลิตภัณฑ์ได้",
+        "เศรษฐกิจ · เสียโอกาสสร้างรายได้ ทั้งที่ถ้าเอาไปแปรรูปจะเพิ่มมูลค่าให้ของเหลือใช้ได้จริง"
+      ],
+      chainLabel: "แทนที่จะเผา",
+      noteLabel: "แล้วเผาแบบไหนถึงจะยังทำได้",
+      chain: ["แกลบจากโรงสี", "แปรรูปหรือใช้ต่อ", "ปรับปรุงดิน · เพาะเห็ด · เชื้อเพลิง", "สร้างรายได้"],
+      note: "การเผาที่ยังทำได้คือการเผาแบบควบคุมอากาศในเตาปิด ซึ่งได้ถ่านแกลบหรือความร้อนไปใช้ต่อ " +
+            "ต่างจากการกองเผากลางแจ้งที่ได้แค่ขี้เถ้ากับควัน\n\n" +
+            "ถ้ายังไม่มีที่ไป ลองถามโรงเพาะเห็ด ฟาร์มปศุสัตว์ หรือร้านวัสดุปลูกในพื้นที่ก่อน " +
+            "หลายแห่งรับซื้อหรือรับไปฟรี ซึ่งยังดีกว่าจ่ายค่าเผาแล้วได้ควันกลับมา"
+    }
   },
   {
     from: "รำข้าว", icon: "manure",
@@ -6277,28 +6476,37 @@ views.byproduct = function (root) {
     // ส่วนนี้จึงยาวกว่ารายการทั่วไป และยุบไว้ก่อนเพื่อไม่ให้บังของอื่นในหน้า
     if (c.deep) {
       var D = c.deep;
+      // ทุกส่วนเป็นตัวเลือก ของเหลือแต่ละอย่างมีเรื่องให้เล่าไม่เหมือนกัน
+      // รำข้าวมีตัวเลขจากการทดลอง ส่วนแกลบเป็นเรื่องผลเสียของการเผา
+      // เขียนตัววาดชุดเดียวที่ข้ามส่วนที่ไม่มีไปเงียบๆ ดีกว่าเขียนตัววาดแยกของใครของมัน
       box.appendChild(fold(null, D.title, D.sub, function (tb) {
-        tb.appendChild(el("p", "", D.intro));
+        if (D.intro) tb.appendChild(el("p", "", D.intro));
 
-        tb.appendChild(el("div", "rx-sect", "ทำยังไง"));
-        tb.appendChild(keyPoints(D.how));
+        if (D.how && D.how.length) {
+          tb.appendChild(el("div", "rx-sect", D.howLabel || "ทำยังไง"));
+          tb.appendChild(keyPoints(D.how));
+        }
 
-        tb.appendChild(el("div", "rx-sect", "ตัวเลขจากการทดลอง"));
-        var cells = el("div", "cellrow");
-        D.numbers.forEach(function (n) { cells.appendChild(readOut(n[0], n[1], n[2])); });
-        tb.appendChild(cells);
+        if (D.numbers && D.numbers.length) {
+          tb.appendChild(el("div", "rx-sect", D.numbersLabel || "ตัวเลขจากการทดลอง"));
+          var cells = el("div", "cellrow");
+          D.numbers.forEach(function (n) { cells.appendChild(readOut(n[0], n[1], n[2])); });
+          tb.appendChild(cells);
+        }
 
         // ห่วงโซ่มูลค่า อ่านจากซ้ายไปขวาว่าของเหลือกลายเป็นเงินได้ยังไง
         // เป็นภาพเดียวที่สรุปทั้งเรื่องได้โดยไม่ต้องอ่านย่อหน้าไหนซ้ำ
-        tb.appendChild(el("div", "rx-sect", "จากของเหลือเป็นมูลค่า"));
-        var chain = el("div", "chain");
-        D.chain.forEach(function (t, i) {
-          if (i) chain.appendChild(el("span", "chain-arrow", "›"));
-          chain.appendChild(el("span", "chain-node" + (i === D.chain.length - 1 ? " last" : ""), t));
-        });
-        tb.appendChild(chain);
+        if (D.chain && D.chain.length) {
+          tb.appendChild(el("div", "rx-sect", D.chainLabel || "จากของเหลือเป็นมูลค่า"));
+          var chain = el("div", "chain");
+          D.chain.forEach(function (t, i) {
+            if (i) chain.appendChild(el("span", "chain-arrow", "›"));
+            chain.appendChild(el("span", "chain-node" + (i === D.chain.length - 1 ? " last" : ""), t));
+          });
+          tb.appendChild(chain);
+        }
 
-        tb.appendChild(more("ตัวเลขนี้เชื่อได้แค่ไหน", D.note));
+        if (D.note) tb.appendChild(more(D.noteLabel || "ตัวเลขนี้เชื่อได้แค่ไหน", D.note));
       }, false));
     }
 
@@ -11554,12 +11762,52 @@ function jumpBar(page) {
     b.onclick = function () {
       var target = document.getElementById("slot-" + vid);
       if (!target) return;
+      // เลื่อนไปที่หัวสาขา ไม่ใช่กล่องเนื้อหา จะได้เห็นเลขและชื่อสาขาด้วย
+      target = (target.closest && target.closest(".mind-branch")) || target;
       try { target.scrollIntoView({ behavior: "smooth", block: "start" }); }
       catch (e) { target.scrollIntoView(true); }
     };
     bar.appendChild(b);
   });
   return bar;
+}
+
+// ── จัดเนื้อหาในสาขาหนึ่งให้เป็นใบของไมด์แมพ ──
+//
+// สองกฎ ใช้ได้กับทุกหน้าโดยไม่ต้องแก้ view ไหนเลย เพราะทุกหน้าเขียนตามแบบเดียวกันอยู่แล้ว
+//   1. หัวข้อคั่น (.bund) เริ่มใบใหม่เสมอ ของที่ตามมาอยู่ในใบเดียวกับหัวข้อนั้น
+//   2. การ์ด (.plot) ใบถัดไปที่ไม่มีหัวข้อคั่นนำหน้า แยกออกเป็นใบของตัวเอง
+//
+// กฎที่สองสำคัญกว่าที่คิด ถ้าไม่มี ส่วนที่วางการ์ดต่อกันหลายใบใต้หัวข้อเดียว
+// จะกลายเป็นใบยักษ์ใบเดียว ซึ่งอ่านแล้วไม่ต่างอะไรกับหน้าเว็บแบบเดิม
+//
+// ย้ายโหนดเดิมเข้าไปในกล่องใบ ไม่ได้ก๊อปปี้ ตัวจับเหตุการณ์และตัวแปรที่อ้างถึงโหนดเหล่านี้
+// จึงยังใช้ได้ทั้งหมด รวมทั้งส่วนที่วาดตัวเองใหม่ทีหลัง เช่นผลตรวจดินหรือยอดต้นทุน
+function growLeaves(slot) {
+  var kids = [].slice.call(slot.children);
+  if (!kids.length) return;
+
+  var frag = document.createDocumentFragment();
+  var leaf = null;
+  var hasCard = false;
+
+  function newLeaf() {
+    leaf = el("div", "mind-leaf");
+    hasCard = false;
+    frag.appendChild(leaf);
+  }
+
+  kids.forEach(function (node) {
+    var cls = node.classList;
+    var isTitle = cls && cls.contains("bund");
+    var isCard  = cls && cls.contains("plot");
+
+    if (!leaf || isTitle || (isCard && hasCard)) newLeaf();
+    if (isCard) hasCard = true;
+    leaf.appendChild(node);
+  });
+
+  slot.appendChild(frag);
 }
 
 async function open(id) {
@@ -11631,10 +11879,49 @@ async function open(id) {
     //
     // สร้างกล่องเรียงตามลำดับก่อน เนื้อหาจึงยังอยู่ถูกที่เสมอ
     // แล้วปล่อยให้แต่ละส่วนเติมของตัวเองเมื่อพร้อม ใครเสร็จก่อนขึ้นก่อน
-    var slots = parts.map(function (vid) {
-      var slot = el("section", "slot");
+    // ── โครงไมด์แมพของทั้งแท็บ ──
+    //
+    // แกนกลางคือชื่อแท็บ แตกออกเป็นสาขาตามส่วนต่างๆ ของแท็บนั้น
+    // แล้วแต่ละสาขาแตกต่อเป็นใบซึ่งคือการ์ดเนื้อหาเดิมทุกใบ
+    //
+    // เนื้อหาข้างในไม่ถูกแตะเลย view ทุกตัวยังวาดลงกล่องของตัวเองเหมือนเดิม
+    // สิ่งที่เพิ่มคือกรอบรอบนอกกับเส้นเชื่อม ช่องกรอกทุกช่องจึงยังพิมพ์ได้ตามปกติ
+    var mind = el("div", "mind");
+
+    var rootNode = el("div", "mind-root");
+    var rootIcon = el("div", "mind-root-ico");
+    if (page.icon) {
+      rootIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<path d="' + page.icon + '"/></svg>';
+    }
+    rootNode.appendChild(rootIcon);
+    var rootText = el("div", "mind-root-text");
+    rootText.appendChild(el("div", "mind-root-kicker", page.kicker || ""));
+    rootText.appendChild(el("div", "mind-root-name", page.label));
+    rootText.appendChild(el("div", "mind-root-foot", parts.length + " เรื่องในแท็บนี้"));
+    rootNode.appendChild(rootText);
+    mind.appendChild(rootNode);
+
+    var tree = el("div", "mind-tree");
+    mind.appendChild(tree);
+    root.appendChild(mind);
+
+    var slots = parts.map(function (vid, i) {
+      var branch = el("section", "mind-branch");
+      branch.dataset.hue = String(i % 5);
+
+      var head = el("div", "mind-branch-head");
+      head.appendChild(el("span", "mind-no", String(i + 1)));
+      head.appendChild(el("span", "mind-branch-name",
+        (page.jump && page.jump[i]) || (parts.length === 1 ? page.label : vid)));
+      branch.appendChild(head);
+
+      var slot = el("section", "slot mind-leaves");
       slot.id = "slot-" + vid;
-      root.appendChild(slot);
+      branch.appendChild(slot);
+
+      tree.appendChild(branch);
       return slot;
     });
 
@@ -11651,6 +11938,9 @@ async function open(id) {
           slot.appendChild(stateBlock("!", "ส่วนนี้เปิดไม่ได้", e.message));
         });
     }));
+
+    // จัดของในแต่ละสาขาให้เป็นใบ ต้องทำหลังทุก view วาดเสร็จแล้ว
+    slots.forEach(growLeaves);
   } catch (err) {
     root.innerHTML = "";
     root.appendChild(stateBlock("!", "เปิดหน้านี้ไม่ได้", err.message + " — ลองรีเฟรชหน้าอีกครั้ง"));
