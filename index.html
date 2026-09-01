@@ -2315,6 +2315,94 @@
   /* เลื่อนไปหาสาขาแล้วต้องไม่ถูกแถบหัวเว็บบัง */
   .mind-branch { scroll-margin-top: 96px; }
   .slot:target { scroll-margin-top: 96px; }
+
+  /* ══════════════════════════════════════════════════════════
+     ไมด์แมพ · กดสาขาแล้วค่อยกางเนื้อหา
+     ══════════════════════════════════════════════════════════
+
+     ค่าตั้งต้นคือย่อไว้ทุกสาขา เปิดแท็บมาจะเห็นแค่แกนกลางกับหัวสาขาไม่กี่บรรทัด
+     ซึ่งเป็นภาพรวมของทั้งแท็บที่กวาดตาจบในครั้งเดียว
+     แล้วค่อยกดเปิดเฉพาะเรื่องที่จะทำ ไม่ต้องเลื่อนผ่านของที่ยังไม่ถึงเวลา */
+
+  .mind-branch-head {
+    border: 0; cursor: pointer; font-family: var(--f-body);
+    text-align: left; width: auto; max-width: 100%;
+    transition: box-shadow .16s ease, transform .14s ease;
+  }
+  .mind-branch-head:hover { box-shadow: inset 0 0 0 1.5px var(--bc); transform: translateX(2px); }
+  .mind-branch-head:active { transform: translateX(0) scale(.99); }
+
+  /* คำใบ้ว่ากดได้ หายไปตอนกางแล้วเพราะตอนนั้นเห็นเนื้อหาอยู่ ไม่ต้องบอกซ้ำ */
+  .mind-hint {
+    font-size: .76rem; color: var(--bd); opacity: .7; white-space: nowrap;
+    padding-left: 2px;
+  }
+  .mind-branch.open .mind-hint { display: none; }
+
+  /* ลูกศรหมุนบอกสถานะ ชัดกว่าเครื่องหมายบวกลบ และเป็นตัวเดียวกับที่ใช้ในรายการพับ */
+  .mind-chev {
+    flex: none; width: 8px; height: 8px; margin-left: 2px;
+    border-right: 2px solid var(--bd); border-bottom: 2px solid var(--bd);
+    transform: rotate(45deg); transition: transform .2s ease;
+  }
+  .mind-branch.open .mind-chev { transform: rotate(-135deg); }
+
+  /* สาขาที่ย่ออยู่ไม่ต้องเว้นที่ด้านล่างมาก จะได้เห็นภาพรวมทั้งแท็บในจอเดียว */
+  .mind-branch { padding-bottom: 12px; }
+  .mind-branch.open { padding-bottom: 26px; }
+  .mind-branch:last-child { padding-bottom: 0; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .mind-branch.open > .mind-leaves { animation: foldIn .24s cubic-bezier(.22,.85,.3,1); }
+  }
+
+  /* ปุ่มกางทั้งแท็บ อยู่ที่การ์ดแกนกลาง */
+  .mind-all {
+    margin-left: auto; flex: none; align-self: center;
+    border: 0; cursor: pointer; font-family: var(--f-body); font-size: .8rem; font-weight: 500;
+    padding: 8px 15px; border-radius: 999px;
+    background: #FFFFFF; color: var(--paddy); box-shadow: inset 0 0 0 1px var(--rule);
+    transition: box-shadow .16s ease, background .16s ease;
+  }
+  .mind-all:hover { box-shadow: inset 0 0 0 1px var(--blade); background: var(--tint-ok); }
+  @media (min-width: 1040px) {
+    .mind-all { margin-left: 0; align-self: stretch; margin-top: 14px; }
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     น้องข้าวพูด
+     ══════════════════════════════════════════════════════════
+     ประโยคขึ้นต้นด้วย "ถ้า..." ตอบคำถามว่าเรื่องนี้เกี่ยวอะไรกับคนอ่าน
+     ให้ตัวการ์ตูนเป็นคนพูด คำเตือนจึงไม่กลายเป็นคำสั่งจากระบบที่อ่านแล้วเหมือนถูกดุ */
+  .bsay { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; }
+  .bsay-face { width: 56px; flex: 0 0 56px; }
+  .bsay-bubble {
+    position: relative; flex: 1; min-width: 0;
+    padding: 13px 17px; border-radius: 16px;
+    background: var(--bs-bg); box-shadow: inset 0 0 0 1px var(--bs-line);
+  }
+  /* หางของกรอบคำพูด ชี้ไปที่ตัวการ์ตูน ทำด้วยสามเหลี่ยมจากขอบ ไม่ใช่กล่องหมุน
+     เพราะกล่องหมุนจะลากเส้นขอบติดมาทุกด้านจนเห็นเส้นซ้อนกลางฟองคำพูด */
+  .bsay-bubble::before {
+    content: ""; position: absolute; left: -9px; top: 19px;
+    border: 7px solid transparent; border-left: 0; border-right-color: var(--bs-bg);
+  }
+  .bsay-lead {
+    font-family: var(--f-display); font-weight: 500; font-size: .96rem;
+    color: var(--bs-ink); margin-bottom: 3px;
+  }
+  .bsay-text { font-size: .87rem; line-height: 1.7; color: var(--ink); max-width: 62ch; }
+
+  .bsay-ok   { --bs-bg: #E9F6E1; --bs-line: #C4E4B4; --bs-ink: #1D5B34; }
+  .bsay-warn { --bs-bg: #FDF4E0; --bs-line: #EBD7A4; --bs-ink: #7A5410; }
+  .bsay-bad  { --bs-bg: #FBEBE5; --bs-line: #EEC6B8; --bs-ink: #8C2F1C; }
+
+  @media (max-width: 520px) {
+    .bsay { gap: 9px; }
+    .bsay-face { width: 44px; flex: 0 0 44px; }
+    .bsay-lead { font-size: .92rem; }
+    .bsay-text { font-size: .84rem; }
+  }
 </style>
 </head>
 <body>
@@ -4644,6 +4732,24 @@ var BUDDY_FACE = {
   bad:  '<ellipse cx="32" cy="51" rx="4.6" ry="5.4" fill="#0D3B2A"/>'
 };
 
+// ── น้องข้าวพูด ──
+//
+// ตัวเลขกับหัวข้อบอกได้ว่า "อะไรเกิดขึ้น" แต่ไม่ได้บอกว่า "แล้วมันเกี่ยวอะไรกับฉัน"
+// ประโยคที่ขึ้นต้นด้วย "ถ้า..." ตอบคำถามนั้นได้ตรงที่สุด และการให้ตัวการ์ตูนเป็นคนพูด
+// ทำให้ประโยคเตือนไม่กลายเป็นคำสั่งจากระบบ ซึ่งคนอ่านแล้วรู้สึกถูกดุ
+//
+// tone มีสามระดับ ตรงกับสีสถานะที่ใช้ทั้งเว็บ: ok เขียว · warn ทอง · bad แดง
+function buddySay(mood, lead, text, tone) {
+  var box = el("div", "bsay bsay-" + (tone || "ok"));
+  box.appendChild(riceBuddy(mood, "bsay-face"));
+
+  var bub = el("div", "bsay-bubble");
+  bub.appendChild(el("div", "bsay-lead", lead));
+  bub.appendChild(el("div", "bsay-text", text));
+  box.appendChild(bub);
+  return box;
+}
+
 // ── รายการความรู้แบบกวาดตาอ่าน ───────────────────
 //
 // ปัญหาเดิม: เนื้อหาความรู้เป็นย่อหน้ายาวใส่ bullet ซึ่งอ่านเหมือนนิยาย
@@ -6384,6 +6490,14 @@ function recipeTable(t) {
 // ส่วนที่ 1 · ของเหลือจากนา ใช้ต่อได้
 // ═══════════════════════════════════════════════════
 views.byproduct = function (root) {
+  // สองประโยคนี้คือใจความของทั้งแท็บ วางไว้ก่อนทุกอย่างเพราะเป็นเหตุผลว่าทำไมต้องอ่านต่อ
+  root.appendChild(buddySay("bad", "ถ้าเผาทิ้ง",
+    "ควันเข้าบ้านตัวเองก่อนบ้านใคร ดินแข็งขึ้นทุกปี " +
+    "แล้วปีหน้าต้องซื้อปุ๋ยเพิ่มเพื่อให้ได้ข้าวเท่าเดิม", "bad"));
+  root.appendChild(buddySay("hi", "ถ้าเอากลับลงดินหรือขายต่อ",
+    "ธาตุอาหารกลับลงแปลง ดินร่วนขึ้นทุกฤดู ค่าปุ๋ยลดลง " +
+    "และของที่เคยเผาทิ้งกลายเป็นเงินได้จริง", "ok"));
+
   root.appendChild(bund("ของเหลือจากนา ใช้ต่อได้"));
 
   var card = plot(null);
@@ -6580,6 +6694,10 @@ var BURN_HARMS = [
 ];
 
 views.burnharm = function (root) {
+  root.appendChild(buddySay("warn", "ถ้าจุดไฟวันนี้",
+    "ไฟดับใน 20 นาที แต่ฝุ่นอยู่ในอากาศอีกหลายวัน " +
+    "และดินที่เสียไปต้องใช้เวลาเป็นปีกว่าจะฟื้นกลับมาเท่าเดิม", "warn"));
+
   root.appendChild(bund("เผาแล้วเสียอะไรบ้าง"));
 
   var lead = plot(null);
@@ -6662,6 +6780,10 @@ var BURN_LAWS = [
 ];
 
 views.burnlaw = function (root) {
+  root.appendChild(buddySay("warn", "ถ้าเผาโดยไม่เช็คก่อน",
+    "ไม่ใช่แค่เรื่องปรับ ถ้าไฟลามไปแปลงข้างเคียงต้องรับผิดชอบค่าเสียหายเอง " +
+    "และบางปีการเผายังผูกกับสิทธิ์รับความช่วยเหลือของเกษตรกรด้วย", "warn"));
+
   root.appendChild(bund("กฎหมายเรื่องการเผา"));
 
   var intro = plot(null);
@@ -6717,6 +6839,10 @@ var SDG_LINKS = [
 ];
 
 views.sdg = function (root) {
+  root.appendChild(buddySay("ok", "ถ้าทำต่อไปเรื่อยๆ",
+    "สิ่งที่ทำในแปลงเล็กๆ ของเราไปตรงกับเป้าหมายที่ทั้งโลกตั้งไว้ห้าข้อ " +
+    "เอาไปใช้ตอนเขียนรายงานหรือขอทุนได้เลย", "ok"));
+
   root.appendChild(bund("ตรงกับเป้าหมาย SDG ข้อไหน"));
 
   var card = plot(null, "เป้าหมายการพัฒนาที่ยั่งยืนขององค์การสหประชาชาติ 17 ข้อ · งานในแปลงเกี่ยวกับ 5 ข้อนี้");
@@ -11760,16 +11886,55 @@ function jumpBar(page) {
   page.parts.forEach(function (vid, i) {
     var b = el("button", "jump-b", page.jump[i] || vid);
     b.onclick = function () {
-      var target = document.getElementById("slot-" + vid);
+      // กางสาขานั้นก่อน ไม่งั้นกดแล้วเลื่อนไปเจอหัวข้อที่ยังปิดอยู่ ซึ่งดูเหมือนปุ่มเสีย
+      var target = revealPart(vid);
       if (!target) return;
-      // เลื่อนไปที่หัวสาขา ไม่ใช่กล่องเนื้อหา จะได้เห็นเลขและชื่อสาขาด้วย
-      target = (target.closest && target.closest(".mind-branch")) || target;
       try { target.scrollIntoView({ behavior: "smooth", block: "start" }); }
       catch (e) { target.scrollIntoView(true); }
     };
     bar.appendChild(b);
   });
   return bar;
+}
+
+// ── สาขาไหนถูกเปิดไว้บ้าง ──
+//
+// จำระหว่างที่เปิดเว็บอยู่เท่านั้น ไม่เก็บลงเครื่อง
+// เพราะสิ่งที่อยากดูวันนี้กับพรุ่งนี้ไม่ใช่เรื่องเดียวกัน การจำข้ามวันจะกลายเป็นรก
+var MIND_OPEN = {};
+
+// ตัวต่อให้ setBranchOpen บอกปุ่ม "กางทั้งหมด" ของหน้าปัจจุบันได้ว่าสถานะเปลี่ยนแล้ว
+// ใช้ตัวแปรตัวเดียวเพราะมีปุ่มนี้ได้แค่ปุ่มเดียวต่อหนึ่งหน้าเสมอ
+var mindPaintAll = null;
+
+function setBranchOpen(branch, on) {
+  var slot = branch.querySelector(".mind-leaves");
+  var head = branch.querySelector(".mind-branch-head");
+  if (!slot || !head) return;
+
+  slot.hidden = !on;
+  branch.classList.toggle("open", on);
+  head.setAttribute("aria-expanded", on ? "true" : "false");
+  if (branch.dataset.key) MIND_OPEN[branch.dataset.key] = on;
+
+  // กราฟที่วาดไว้ตอนถูกย่ออยู่ต้องคำนวณขนาดใหม่ตอนกางออกมา
+  // Chart.js ฟังเหตุการณ์ resize อยู่แล้ว จึงส่งสัญญาณนี้แทนการไล่สั่งทีละกราฟ
+  if (on) { try { window.dispatchEvent(new Event("resize")); } catch (e) { /* ข้ามไป */ } }
+  if (mindPaintAll) { try { mindPaintAll(); } catch (e) { /* ปุ่มหลุดหน้าไปแล้ว */ } }
+}
+
+function toggleBranch(branch) {
+  var slot = branch.querySelector(".mind-leaves");
+  setBranchOpen(branch, slot ? slot.hidden : true);
+}
+
+// เปิดสาขาที่มีส่วนนี้อยู่ ใช้ตอนกดปุ่มกระโดดหรือตอนโค้ดอื่นสั่งพาไปหา
+function revealPart(vid) {
+  var slot = document.getElementById("slot-" + vid);
+  if (!slot) return null;
+  var branch = slot.closest && slot.closest(".mind-branch");
+  if (branch) setBranchOpen(branch, true);
+  return branch || slot;
 }
 
 // ── จัดเนื้อหาในสาขาหนึ่งให้เป็นใบของไมด์แมพ ──
@@ -11901,6 +12066,29 @@ async function open(id) {
     rootText.appendChild(el("div", "mind-root-name", page.label));
     rootText.appendChild(el("div", "mind-root-foot", parts.length + " เรื่องในแท็บนี้"));
     rootNode.appendChild(rootText);
+
+    // ── ปุ่มกางทั้งแท็บ ──
+    // คนที่รู้อยู่แล้วว่าจะอ่านทั้งหมดจะได้ไม่ต้องกดทีละสาขา
+    // ส่วนคนที่เพิ่งเข้ามายังเจอหน้าที่ย่อไว้เหมือนเดิม ซึ่งเป็นค่าตั้งต้นที่ไม่รก
+    var allBtn = el("button", "mind-all");
+    rootNode.appendChild(allBtn);
+    function paintAllBtn() {
+      var branches = [].slice.call(tree.children);
+      var anyClosed = branches.some(function (b) {
+        var sl = b.querySelector(".mind-leaves");
+        return sl && sl.hidden;
+      });
+      allBtn.textContent = anyClosed ? "กางทั้งหมด" : "ย่อทั้งหมด";
+      allBtn.dataset.act = anyClosed ? "open" : "close";
+    }
+    allBtn.onclick = function () {
+      var on = (allBtn.dataset.act === "open");
+      [].forEach.call(tree.children, function (b) { setBranchOpen(b, on); });
+      paintAllBtn();
+    };
+    // ปุ่มต้องเปลี่ยนคำเมื่อผู้ใช้กดเปิดปิดสาขาเองด้วย ไม่ใช่เปลี่ยนเฉพาะตอนกดปุ่มนี้
+    mindPaintAll = paintAllBtn;
+
     mind.appendChild(rootNode);
 
     var tree = el("div", "mind-tree");
@@ -11911,15 +12099,20 @@ async function open(id) {
       var branch = el("section", "mind-branch");
       branch.dataset.hue = String(i % 5);
 
-      var head = el("div", "mind-branch-head");
+      var head = el("button", "mind-branch-head");
       head.appendChild(el("span", "mind-no", String(i + 1)));
       head.appendChild(el("span", "mind-branch-name",
         (page.jump && page.jump[i]) || (parts.length === 1 ? page.label : vid)));
+      head.appendChild(el("span", "mind-hint", "แตะดู"));
+      head.appendChild(el("span", "mind-chev"));
       branch.appendChild(head);
 
       var slot = el("section", "slot mind-leaves");
       slot.id = "slot-" + vid;
       branch.appendChild(slot);
+
+      branch.dataset.key = page.id + ":" + vid;
+      head.onclick = function () { toggleBranch(branch); };
 
       tree.appendChild(branch);
       return slot;
@@ -11941,6 +12134,26 @@ async function open(id) {
 
     // จัดของในแต่ละสาขาให้เป็นใบ ต้องทำหลังทุก view วาดเสร็จแล้ว
     slots.forEach(growLeaves);
+
+    // บอกจำนวนใบไว้ที่หัวสาขา เพื่อให้ภาพรวมตอนย่ออยู่ยังมีข้อมูล
+    // ไม่ใช่มีแต่ชื่อสาขาเปล่าๆ ที่ไม่บอกว่าข้างในมีของมากน้อยแค่ไหน
+    [].forEach.call(tree.children, function (branch) {
+      var n = branch.querySelectorAll(":scope > .mind-leaves > .mind-leaf").length;
+      var hint = branch.querySelector(".mind-hint");
+      if (hint) hint.textContent = n ? "แตะดู · " + n + " เรื่อง" : "แตะดู";
+    });
+
+    // ── ย่อทุกสาขาหลังวาดเสร็จ ──
+    //
+    // ต้องย่อ "หลัง" วาด ไม่ใช่ซ่อนไว้ตั้งแต่แรก
+    // เพราะกราฟกับรูปที่คำนวณขนาดจากพื้นที่จริงจะได้ขนาดศูนย์ถ้าวาดตอนถูกซ่อนอยู่
+    // วาดตอนเห็นก่อนแล้วค่อยย่อ ทุกอย่างจึงได้ขนาดที่ถูกต้องไว้แล้ว
+    //
+    // สาขาที่ผู้ใช้เคยเปิดไว้ในแท็บนี้จะเปิดค้างให้ ไม่ต้องกดซ้ำทุกครั้งที่สลับแท็บไปมา
+    [].forEach.call(tree.children, function (branch) {
+      setBranchOpen(branch, MIND_OPEN[branch.dataset.key] === true);
+    });
+    paintAllBtn();
   } catch (err) {
     root.innerHTML = "";
     root.appendChild(stateBlock("!", "เปิดหน้านี้ไม่ได้", err.message + " — ลองรีเฟรชหน้าอีกครั้ง"));
