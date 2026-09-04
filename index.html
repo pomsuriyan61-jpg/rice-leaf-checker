@@ -7080,6 +7080,9 @@ views.method = function (root) {
       b.onclick = function () {
         setFieldMethod(m.key);
         paint();
+        // ส่วนสภาพอากาศอยู่หน้าเดียวกัน อ่านวิธีทำนาตอนวาดหน้าครั้งแรกเท่านั้น
+        // (เหมือนบั๊กเดียวกับตอนบันทึกพันธุ์ข้าว) ต้องวาดทั้งหน้าใหม่ให้ตรงกัน
+        setTimeout(function () { open(here); }, 250);
       };
       chips.appendChild(b);
     });
@@ -7218,7 +7221,12 @@ views.season = function (root) {
     setFieldSowDate(dIn.value || null);
     paintCal();
     save.textContent = "บันทึกแล้ว";
-    setTimeout(function () { save.textContent = "บันทึก"; }, 1500);
+    save.disabled = true;
+    // ส่วนสภาพอากาศอยู่หน้าเดียวกัน (คนละสาขาในไมด์แมพ) แต่คำนวณคำแนะนำจาก
+    // พันธุ์+วันหว่านแค่ตอนวาดหน้าครั้งแรกเท่านั้น กด "บันทึก" ตรงนี้แล้วไม่วาดหน้าใหม่
+    // ส่วนสภาพอากาศจะยังค้างข้อความ "ยังวิเคราะห์ให้ไม่ได้" ทั้งที่บันทึกข้อมูลไปแล้วจริง
+    // จึงต้องวาดทั้งหน้าใหม่ ให้ทุกสาขาที่อ่านค่านี้เห็นข้อมูลล่าสุดพร้อมกัน
+    setTimeout(function () { open(here); }, 700);
   };
   kSel.onchange = paintCal;
   dIn.onchange = paintCal;
