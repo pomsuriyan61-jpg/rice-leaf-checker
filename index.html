@@ -2403,6 +2403,80 @@
     .bsay-lead { font-size: .92rem; }
     .bsay-text { font-size: .84rem; }
   }
+
+  /* ═══════════════════════════════════════════════════════════════
+     ปรับหน้าตาทั้งแอปให้ดูเป็นทางการแบบเว็บหน่วยงานราชการ
+     อ้างอิงพื้นผิวจาก rkb.ricethailand.go.th (องค์ความรู้เรื่องข้าว กรมการข้าว)
+     — หัวหมวดตัวหนา+เส้นคาดทอง, การ์ดหัวข้อเป็นไอคอนจัดกริด, การ์ดมีแถบสีบนขอบ
+
+     เขียนทับท้าย <style> ทั้งไฟล์ตั้งใจ ไม่ไปไล่แก้กฎเดิมที่ซ้อนทับกันหลายชั้น
+     ด้านบน (jump-b / gate / rail-item ถูกนิยามซ้ำหลายรอบตามประวัติการแก้ไข)
+     เพราะกฎที่มา "หลังสุด" ใน source ชนะกฎ specificity เท่ากันเสมอ
+     จุดเดียวจบ ปลอดภัยกว่าไล่แก้ทีละจุดที่กระจายอยู่ทั้งไฟล์
+     ไม่มีจุดไหนแตะ JS/โครง DOM เดิม ยกเว้น jumpBar() ที่เปลี่ยนแค่หน้าตาปุ่ม
+     ═══════════════════════════════════════════════════════════════ */
+  :root { --gov-gold: #C9A227; }
+
+  /* โลโก้แถบเมนูซ้าย: เติมตราไอคอนเหลี่ยมมน + เส้นทองคาดใต้ ให้ดูเป็นหน่วยงาน */
+  .mark { display: flex; align-items: center; gap: 12px; border-bottom: 3px solid var(--gov-gold); padding-bottom: 16px; }
+  .mark::before {
+    content: ""; width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px;
+    background: linear-gradient(155deg, var(--sprout), var(--deep));
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.25);
+  }
+  .mark-sub { padding-left: 0; margin-top: 3px; }
+
+  /* หัวหมวด (คันนา): จากเส้นประยาวมาเป็นตัวหนาขีดเส้นทองใต้คำ แบบหัวข้อเว็บราชการ */
+  .bund { align-items: flex-end; }
+  .bund-label {
+    font-size: .92rem; letter-spacing: 0; text-transform: none; font-weight: 700;
+    font-family: var(--f-display); color: var(--deep);
+    padding-bottom: 6px; border-bottom: 3px solid var(--gov-gold);
+  }
+  .bund-line { background: var(--rule); height: 1px; margin-bottom: 9px; }
+
+  /* การ์ดเนื้อหา: แถบสีบนขอบบนบางๆ ให้ดูเป็นเอกสารทางการมากขึ้น */
+  .plot { border-top: 3px solid var(--leaf-pale); }
+
+  /* หัวข้อที่กำลังเลือกอยู่ในเมนูซ้าย: ขีดซ้ายเป็นสีทองแทนเขียวอ่อน ให้เด่นแบบราชการ */
+  .rail-item.on { border-left-color: var(--gov-gold); }
+
+  /* หน้าล็อกอิน: เส้นทองคาดใต้หัวเรื่อง ให้ดูเหมือนพอร์ทัลราชการ */
+  .gate-head { border-bottom: 3px solid var(--gov-gold); padding-bottom: 14px; }
+
+  /* ── กริดหมวดหมู่ไอคอน แบบเว็บ รบข. ──
+     แทนที่แถบชิปตัวหนังสือล้วนของ "จุดกระโดดในหน้า" (jumpBar) ทุกแท็บ
+     พฤติกรรมเดิมทั้งหมด (กดแล้วเลื่อนไปหาหัวข้อ) ไม่เปลี่ยน แค่หน้าตา */
+  .jump.cat-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(112px,1fr)); gap: 10px;
+  }
+  .jump-b.cat-card {
+    display: flex; flex-direction: column; align-items: center; text-align: center; gap: 7px;
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 12px;
+    padding: 14px 8px 12px; min-height: 0; height: auto;
+  }
+  .jump-b.cat-card:hover {
+    border-color: var(--blade); background: var(--paper); box-shadow: var(--lift); transform: translateY(-2px);
+  }
+  .cat-card-ico {
+    width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--canopy); color: var(--deep);
+  }
+  .cat-card-ico svg { width: 20px; height: 20px; }
+  .cat-card-label { font-size: .78rem; font-weight: 600; color: var(--ink); line-height: 1.3; }
+
+  /* ── กริดหมวดหมู่ทั่วไป ──
+     คลาสสำรองไว้ใช้กับหน้าเนื้อหาอื่นๆ (เช่น รายการหัวข้อในแท็บเกร็ดความรู้)
+     ในสเตจถัดไป โดยไม่ต้องเพิ่ม CSS ใหม่อีกชุด ใช้ร่วมกับ .cat-card ได้ทันที */
+  .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px,1fr)); gap: 14px; }
+  .cat-card { cursor: pointer; transition: box-shadow .15s, transform .15s, border-color .15s; }
+
+  @media (max-width: 560px) {
+    .jump.cat-grid, .cat-grid { grid-template-columns: repeat(auto-fill, minmax(92px,1fr)); gap: 8px; }
+    .jump-b.cat-card, .cat-grid .cat-card { padding: 11px 6px 9px; }
+    .cat-card-ico { width: 34px; height: 34px; }
+  }
 </style>
 </head>
 <body>
@@ -11877,14 +11951,51 @@ function replay(node, cls) {
   node.classList.add(cls);
 }
 
+// ไอคอนประจำหัวข้อย่อยในแถบกระโดด — ให้กริดนี้เป็นไอคอนหมวดหมู่แบบเว็บ รบข.
+// (rkb.ricethailand.go.th) แทนที่จะเป็นชิปตัวหนังสือล้วน คนกวาดตาหาหัวข้อได้เร็วกว่า
+// ใช้ path เดียวกับที่ยืมจากไอคอนแท็บหลักบางอัน เพื่อไม่ต้องคุมชุดไอคอนแยกสองชุด
+var PART_ICONS = {
+  plots:     "M12 21s7-6.5 7-11a7 7 0 10-14 0c0 4.5 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z",
+  season:    "M12 3c4 2 7 6 7 11a7 7 0 01-14 0c0-5 3-9 7-11z",
+  method:    "M12 3c4 2 7 6 7 11a7 7 0 01-14 0c0-5 3-9 7-11z",
+  weather:   "M6 18a4 4 0 010-8 5 5 0 019.6-1.5A4.5 4.5 0 0118 18H6z",
+  soiltype:  "M12 4l8 4-8 4-8-4 8-4zM4 12l8 4 8-4M4 16l8 4 8-4",
+  phlog:     "M12 2c4 5 7 9 7 13a7 7 0 11-14 0c0-4 3-8 7-13z",
+  prepguide: "M6 4h9l3 3v13H6zM9 9h6M9 13h6M9 17h4",
+  prepcost:  "M12 3a9 9 0 100 18 9 9 0 000-18zM9 15h4a2 2 0 000-4h-2a2 2 0 010-4h4",
+  phgrow:    "M12 2c4 5 7 9 7 13a7 7 0 11-14 0c0-4 3-8 7-13z",
+  diagnose:  "M4 7h3l2-2h6l2 2h3v12H4zm8 3a4 4 0 100 8 4 4 0 000-8z",
+  fert:      "M12 3c4 2 7 6 7 11a7 7 0 01-14 0c0-5 3-9 7-11zM12 12v5M9.5 14.5h5",
+  harvest:   "M4 19c6-1 10-5 16-14M8 19h11M6 15c3-1 6-3 9-7",
+  yield:     "M4 20V10m6 10V4m6 16v-7m6 7V13",
+  costsum:   "M6 3h12v18l-3-2-3 2-3-2-3 2V3zM9 8h6M9 12h6M9 16h4",
+  profit:    "M4 17l5-5 4 4 7-8M14 7h6v6",
+  byproduct: "M4 12a8 8 0 0114-5M20 12a8 8 0 01-14 5M15 4l3 2-2 3M9 20l-3-2 2-3",
+  burnharm:  "M12 2c1 4-3 5-3 9a3 3 0 006 0c0-1-1-2-1-3 2 1 3 3 3 5a5 5 0 01-10 0c0-5 3-7 5-11z",
+  burnlaw:   "M12 3v18M5 7l3-2 3 2-3 6-3-6zM16 7l3-2 3 2-3 6-3-6zM6 21h12",
+  sdg:       "M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3a14 14 0 010 18 14 14 0 010-18",
+  ask:       "M9.1 9a3 3 0 015.8 1c0 2-3 2.5-3 4.5M12 18h.01M12 21a9 9 0 110-18 9 9 0 010 18z"
+};
+
 // แถบกระโดดไปแต่ละส่วนของแท็บ
 //
 // ไม่ใช่แท็บย่อย เพราะเนื้อหาทุกส่วนถูกวาดไว้ครบแล้วตั้งแต่แรก แค่เลื่อนไปหา
 // คนที่เลื่อนอ่านเรื่อยๆ จะไม่เจออะไรหายไป ส่วนคนที่รู้ว่าจะไปไหนก็กดข้ามได้เลย
+//
+// หน้าตาเป็นกริดไอคอน+ป้ายชื่อ (ดู .cat-grid/.cat-card ใน <style>) ตามแบบเว็บ
+// องค์ความรู้เรื่องข้าว กรมการข้าว ส่วนพฤติกรรมกดแล้วเลื่อนไปหาหัวข้อยังเหมือนเดิมทุกอย่าง
 function jumpBar(page) {
-  var bar = el("div", "jump");
+  var bar = el("div", "jump cat-grid");
   page.parts.forEach(function (vid, i) {
-    var b = el("button", "jump-b", page.jump[i] || vid);
+    var b = el("button", "jump-b cat-card");
+    var path = PART_ICONS[vid];
+    if (path) {
+      var ico = el("div", "cat-card-ico");
+      ico.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + path + '"/></svg>';
+      b.appendChild(ico);
+    }
+    b.appendChild(el("span", "cat-card-label", page.jump[i] || vid));
     b.onclick = function () {
       // กางสาขานั้นก่อน ไม่งั้นกดแล้วเลื่อนไปเจอหัวข้อที่ยังปิดอยู่ ซึ่งดูเหมือนปุ่มเสีย
       var target = revealPart(vid);
